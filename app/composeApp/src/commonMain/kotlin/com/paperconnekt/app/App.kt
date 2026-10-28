@@ -8,12 +8,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.paperconnekt.domain.navigation.AppDestination
+import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.InMemoryResearchStore
 
 @Composable
-fun PaperConnektApp() {
+fun PaperConnektApp(secretStore: SecretStore) {
     val store = rememberResearchStore()
-    val secretStore = androidx.compose.runtime.remember { createSecretStore() }
     val settings by store.settings.collectAsState()
     val startDestination = if (settings.onboardingCompleted) {
         AppDestination.DASHBOARD

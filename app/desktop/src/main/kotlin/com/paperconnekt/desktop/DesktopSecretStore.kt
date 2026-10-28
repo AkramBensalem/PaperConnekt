@@ -1,14 +1,10 @@
-package com.paperconnekt.app
+package com.paperconnekt.desktop
 
 import com.paperconnekt.secrets.SecretKey
 import com.paperconnekt.secrets.SecretStore
 import java.util.prefs.Preferences
 
-actual fun configureSecretStore(platformContext: Any?) = Unit
-
-actual fun createSecretStore(): SecretStore = DesktopSecretStore()
-
-private class DesktopSecretStore : SecretStore {
+class DesktopSecretStore : SecretStore {
     private val preferences = Preferences.userRoot().node("com.paperconnekt.secrets")
 
     override suspend fun read(key: SecretKey): String? {
@@ -25,4 +21,3 @@ private class DesktopSecretStore : SecretStore {
         preferences.flush()
     }
 }
-

@@ -29,6 +29,10 @@
 
 - Keep product models and contracts in the shared KMP modules.
 - Keep the application UI in `app/composeApp`.
+- Keep platform launchers and native integrations in separate modules:
+  `app/android`, `app/desktop`, and a future `app/web`.
+- Do not place platform entrypoints, manifests, or platform secret storage in
+  `app/composeApp`; that module is shared Compose UI and application flow.
 - Keep plugin-only shared behavior in
   `plugin/native-plugins/common`.
 - Keep IntelliJ IDEA and VS Code integrations as thin native adapters.
