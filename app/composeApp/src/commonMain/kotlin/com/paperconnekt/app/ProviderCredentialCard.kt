@@ -6,12 +6,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -23,14 +23,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.lock
+import com.paperconnekt.app.resources.visibility
+import com.paperconnekt.app.resources.visibility_off
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 internal fun ProviderCredentialCard(
@@ -107,7 +109,12 @@ internal fun ProviderCredentialCard(
                             }
                         },
                     ) {
-                        Text(if (revealed) "Hide" else "Show")
+                        Icon(
+                            painter = painterResource(
+                                if (revealed) Res.drawable.visibility_off else Res.drawable.visibility,
+                            ),
+                            contentDescription = null,
+                        )
                     }
                 },
             )
@@ -137,27 +144,11 @@ internal fun ProviderCredentialCard(
 
 @Composable
 private fun CredentialIcon(contentDescription: String) {
-    val color = MaterialTheme.colorScheme.primary
-    Canvas(
+    Icon(
+        painter = painterResource(Res.drawable.lock),
+        contentDescription = contentDescription,
+        tint = MaterialTheme.colorScheme.primary,
         modifier = Modifier
-            .semantics { this.contentDescription = contentDescription }
             .size(24.dp),
-    ) {
-        val stroke = Stroke(width = 1.8.dp.toPx())
-        drawCircle(color, center = Offset(7.dp.toPx(), size.height / 2), radius = 4.dp.toPx(), style = stroke)
-        drawLine(
-            color,
-            start = Offset(10.dp.toPx(), size.height / 2),
-            end = Offset(21.dp.toPx(), size.height / 2),
-            strokeWidth = stroke.width,
-            cap = StrokeCap.Round,
-        )
-        drawLine(
-            color,
-            start = Offset(17.dp.toPx(), size.height / 2),
-            end = Offset(17.dp.toPx(), size.height / 2 + 4.dp.toPx()),
-            strokeWidth = stroke.width,
-            cap = StrokeCap.Round,
-        )
-    }
+    )
 }

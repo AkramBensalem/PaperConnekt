@@ -459,27 +459,6 @@ fun SettingsScreen(
                     }
                 }
             }
-            item {
-                SettingsSection(title = "About and privacy") {
-                    SettingsCard {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("PaperConnekt contest edition", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "A local-first research workspace for collecting papers, exploring connections, and drafting assistant conversations.",
-                            )
-                            Text(
-                                "No sign-in, Supabase project, mandatory backend, or remote synchronization is required. Provider keys and workspace settings remain under your device's storage boundaries.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                "Contest build · shared KMP contracts · optional integrations",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -499,11 +478,6 @@ private fun SettingsHeader(
         Text(
             "Tune $workspaceName without leaving your local workspace.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            "$configuredProviders provider${if (configuredProviders == 1) "" else "s"} configured · no account required",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
         )
     }
 }

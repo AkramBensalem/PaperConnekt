@@ -19,11 +19,18 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
             implementation(libs.compose.material3)
+            implementation(libs.compose.resources)
             implementation(libs.ktor.client.core)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.datetime)
         }
     }
+
+}
+
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "com.paperconnekt.app.resources"
 }
 
 android {

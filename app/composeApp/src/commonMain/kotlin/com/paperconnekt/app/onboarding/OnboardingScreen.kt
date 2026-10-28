@@ -99,7 +99,6 @@ fun OnboardingScreen(
 private fun WelcomeStep() {
     Text("Welcome to PaperConnekt")
     Text("A private, local-first workspace for discovering papers, building graphs, and thinking with AI.")
-    Text("No account is required. You can add optional integrations later from Settings.")
 }
 
 @Composable

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -30,7 +31,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.arrow_back
 import com.paperconnekt.domain.model.Paper
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +66,12 @@ fun PdfWorkspaceScreen(
                 }
             },
             navigationIcon = {
-                IconButton(onClick = onBack) { Text("‹", style = MaterialTheme.typography.headlineMedium) }
+                IconButton(onClick = onBack) {
+                    Icon(
+                        painter = painterResource(Res.drawable.arrow_back),
+                        contentDescription = "Back",
+                    )
+                }
             },
             actions = {
                 FilterChip(
