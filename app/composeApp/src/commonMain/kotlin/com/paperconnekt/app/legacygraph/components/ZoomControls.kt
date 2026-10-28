@@ -9,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.add
+import com.paperconnekt.app.resources.remove
 import org.jetbrains.compose.resources.painterResource
 
 @Composable

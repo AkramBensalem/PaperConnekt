@@ -12,6 +12,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.arrow_back_material
+import com.paperconnekt.app.resources.arrow_downward
+import com.paperconnekt.app.resources.arrow_forward
+import com.paperconnekt.app.resources.arrow_upward
 import org.jetbrains.compose.resources.painterResource
 
 @Composable

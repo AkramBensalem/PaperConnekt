@@ -71,6 +71,10 @@ fun GraphWorkspace(
     var connectionToRemove by remember { mutableStateOf<GraphConnection?>(null) }
     var isExpanding by remember(graph.id) { mutableStateOf(false) }
     var autoExpansionAttempted by remember(graph.id) { mutableStateOf(false) }
+    var showReferences by remember(graph.id) { mutableStateOf(true) }
+    var showCitations by remember(graph.id) { mutableStateOf(true) }
+    var showInterconnections by remember(graph.id) { mutableStateOf(true) }
+    var minimumCitations by remember(graph.id) { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
     val graphProvider = remember { OpenAlexGraphProvider(HttpClient()) }
 
@@ -83,6 +87,18 @@ fun GraphWorkspace(
                 it.authors.any { author -> author.lowercase().contains(query) }
         }
         .let { current -> if (sortByTitle) current.sortedBy { it.title.lowercase() } else current }
+    val seedId = graph.paperIds.firstOrNull()
+    val filteredGraphPapers = graphPapers.filter { paper ->
+        val isSeed = paper.id == seedId
+        val isReference = graph.connections.any { it.fromPaperId == seedId && it.toPaperId == paper.id }
+        val isCitation = graph.connections.any { it.fromPaperId == paper.id && it.toPaperId == seedId }
+        val relationVisible = isSeed ||
+            (showReferences && isReference) ||
+            (showCitations && isCitation) ||
+            (showInterconnections && !isReference && !isCitation)
+        relationVisible && (paper.citationCount ?: 0) >= minimumCitations
+    }
+    val visibleGraphPapers = visiblePapers.filter { paper -> paper.id in filteredGraphPapers.map { it.id } }
 
     val saveUpdated: (ResearchGraph) -> Unit = { updated ->
         onSave(updated.copy(updatedAt = Clock.System.now()))
@@ -183,13 +199,13 @@ fun GraphWorkspace(
                         .fillMaxWidth()
                         .height(360.dp),
                     graph = graph,
-                    papers = graphPapers,
+                    papers = filteredGraphPapers,
                     selectedPaperId = selectedPaperId,
                     onSelectPaper = { selectedPaperId = it },
                 )
                 GraphDetailsPanel(
                     graph = graph,
-                    papers = visiblePapers,
+                    papers = visibleGraphPapers,
                     allPapers = graphPapers,
                     selectedPaper = selectedPaper,
                     paperQuery = paperQuery,
@@ -213,6 +229,14 @@ fun GraphWorkspace(
                     onExpand = expandGraph,
                     isExpanding = isExpanding,
                     onRemoveConnection = { connectionToRemove = it },
+                    showReferences = showReferences,
+                    onToggleReferences = { showReferences = !showReferences },
+                    showCitations = showCitations,
+                    onToggleCitations = { showCitations = !showCitations },
+                    showInterconnections = showInterconnections,
+                    onToggleInterconnections = { showInterconnections = !showInterconnections },
+                    minimumCitations = minimumCitations,
+                    onMinimumCitationsChange = { minimumCitations = it },
                 )
             }
         } else {
@@ -225,14 +249,14 @@ fun GraphWorkspace(
                 LegacyGraphCanvasPanel(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     graph = graph,
-                    papers = graphPapers,
+                    papers = filteredGraphPapers,
                     selectedPaperId = selectedPaperId,
                     onSelectPaper = { selectedPaperId = it },
                 )
                 GraphDetailsPanel(
                     modifier = Modifier.width(320.dp).fillMaxHeight(),
                     graph = graph,
-                    papers = visiblePapers,
+                    papers = visibleGraphPapers,
                     allPapers = graphPapers,
                     selectedPaper = selectedPaper,
                     paperQuery = paperQuery,
@@ -256,6 +280,14 @@ fun GraphWorkspace(
                     onExpand = expandGraph,
                     isExpanding = isExpanding,
                     onRemoveConnection = { connectionToRemove = it },
+                    showReferences = showReferences,
+                    onToggleReferences = { showReferences = !showReferences },
+                    showCitations = showCitations,
+                    onToggleCitations = { showCitations = !showCitations },
+                    showInterconnections = showInterconnections,
+                    onToggleInterconnections = { showInterconnections = !showInterconnections },
+                    minimumCitations = minimumCitations,
+                    onMinimumCitationsChange = { minimumCitations = it },
                 )
             }
         }
@@ -339,6 +371,14 @@ private fun GraphDetailsPanel(
     onExpand: (GraphExpansionDirection) -> Unit,
     isExpanding: Boolean,
     onRemoveConnection: (GraphConnection) -> Unit,
+    showReferences: Boolean,
+    onToggleReferences: () -> Unit,
+    showCitations: Boolean,
+    onToggleCitations: () -> Unit,
+    showInterconnections: Boolean,
+    onToggleInterconnections: () -> Unit,
+    minimumCitations: Int,
+    onMinimumCitationsChange: (Int) -> Unit,
 ) {
     Card(
         modifier = modifier,
@@ -355,6 +395,33 @@ private fun GraphDetailsPanel(
                     graphGuide(graph, allPapers),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            item {
+                Text("Graph filters", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(
+                        selected = showReferences,
+                        onClick = onToggleReferences,
+                        label = { Text("References") },
+                    )
+                    FilterChip(
+                        selected = showCitations,
+                        onClick = onToggleCitations,
+                        label = { Text("Citations") },
+                    )
+                }
+                FilterChip(
+                    selected = showInterconnections,
+                    onClick = onToggleInterconnections,
+                    label = { Text("Interconnections") },
+                )
+                OutlinedTextField(
+                    value = minimumCitations.toString(),
+                    onValueChange = { onMinimumCitationsChange(it.toIntOrNull()?.coerceAtLeast(0) ?: 0) },
+                    label = { Text("Minimum citations") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
             item {
