@@ -56,3 +56,6 @@ data class SavedGuidedReview(
     val keptIds: Set<String> = emptySet(),
     val skippedIds: Set<String> = emptySet()
 )
+
+val PaperGraph.seedNodes: List<PaperNode>
+    get() = nodes.filter { it.connectionType == ConnectionType.CENTRAL }

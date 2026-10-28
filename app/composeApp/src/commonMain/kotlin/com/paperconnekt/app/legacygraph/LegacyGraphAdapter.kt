@@ -1,6 +1,5 @@
 package com.paperconnekt.app.legacygraph
 
-import com.paperconnekt.domain.model.ConnectionType
 import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.domain.model.ResearchGraph
 
