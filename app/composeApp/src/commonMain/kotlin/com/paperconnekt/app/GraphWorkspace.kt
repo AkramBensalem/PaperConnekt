@@ -11,8 +11,14 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,12 +30,15 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,14 +67,18 @@ import com.paperconnekt.app.legacygraph.GuidedCandidate
 import com.paperconnekt.app.legacygraph.GuidedRelation
 import com.paperconnekt.app.legacygraph.GuidedAiVerdict
 import com.paperconnekt.app.legacygraph.rankGuidedCandidates
+import com.paperconnekt.app.legacygraph.includes
 import com.paperconnekt.app.legacygraph.filterGraph
 import com.paperconnekt.app.legacygraph.components.PaperSidebar
 import com.paperconnekt.app.legacygraph.components.GraphControls
 import com.paperconnekt.app.legacygraph.components.GraphFilterMenu
 import com.paperconnekt.app.legacygraph.components.GuidedReviewPanel
+import com.paperconnekt.app.legacygraph.components.GuidedInsightsDialog
 import com.paperconnekt.app.legacygraph.toLegacyGraph
 import com.paperconnekt.storage.GraphExpansionDirection
 import com.paperconnekt.storage.OpenAlexGraphProvider
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.arrow_back
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -92,16 +105,26 @@ fun GraphWorkspace(
     var showConnectionDialog by remember(graph.id) { mutableStateOf(false) }
     var connectionToRemove by remember { mutableStateOf<GraphConnection?>(null) }
     var isExpanding by remember(graph.id) { mutableStateOf(false) }
+    var isDiscoveringConnections by remember(graph.id) { mutableStateOf(false) }
+    var connectionDiscoveryProgress by remember(graph.id) { mutableStateOf(0f) }
+    var connectionDiscoveryComplete by remember(graph.id) { mutableStateOf(false) }
     var autoExpansionAttempted by remember(graph.id) { mutableStateOf(false) }
     var showReferences by remember(graph.id) { mutableStateOf(true) }
     var showCitations by remember(graph.id) { mutableStateOf(true) }
+    var showSelectedReferences by remember(graph.id, selectedPaperId) { mutableStateOf(true) }
+    var showSelectedCitations by remember(graph.id, selectedPaperId) { mutableStateOf(true) }
     var showInterconnections by remember(graph.id) { mutableStateOf(true) }
     var minimumCitations by remember(graph.id) { mutableStateOf(0) }
     var maximumCitations by remember(graph.id) { mutableStateOf(Int.MAX_VALUE) }
     var minimumSimilarityPercent by remember(graph.id) { mutableStateOf(0) }
     var showFilters by remember(graph.id) { mutableStateOf(false) }
-    var guidedReview by remember(graph.id) { mutableStateOf(false) }
     var guidedKeptIds by remember(graph.id) { mutableStateOf<Set<String>>(emptySet()) }
+    var guidedSkippedIds by remember(graph.id) { mutableStateOf<Set<String>>(emptySet()) }
+    var reviewDirection by remember(graph.id, selectedPaperId) { mutableStateOf(GuidedReviewDirection.BOTH) }
+    var reviewBatchSize by remember(graph.id, selectedPaperId) { mutableStateOf(5) }
+    var showReviewDialog by remember(graph.id) { mutableStateOf(false) }
+    var showInsightsDialog by remember(graph.id) { mutableStateOf(false) }
+    var persistedNodePositions by remember(graph.id) { mutableStateOf(graph.nodePositions) }
     val scope = rememberCoroutineScope()
     val graphProvider = remember { OpenAlexGraphProvider(HttpClient()) }
 
@@ -125,11 +148,12 @@ fun GraphWorkspace(
         .map { paper -> PaperNode(paper, paper.citationCount ?: 0, LegacyConnectionType.CITED_BY_CENTRAL) }
     val guidedReviewState = selectedPaper?.let { paper ->
         val candidates = rankGuidedCandidates(paper.id, graph.toLegacyGraph(graphPapers))
+            .filter { reviewDirection.includes(it.relation) }
         GuidedReviewState(
-            direction = GuidedReviewDirection.BOTH,
-            batchSize = 5,
+            direction = reviewDirection,
+            batchSize = reviewBatchSize,
             isQueueLoaded = true,
-            batch = candidates.take(5).map { candidate ->
+            batch = candidates.take(reviewBatchSize).map { candidate ->
                 GuidedSuggestion(
                     candidate = candidate,
                     reason = "Ranked from this paper's loaded references and citations.",
@@ -137,10 +161,11 @@ fun GraphWorkspace(
                 )
             },
             keptIds = guidedKeptIds,
+            skippedIds = guidedSkippedIds,
             candidates = candidates,
             referenceCount = candidates.count { it.relation == GuidedRelation.REFERENCE },
             citationCount = candidates.count { it.relation == GuidedRelation.CITATION },
-            remainingCount = candidates.count { it.node.paper.id !in guidedKeptIds },
+            remainingCount = candidates.count { it.node.paper.id !in guidedKeptIds && it.node.paper.id !in guidedSkippedIds },
         )
     }
     val visiblePapers = graphPapers
@@ -153,11 +178,18 @@ fun GraphWorkspace(
         .let { current -> if (sortByTitle) current.sortedBy { it.title.lowercase() } else current }
     val seedId = graph.paperIds.firstOrNull()
     val legacyFullGraph = graph.toLegacyGraph(graphPapers)
-    val graphForFiltering = if (guidedReview) {
-        legacyFullGraph.copy(nodes = legacyFullGraph.nodes.filter { it.paper.id == seedId || it.paper.id in guidedKeptIds })
-    } else legacyFullGraph
-    val filteredLegacyGraph = filterGraph(
-        graph = graphForFiltering,
+    val graphInsightsReview = remember(legacyFullGraph) {
+        val candidates = seedId?.let { rankGuidedCandidates(it, legacyFullGraph) }.orEmpty()
+        GuidedReviewState(
+            isQueueLoaded = true,
+            candidates = candidates,
+            referenceCount = candidates.count { it.relation == GuidedRelation.REFERENCE },
+            citationCount = candidates.count { it.relation == GuidedRelation.CITATION },
+            remainingCount = candidates.size,
+        )
+    }
+    val baseFilteredLegacyGraph = filterGraph(
+        graph = legacyFullGraph,
         includeCiting = showCitations,
         includeCited = showReferences,
         minCitations = minimumCitations,
@@ -167,11 +199,38 @@ fun GraphWorkspace(
         showDisqualified = true,
         disqualifiedPaperIds = emptySet(),
     )
+    val selectedHiddenIds = buildSet {
+        val selectedId = selectedPaperId ?: return@buildSet
+        if (!showSelectedReferences) {
+            graph.connections.filter { it.fromPaperId == selectedId }.forEach { add(it.toPaperId) }
+        }
+        if (!showSelectedCitations) {
+            graph.connections.filter { it.toPaperId == selectedId }.forEach { add(it.fromPaperId) }
+        }
+        remove(selectedId)
+    }
+    val filteredLegacyGraph = if (selectedHiddenIds.isEmpty()) {
+        baseFilteredLegacyGraph
+    } else {
+        baseFilteredLegacyGraph.copy(
+            nodes = baseFilteredLegacyGraph.nodes.filterNot { it.paper.id in selectedHiddenIds },
+            edges = baseFilteredLegacyGraph.edges.filter {
+                it.fromId !in selectedHiddenIds && it.toId !in selectedHiddenIds
+            },
+        )
+    }
     val filteredGraphPapers = graphPapers.filter { it.id in filteredLegacyGraph.nodes.map { node -> node.paper.id }.toSet() }
     val visibleGraphPapers = visiblePapers.filter { paper -> paper.id in filteredGraphPapers.map { it.id } }
 
     val saveUpdated: (ResearchGraph) -> Unit = { updated ->
-        onSave(updated.copy(updatedAt = Clock.System.now()))
+        onSave(
+            updated.copy(
+                // The workspace copy is authoritative; the incoming graph can
+                // be an older snapshot captured before the latest drag.
+                nodePositions = updated.nodePositions + persistedNodePositions,
+                updatedAt = Clock.System.now(),
+            )
+        )
     }
     val expandGraph: (GraphExpansionDirection) -> Unit = { direction ->
         val source = selectedPaper ?: graphPapers.firstOrNull()
@@ -195,6 +254,44 @@ fun GraphWorkspace(
                     }
                     .onFailure { onError(it.message ?: "Could not load graph connections.") }
                 isExpanding = false
+            }
+        }
+    }
+
+    val discoverConnections: () -> Unit = {
+        val source = selectedPaper ?: graphPapers.firstOrNull()
+        if (source == null) {
+            onError("Add a paper to the graph before loading connections.")
+        } else if (!isDiscoveringConnections && !isExpanding) {
+            isDiscoveringConnections = true
+            connectionDiscoveryProgress = 0f
+            connectionDiscoveryComplete = false
+            scope.launch {
+                var discoveredGraph = graph
+                runCatching {
+                    listOf(
+                        GraphExpansionDirection.REFERENCES,
+                        GraphExpansionDirection.CITATIONS,
+                    ).forEachIndexed { index, direction ->
+                        val visibleIds = filteredGraphPapers.map(Paper::id).toSet() + source.id
+                        val expansion = graphProvider.expand(source.id, direction)
+                        val visiblePapers = expansion.papers.filter { it.id in visibleIds }
+                        val visibleConnections = expansion.connections.filter {
+                            it.fromPaperId in visibleIds && it.toPaperId in visibleIds
+                        }
+                        visiblePapers.forEach(onSavePaper)
+                        discoveredGraph = discoveredGraph.copy(
+                            paperIds = (discoveredGraph.paperIds + visiblePapers.map(Paper::id)).distinct(),
+                            connections = (discoveredGraph.connections + visibleConnections).distinct(),
+                        )
+                        connectionDiscoveryProgress = (index + 1) / 2f
+                        saveUpdated(discoveredGraph)
+                    }
+                }.onSuccess {
+                    connectionDiscoveryComplete = true
+                }.onFailure { onError(it.message ?: "Could not discover graph connections.") }
+                isDiscoveringConnections = false
+                connectionDiscoveryProgress = 1f
             }
         }
     }
@@ -242,20 +339,28 @@ fun GraphWorkspace(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("Back to graphs") }
+            IconButton(onClick = onBack) {
+                Icon(
+                    painter = org.jetbrains.compose.resources.painterResource(Res.drawable.arrow_back),
+                    contentDescription = "Back to graphs",
+                )
+            }
             Spacer(Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(graph.name, style = MaterialTheme.typography.headlineSmall)
                 Text(
-                    "${filteredGraphPapers.size} papers  •  ${graph.connections.size} connections${if (guidedReview) "  •  Guided review" else ""}",
+                    text = graph.name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    "${filteredGraphPapers.size} papers  •  ${graph.connections.size} connections",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { guidedReview = !guidedReview }) {
-                    Text(if (guidedReview) "Full graph" else "Guided review")
-                }
+                TextButton(onClick = { showInsightsDialog = true }) { Text("Insights") }
                 GraphFilterMenu(
                     expanded = showFilters,
                     onOpen = { showFilters = true },
@@ -299,99 +404,97 @@ fun GraphWorkspace(
                     papers = filteredGraphPapers,
                     selectedPaperId = selectedPaperId,
                     onSelectPaper = { selectedPaperId = it },
+                    initialNodePositions = persistedNodePositions,
+                    onPositionsChanged = { positions ->
+                        val mergedPositions = persistedNodePositions + positions
+                        if (mergedPositions != persistedNodePositions) {
+                            persistedNodePositions = mergedPositions
+                            saveUpdated(graph.copy(nodePositions = mergedPositions))
+                        }
+                    },
                 )
-                if (selectedPaper != null) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = selectedPaper != null,
+                    enter = fadeIn() + slideInHorizontally { it / 4 },
+                    exit = fadeOut() + slideOutHorizontally { it / 4 },
+                ) {
                     selectedNode?.let { node ->
-                        if (guidedReview && guidedReviewState != null) {
-                            GuidedReviewPanel(
-                                node = node,
-                                review = guidedReviewState,
-                                isEvaluating = false,
-                                keptPapers = graphPapers.filter { it.id in guidedKeptIds }.map { PaperNode(it) },
-                                onClose = { selectedPaperId = null },
-                                onShowDetails = { guidedReview = false },
-                                onShowInsights = {},
-                                onBatchSizeChanged = {},
-                                onShowNext = {},
-                                onKeep = { id -> guidedKeptIds = guidedKeptIds + id },
-                                onSkip = {},
-                                onUndo = { id -> guidedKeptIds = guidedKeptIds - id },
-                                onRevisitSkipped = {},
-                                onReviewPaper = { selectedPaperId = it },
-                                onDismissError = {},
-                                researchTargetContent = {},
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        } else {
                             PaperSidebar(
                                 node = node,
                                 onClose = { selectedPaperId = null },
                                 onExpand = expandGraph,
                                 onRefresh = { expandGraph(com.paperconnekt.storage.GraphExpansionDirection.REFERENCES) },
                                 isRefreshing = isExpanding,
+                                onLoadConnections = discoverConnections,
+                                isLoadingConnections = isDiscoveringConnections,
+                                connectionProgress = connectionDiscoveryProgress,
+                                connectionDiscoveryComplete = connectionDiscoveryComplete,
+                                showReferences = showSelectedReferences,
+                                showCitations = showSelectedCitations,
+                                onToggleReferences = { showSelectedReferences = !showSelectedReferences },
+                                onToggleCitations = { showSelectedCitations = !showSelectedCitations },
+                                onOpenReview = { showReviewDialog = true },
                                 citedPapers = legacyReferenceNodes,
                                 nodeSortOrder = GraphNodeSortOrder.DEFAULT,
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                        }
+                    }
                     }
                 }
-            }
         } else {
-            if (selectedPaper == null) {
+            // Keep the canvas mounted at one stable size while the paper panel
+            // opens. Resizing/replacing the canvas here used to restart its
+            // layout and made the clicked node disappear briefly.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            ) {
                 LegacyGraphCanvasPanel(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    modifier = Modifier.fillMaxSize(),
                     graph = graph,
                     papers = filteredGraphPapers,
                     selectedPaperId = selectedPaperId,
                     onSelectPaper = { selectedPaperId = it },
+                    initialNodePositions = persistedNodePositions,
+                    onPositionsChanged = { positions ->
+                        val mergedPositions = persistedNodePositions + positions
+                        if (mergedPositions != persistedNodePositions) {
+                            persistedNodePositions = mergedPositions
+                            saveUpdated(graph.copy(nodePositions = mergedPositions))
+                        }
+                    },
                 )
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = selectedPaper != null,
+                    enter = fadeIn() + slideInHorizontally { it / 3 },
+                    exit = fadeOut() + slideOutHorizontally { it / 3 },
+                    modifier = Modifier.align(Alignment.CenterEnd),
                 ) {
-                    LegacyGraphCanvasPanel(
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        graph = graph,
-                        papers = filteredGraphPapers,
-                        selectedPaperId = selectedPaperId,
-                        onSelectPaper = { selectedPaperId = it },
-                    )
-                    if (guidedReview && guidedReviewState != null) {
-                        GuidedReviewPanel(
-                            modifier = Modifier.width(360.dp).fillMaxHeight(),
-                            node = selectedNode!!,
-                            review = guidedReviewState,
-                            isEvaluating = false,
-                            keptPapers = graphPapers.filter { it.id in guidedKeptIds }.map { PaperNode(it) },
-                            onClose = { selectedPaperId = null },
-                            onShowDetails = { guidedReview = false },
-                            onShowInsights = {},
-                            onBatchSizeChanged = {},
-                            onShowNext = {},
-                            onKeep = { id -> guidedKeptIds = guidedKeptIds + id },
-                            onSkip = {},
-                            onUndo = { id -> guidedKeptIds = guidedKeptIds - id },
-                            onRevisitSkipped = {},
-                            onReviewPaper = { selectedPaperId = it },
-                            onDismissError = {},
-                            researchTargetContent = {},
-                        )
-                    } else {
+                    selectedNode?.let { node ->
                         PaperSidebar(
-                            modifier = Modifier.width(360.dp).fillMaxHeight(),
-                            node = selectedNode!!,
+                            modifier = Modifier
+                                .width(360.dp)
+                                .fillMaxHeight(),
+                            node = node,
                             onClose = { selectedPaperId = null },
                             onExpand = expandGraph,
                             onRefresh = { expandGraph(com.paperconnekt.storage.GraphExpansionDirection.REFERENCES) },
                             isRefreshing = isExpanding,
+                            onLoadConnections = discoverConnections,
+                            isLoadingConnections = isDiscoveringConnections,
+                            connectionProgress = connectionDiscoveryProgress,
+                            connectionDiscoveryComplete = connectionDiscoveryComplete,
+                            showReferences = showSelectedReferences,
+                            showCitations = showSelectedCitations,
+                            onToggleReferences = { showSelectedReferences = !showSelectedReferences },
+                            onToggleCitations = { showSelectedCitations = !showSelectedCitations },
+                            onOpenReview = { showReviewDialog = true },
                             citedPapers = legacyReferenceNodes,
                             nodeSortOrder = GraphNodeSortOrder.DEFAULT,
                         )
                     }
+                }
                     /* GraphDetailsPanel(
                         graph = graph,
                         papers = visibleGraphPapers,
@@ -427,7 +530,6 @@ fun GraphWorkspace(
                         minimumCitations = minimumCitations,
                         onMinimumCitationsChange = { minimumCitations = it },
                     ) */
-                }
             }
         }
     }
@@ -441,6 +543,48 @@ fun GraphWorkspace(
                 selectedPaperId = paper.id
                 showAddPaperDialog = false
             },
+        )
+    }
+
+    if (showReviewDialog && selectedNode != null && guidedReviewState != null) {
+        Dialog(
+            onDismissRequest = { showReviewDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            GuidedReviewPanel(
+                modifier = Modifier.width(if (compact) 520.dp else 640.dp).heightIn(max = 760.dp),
+                node = selectedNode,
+                review = guidedReviewState,
+                isEvaluating = false,
+                keptPapers = graphPapers.filter { it.id in guidedKeptIds }.map { PaperNode(it) },
+                onClose = { showReviewDialog = false },
+                onShowDetails = { showReviewDialog = false },
+                onShowInsights = { showReviewDialog = false; showInsightsDialog = true },
+                onBatchSizeChanged = { reviewBatchSize = it },
+                onDirectionChanged = { reviewDirection = it },
+                onShowNext = {},
+                onKeep = { id -> guidedKeptIds = guidedKeptIds + id; guidedSkippedIds = guidedSkippedIds - id },
+                onSkip = { id -> guidedSkippedIds = guidedSkippedIds + id; guidedKeptIds = guidedKeptIds - id },
+                onUndo = { id -> guidedKeptIds = guidedKeptIds - id; guidedSkippedIds = guidedSkippedIds - id },
+                onRevisitSkipped = {},
+                onReviewPaper = { selectedPaperId = it },
+                onDismissError = {},
+                researchTargetContent = {},
+            )
+        }
+    }
+
+    if (showInsightsDialog) {
+        GuidedInsightsDialog(
+            node = null,
+            review = graphInsightsReview,
+            keptElsewhere = emptySet(),
+            onLoad = {},
+            onKeep = { guidedKeptIds = guidedKeptIds + it },
+            onSkip = { guidedSkippedIds = guidedSkippedIds + it },
+            onUndo = { guidedKeptIds = guidedKeptIds - it; guidedSkippedIds = guidedSkippedIds - it },
+            onDismiss = { showInsightsDialog = false },
+            graphTitle = graph.name,
         )
     }
 

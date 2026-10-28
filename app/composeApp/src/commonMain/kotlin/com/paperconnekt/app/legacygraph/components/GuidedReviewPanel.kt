@@ -49,6 +49,7 @@ fun GuidedReviewPanel(
     onShowDetails: () -> Unit,
     onShowInsights: () -> Unit,
     onBatchSizeChanged: (Int) -> Unit,
+    onDirectionChanged: (GuidedReviewDirection) -> Unit = {},
     onShowNext: () -> Unit,
     onKeep: (String) -> Unit,
     onSkip: (String) -> Unit,
@@ -117,6 +118,7 @@ fun GuidedReviewPanel(
                         onToggle = { showSettings = !showSettings },
                         isBusy = review.isLoading || isAiBusy,
                         onBatchSizeChanged = onBatchSizeChanged,
+                        onDirectionChanged = onDirectionChanged,
                         researchTargetContent = researchTargetContent
                     )
                 }
@@ -248,6 +250,7 @@ private fun GuidedSettings(
     onToggle: () -> Unit,
     isBusy: Boolean,
     onBatchSizeChanged: (Int) -> Unit,
+    onDirectionChanged: (GuidedReviewDirection) -> Unit,
     researchTargetContent: @Composable () -> Unit
 ) {
     Surface(
@@ -283,6 +286,18 @@ private fun GuidedSettings(
                     researchTargetContent()
                     HorizontalDivider()
                     Text("Manual browsing options", style = MaterialTheme.typography.titleSmall)
+                    Text("Connections to review", style = MaterialTheme.typography.labelMedium)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GuidedReviewDirection.entries.forEach { direction ->
+                            FilterChip(
+                                selected = review.direction == direction,
+                                onClick = { onDirectionChanged(direction) },
+                                enabled = !isBusy,
+                                label = { Text(directionLabel(direction)) },
+                                modifier = Modifier.clipChipInteraction().interactivePointer(enabled = !isBusy),
+                            )
+                        }
+                    }
                     Text("Papers per batch", style = MaterialTheme.typography.labelMedium)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         BATCH_SIZES.forEach { size ->
@@ -595,6 +610,12 @@ private fun KeptPapersSection(keptPapers: List<PaperNode>, onReviewPaper: (Strin
             }
         }
     }
+}
+
+private fun directionLabel(direction: GuidedReviewDirection) = when (direction) {
+    GuidedReviewDirection.BOTH -> "References + citations"
+    GuidedReviewDirection.REFERENCES -> "References"
+    GuidedReviewDirection.CITATIONS -> "Citations"
 }
 
 private fun directionLabel(review: GuidedReviewState) = when (review.direction) {

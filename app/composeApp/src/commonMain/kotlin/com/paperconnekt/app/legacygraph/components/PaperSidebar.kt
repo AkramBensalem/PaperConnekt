@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.DisableSelection
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -44,6 +45,8 @@ fun PaperSidebar(
     isRefreshing: Boolean = false,
     onLoadConnections: () -> Unit = {},
     isLoadingConnections: Boolean = false,
+    connectionProgress: Float = 0f,
+    connectionDiscoveryComplete: Boolean = false,
     onHelp: () -> Unit = {},
     triageInstruction: String = "",
     onTriageInstructionChanged: (String) -> Unit = {},
@@ -65,12 +68,21 @@ fun PaperSidebar(
     onArchiveCitedPaper: (PaperNode) -> Unit = {},
     onRestorePaper: (PaperNode) -> Unit = {},
     onUseAsSeed: (() -> Unit)? = null,
-    canUseAsSeed: Boolean = true
+    canUseAsSeed: Boolean = true,
+    showReferences: Boolean = true,
+    showCitations: Boolean = true,
+    onToggleReferences: () -> Unit = {},
+    onToggleCitations: () -> Unit = {},
+    onOpenReview: () -> Unit = {},
 ) {
     val paper = node.paper
     var referencesTab by remember(node.paper.id) { mutableStateOf(false) }
     var referencePage by remember(node.paper.id) { mutableIntStateOf(0) }
     var referenceSort by remember(node.paper.id) { mutableStateOf(ReferenceSortOrder.YEAR) }
+    var abstractExpanded by remember(node.paper.id) { mutableStateOf(false) }
+    var referencesExpanded by remember(node.paper.id) { mutableStateOf(true) }
+    var citationsExpanded by remember(node.paper.id) { mutableStateOf(false) }
+    var statisticsExpanded by remember(node.paper.id) { mutableStateOf(true) }
     val visibleReferences = if (referencesTab) archivedPapers else citedPapers
     val sortedReferences = when (referenceSort) {
         ReferenceSortOrder.TITLE -> visibleReferences.sortedBy { it.paper.title.lowercase() }
@@ -89,6 +101,7 @@ fun PaperSidebar(
         tonalElevation = 4.dp,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
+        SelectionContainer {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -155,6 +168,13 @@ fun PaperSidebar(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onOpenReview,
+                        modifier = Modifier.size(32.dp).interactivePointer(),
+                    ) {
+                        Icon(Icons.Default.Tune, contentDescription = "Review connections", modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
                     IconButton(
                         onClick = onRefresh,
                         enabled = !isRefreshing,
@@ -324,19 +344,45 @@ fun PaperSidebar(
 
                     FilledTonalButton(
                         onClick = onLoadConnections,
-                        enabled = !isLoadingConnections,
-                        modifier = Modifier.fillMaxWidth().interactivePointer(enabled = !isLoadingConnections),
+                        enabled = !isLoadingConnections && !isRefreshing,
+                        modifier = Modifier.fillMaxWidth().interactivePointer(enabled = !isLoadingConnections && !isRefreshing),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         if (isLoadingConnections) {
                             CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Discovering connections…", style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                "Discovering connections ${(connectionProgress * 100).toInt().coerceIn(0, 100)}%",
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            LinearProgressIndicator(
+                                progress = { connectionProgress.coerceIn(0f, 1f) },
+                                modifier = Modifier.weight(1f).height(4.dp),
+                            )
                         } else {
                             Icon(Icons.Default.AccountTree, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Find Connections with Graph", style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                if (connectionDiscoveryComplete) "Connections discovered 100%" else "Find Connections with Graph",
+                                style = MaterialTheme.typography.labelSmall,
+                            )
                         }
+                    }
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = showReferences,
+                            onClick = onToggleReferences,
+                            label = { Text("References") },
+                            modifier = Modifier.weight(1f).interactivePointer(),
+                        )
+                        FilterChip(
+                            selected = showCitations,
+                            onClick = onToggleCitations,
+                            label = { Text("Citations") },
+                            modifier = Modifier.weight(1f).interactivePointer(),
+                        )
                     }
 
                     if (node.connectionType != ConnectionType.CENTRAL) {
@@ -426,12 +472,24 @@ fun PaperSidebar(
                         }
                     }
                     Spacer(modifier = Modifier.height(6.dp))
+                    val abstract = paper.abstractText?.takeIf { it.isNotBlank() }
                     Text(
-                        text = paper.abstractText?.takeIf { it.isNotBlank() } ?: "No abstract available for this publication.",
+                        text = abstract ?: "No abstract available for this publication.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface,
-                        lineHeight = 20.sp
+                        lineHeight = 20.sp,
+                        maxLines = if (abstractExpanded) Int.MAX_VALUE else 5,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.animateContentSize(),
                     )
+                    if (abstract != null && abstract.length > 420) {
+                        TextButton(
+                            onClick = { abstractExpanded = !abstractExpanded },
+                            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp),
+                        ) {
+                            Text(if (abstractExpanded) "Show less" else "Show more")
+                        }
+                    }
                 }
             }
 
@@ -448,14 +506,27 @@ fun PaperSidebar(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        TextButton(
+                            onClick = { referencesExpanded = !referencesExpanded },
+                            contentPadding = PaddingValues(0.dp),
+                        ) {
                         Text(
                             text = "References & Archive",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
+                        }
+                        IconButton(onClick = { referencesExpanded = !referencesExpanded }, modifier = Modifier.size(28.dp)) {
+                            Icon(
+                                if (referencesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = if (referencesExpanded) "Collapse references" else "Expand references",
+                            )
+                        }
                     }
 
+                    AnimatedVisibility(visible = referencesExpanded) {
+                    Column {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -531,7 +602,9 @@ fun PaperSidebar(
                             }
                         }
                     }
+                    }
                 }
+            }
             }
 
             // Keywords
@@ -567,8 +640,8 @@ fun PaperSidebar(
             }
 
             // Citations Formatted Section
-            CitationSection(title = "APA Citation", content = generateAPA(node))
-            CitationSection(title = "BibTeX", content = generateBibTeX(node))
+            CollapsibleCitationSection(title = "APA Citation", content = generateAPA(node), initiallyExpanded = false)
+            CollapsibleCitationSection(title = "BibTeX", content = generateBibTeX(node), initiallyExpanded = false)
 
             // Metadata & Statistics Table
             Card(
@@ -578,25 +651,32 @@ fun PaperSidebar(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    Text(
-                        text = "Paper Statistics",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    StatRow("Direct References", citedInThisPaper.toString())
-                    StatRow("Papers Citing This", citingThisPaper.toString())
-                    similarity?.let { StatRow("Similarity to Seed", "${(it * 100).coerceIn(0f, 100f).toInt()}%") }
-                    StatRow("Publication Venue", paper.source ?: "Unknown")
-                    paper.doi?.let { StatRow("DOI", it) }
-                    paper.sourceUrl?.let { StatRow("URL", it) }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { statisticsExpanded = !statisticsExpanded }, contentPadding = PaddingValues(0.dp)) {
+                            Text("Paper Statistics", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                        IconButton(onClick = { statisticsExpanded = !statisticsExpanded }, modifier = Modifier.size(28.dp)) {
+                            Icon(if (statisticsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = "Toggle paper statistics")
+                        }
+                    }
+                    AnimatedVisibility(visible = statisticsExpanded) {
+                        Column {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            StatRow("Direct References", citedInThisPaper.toString())
+                            StatRow("Papers Citing This", citingThisPaper.toString())
+                            similarity?.let { StatRow("Similarity to Seed", "${(it * 100).coerceIn(0f, 100f).toInt()}%") }
+                            StatRow("Publication Venue", paper.source ?: "Unknown")
+                            paper.doi?.let { StatRow("DOI", it, copyable = true) }
+                            paper.sourceUrl?.let { StatRow("URL", it, copyable = true) }
+                        }
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
         }
 
+    }
     }
 }
 
@@ -641,14 +721,47 @@ private fun CitationSection(title: String, content: String) {
 }
 
 @Composable
-private fun StatRow(label: String, value: String) {
+private fun StatRow(label: String, value: String, copyable: Boolean = false) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f, fill = false)) {
+            Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (copyable) CopyIconButton(textToCopy = value, contentDescription = "Copy $label", size = 26.dp, iconSize = 13.dp)
+        }
+    }
+}
+
+@Composable
+private fun CollapsibleCitationSection(title: String, content: String, initiallyExpanded: Boolean) {
+    var expanded by remember(title) { mutableStateOf(initiallyExpanded) }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(0.dp)) {
+                    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CopyIconButton(textToCopy = content, contentDescription = "Copy $title")
+                    IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(28.dp)) {
+                        Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = "Toggle $title")
+                    }
+                }
+            }
+            AnimatedVisibility(visible = expanded) {
+                Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Text(content, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(10.dp), fontFamily = FontFamily.Monospace, lineHeight = 18.sp)
+                }
+            }
+        }
     }
 }
 

@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -121,7 +122,11 @@ fun GraphCanvas(
                 initialNodePositions[id]?.let { saved -> info.copy(offset = Offset(saved.x, saved.y)) } ?: info
             }
         }
-        layout.replace(index, positions)
+        layout.replace(index, positions, initialNodePositions.keys)
+        // Capture the generated positions as well as drag updates. This gives
+        // the host a stable ID-keyed snapshot before a filter or expansion can
+        // rebuild the visible node list.
+        currentOnPositionsChanged(layout.toOffsetMap())
         stats.layoutMillis = started.elapsedNow().inWholeMilliseconds
     }
 
@@ -135,7 +140,11 @@ fun GraphCanvas(
         val vx = FloatArray(n)
         val vy = FloatArray(n)
         // Seeds and cluster anchors define the structure; they only move by drag.
-        val fixed = BooleanArray(n) { index.isSeed[it] || index.isClusterAnchor[it] }
+        val fixed = BooleanArray(n) {
+            index.isSeed[it] ||
+                index.isClusterAnchor[it] ||
+                index.ids[it] in layout.stableNodeIds
+        }
         var frameCount = 0
         var quietFrames = 0
         while (true) {
@@ -182,6 +191,7 @@ fun GraphCanvas(
     val citedColor = Color(0xFF0D9488) // Emerald/Teal for prior references
     val citingColor = Color(0xFFD97706) // Warm Amber for citing papers
     val bothColor = Color(0xFFA855F7) // Royal Purple
+    val selectedColor = Color(0xFFE11D48) // Rose, distinct from the seed color
     val disqualifiedColor = Color(0xFF94A3B8) // Slate 400
     val unrelatedColor = Color(0xFF64748B) // Slate 500
     val onSurface = MaterialTheme.colorScheme.onSurface
@@ -268,6 +278,7 @@ fun GraphCanvas(
         cited = citedColor,
         citing = citingColor,
         both = bothColor,
+        selected = selectedColor,
         disqualified = disqualifiedColor,
         unrelated = unrelatedColor,
         onSurface = onSurface,
@@ -277,6 +288,7 @@ fun GraphCanvas(
     BoxWithConstraints(
         modifier = Modifier.weight(1f).fillMaxWidth()
             .fillMaxSize()
+            .clipToBounds()
             .onGloballyPositioned { layoutSize = it.size }
             .pointerInput(Unit) {
                 awaitPointerEventScope {
@@ -541,6 +553,7 @@ internal class GraphPalette(
     val cited: Color,
     val citing: Color,
     val both: Color,
+    val selected: Color,
     val disqualified: Color,
     val unrelated: Color,
     val onSurface: Color,
@@ -730,16 +743,30 @@ private fun DrawScope.drawNodes(
     val ys = layout.ys
     val selected = selection.selectedIndex
     val showLabels = scale > LABEL_MIN_SCALE
+    val referencesOfSeed = BooleanArray(index.size)
+    val citationsOfSeed = BooleanArray(index.size)
+    for (edge in 0 until index.edgeCount) {
+        val from = index.edgeFrom[edge]
+        val to = index.edgeTo[edge]
+        if (index.isSeed[from] && !index.isSeed[to]) referencesOfSeed[to] = true
+        if (index.isSeed[to] && !index.isSeed[from]) citationsOfSeed[from] = true
+    }
     var candidates = cache.labelCandidates
     var candidateCount = 0
     var visible = 0
 
     fun nodeColor(i: Int): Color = when {
         disqualified[i] -> palette.disqualified
-        i == selected -> palette.central
+        i == selected -> palette.selected
         index.isCentral[i] -> palette.central
         selected >= 0 -> relationshipColor(selection.relationshipOf(i), palette.cited, palette.citing, palette.unrelated)
-        else -> nodeRelationshipColor(index.nodes[i], palette.cited, palette.citing, palette.central)
+        else -> when {
+            referencesOfSeed[i] && citationsOfSeed[i] -> palette.both
+            referencesOfSeed[i] -> palette.cited
+            citationsOfSeed[i] -> palette.citing
+            index.isCentral[i] -> palette.central
+            else -> palette.unrelated
+        }
     }
 
     fun nodeAlpha(i: Int): Float = when {
@@ -775,7 +802,7 @@ private fun DrawScope.drawNodes(
             )
         }
         if (index.isCentral[i]) {
-            drawCircle(color = palette.central.copy(alpha = 0.28f * alpha), radius = baseSize + 8f, center = center)
+            drawCircle(color = baseColor.copy(alpha = 0.28f * alpha), radius = baseSize + 8f, center = center)
             drawCircle(
                 color = Color.White.copy(alpha = 0.85f * alpha),
                 radius = baseSize + 3f,

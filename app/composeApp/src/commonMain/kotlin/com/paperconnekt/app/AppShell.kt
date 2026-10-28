@@ -74,7 +74,25 @@ fun AppShell(
     )
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        if (maxWidth >= 840.dp) {
+        if (destination == AppDestination.GRAPH) {
+            // The graph is a focused workspace. Keep it out of the application
+            // navigation rail so the canvas owns the complete available page.
+            DestinationScreen(
+                destination = destination,
+                store = store,
+                secretStore = secretStore,
+                paddingValues = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                onNavigate = { destination = it },
+                onPaperSelected = {
+                    requestedPaper = it
+                    destination = AppDestination.ASSISTANT
+                },
+                requestedPaper = requestedPaper,
+                onPaperRequestConsumed = { requestedPaper = null },
+                requestedGraphId = requestedGraphId,
+                onOpenGraph = ::openPaperGraph,
+            )
+        } else if (maxWidth >= 840.dp) {
             Row(modifier = Modifier.fillMaxSize()) {
                 NavigationRail(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow,

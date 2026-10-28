@@ -9,7 +9,14 @@ data class ResearchGraph(
     val name: String,
     val paperIds: List<String> = emptyList(),
     val connections: List<GraphConnection> = emptyList(),
+    val nodePositions: Map<String, GraphNodePosition> = emptyMap(),
     val updatedAt: Instant? = null,
+)
+
+@Serializable
+data class GraphNodePosition(
+    val x: Float,
+    val y: Float,
 )
 
 @Serializable

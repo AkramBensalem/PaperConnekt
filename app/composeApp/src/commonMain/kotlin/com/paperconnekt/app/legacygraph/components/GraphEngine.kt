@@ -135,13 +135,24 @@ internal class GraphLayoutState {
     var nodeSetVersion by mutableIntStateOf(0)
         private set
 
+    /** Existing seeds and hubs whose positions should remain stable. */
+    var stableNodeIds: Set<String> = emptySet()
+        private set
+
     private var mutations = 0
     private var boundsMutation = -1
     private var cachedBounds = Rect(1000f, 1000f, 1000f, 1000f)
 
     val isEmpty: Boolean get() = index.size == 0
 
-    fun replace(newIndex: GraphIndex, positions: Map<String, NodePositionInfo>) {
+    fun replace(
+        newIndex: GraphIndex,
+        positions: Map<String, NodePositionInfo>,
+        savedPositionIds: Set<String> = emptySet(),
+    ) {
+        val previousStableIds = index.ids.filterIndexed { i, _ ->
+            index.isSeed[i] || index.isClusterAnchor[i]
+        }.toSet()
         val n = newIndex.size
         val newXs = FloatArray(n)
         val newYs = FloatArray(n)
@@ -154,6 +165,12 @@ internal class GraphLayoutState {
         }
         val nodeSetChanged = !newIndex.ids.contentEquals(index.ids)
         index = newIndex
+        stableNodeIds = newIndex.ids.filterTo(LinkedHashSet()) { id ->
+            id in previousStableIds ||
+                (id in savedPositionIds && newIndex.indexOf[id]?.let { index ->
+                    newIndex.isSeed[index] || newIndex.isClusterAnchor[index]
+                } == true)
+        }
         xs = newXs
         ys = newYs
         levels = newLevels
