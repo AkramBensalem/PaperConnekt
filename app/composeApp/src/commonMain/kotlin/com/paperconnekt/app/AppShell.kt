@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.paperconnekt.domain.navigation.AppDestination
+import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.LocalResearchStore
 import com.paperconnekt.app.onboarding.OnboardingScreen
@@ -31,6 +32,7 @@ fun AppShell(
     startDestination: AppDestination,
 ) {
     var destination by remember { mutableStateOf(startDestination) }
+    var requestedPaper by remember { mutableStateOf<Paper?>(null) }
 
     if (destination == AppDestination.ONBOARDING) {
         OnboardingScreen(
@@ -97,6 +99,12 @@ fun AppShell(
                         secretStore = secretStore,
                         paddingValues = androidx.compose.foundation.layout.PaddingValues(0.dp),
                         onNavigate = { destination = it },
+                        onPaperSelected = {
+                            requestedPaper = it
+                            destination = AppDestination.ASSISTANT
+                        },
+                        requestedPaper = requestedPaper,
+                        onPaperRequestConsumed = { requestedPaper = null },
                     )
                 }
             }
@@ -128,6 +136,12 @@ fun AppShell(
                     secretStore = secretStore,
                     paddingValues = paddingValues,
                     onNavigate = { destination = it },
+                    onPaperSelected = {
+                        requestedPaper = it
+                        destination = AppDestination.ASSISTANT
+                    },
+                    requestedPaper = requestedPaper,
+                    onPaperRequestConsumed = { requestedPaper = null },
                 )
             }
         }

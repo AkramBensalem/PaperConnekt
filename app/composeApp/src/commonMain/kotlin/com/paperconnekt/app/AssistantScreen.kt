@@ -35,6 +35,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -60,11 +61,19 @@ import kotlin.random.Random
 fun AssistantScreen(
     store: LocalResearchStore,
     paddingValues: PaddingValues,
+    initialPaper: Paper? = null,
+    onInitialPaperConsumed: () -> Unit = {},
 ) {
     val sessions by store.assistantSessions.collectAsState()
     val papers by store.papers.collectAsState()
     var selectedSessionId by remember { mutableStateOf<String?>(null) }
     var openPaper by remember { mutableStateOf<Paper?>(null) }
+    LaunchedEffect(initialPaper) {
+        if (initialPaper != null) {
+            openPaper = initialPaper
+            onInitialPaperConsumed()
+        }
+    }
     var isCreating by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val selectedSession = sessions.firstOrNull { it.id == selectedSessionId }
