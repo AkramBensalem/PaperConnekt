@@ -1,12 +1,15 @@
 package com.paperconnekt.app
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -14,6 +17,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -27,9 +32,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.paperconnekt.domain.model.ConnectionType
-import com.paperconnekt.domain.model.GraphConnection
-import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.domain.model.ResearchGraph
 import com.paperconnekt.storage.LocalResearchStore
 import kotlinx.coroutines.launch
@@ -44,239 +46,337 @@ fun GraphScreen(
     val graphs by store.graphs.collectAsState()
     val papers by store.papers.collectAsState()
     var selectedGraphId by remember { mutableStateOf<String?>(null) }
+    var graphQuery by remember { mutableStateOf("") }
+    var sortOrder by remember { mutableStateOf(GraphSortOrder.RECENT) }
     var showCreateDialog by remember { mutableStateOf(false) }
+    var graphBeingRenamed by remember { mutableStateOf<ResearchGraph?>(null) }
+    var graphBeingDeleted by remember { mutableStateOf<ResearchGraph?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isSaving by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val selectedGraph = graphs.firstOrNull { it.id == selectedGraphId }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues)
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text("Research graphs")
-        Text("Save paper relationships as local workspaces you can revisit and extend.")
-        Button(onClick = { showCreateDialog = true }) {
-            Text("Create graph")
+    val selectedGraph = graphs.firstOrNull { it.id == selectedGraphId }
+    val normalizedQuery = graphQuery.trim().lowercase()
+    val visibleGraphs = graphs
+        .filter { normalizedQuery.isEmpty() || it.name.lowercase().contains(normalizedQuery) }
+        .let { current ->
+            when (sortOrder) {
+                GraphSortOrder.RECENT -> current.sortedByDescending { it.updatedAt }
+                GraphSortOrder.NAME -> current.sortedBy { it.name.lowercase() }
+                GraphSortOrder.PAPERS -> current.sortedByDescending { it.paperIds.size }
+            }
         }
 
-        if (selectedGraph == null) {
-            if (graphs.isEmpty()) {
-                Text("No graphs yet. Create one to start mapping your literature.")
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(graphs, key = ResearchGraph::id) { graph ->
-                        GraphCard(
-                            graph = graph,
-                            paperCount = graph.paperIds.size,
-                            onOpen = { selectedGraphId = graph.id },
-                            onDelete = {
-                                scope.launch { store.removeGraph(graph.id) }
-                            },
-                        )
-                    }
-                }
-            }
-        } else {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues),
+    ) {
+        if (selectedGraph != null) {
             GraphWorkspace(
                 graph = selectedGraph,
                 papers = papers,
+                compact = maxWidth < 860.dp,
+                isSaving = isSaving,
+                errorMessage = errorMessage,
                 onBack = { selectedGraphId = null },
-                onAddPaper = { paperId ->
+                onRename = { graphBeingRenamed = selectedGraph },
+                onSave = { updatedGraph ->
+                    isSaving = true
                     scope.launch {
-                        store.saveGraph(
-                            selectedGraph.copy(
-                                paperIds = (selectedGraph.paperIds + paperId).distinct(),
-                                updatedAt = Clock.System.now(),
-                            ),
-                        )
+                        runCatching { store.saveGraph(updatedGraph) }
+                            .onFailure { errorMessage = it.message ?: "Could not save graph changes." }
+                            .also { isSaving = false }
                     }
                 },
-                onRemovePaper = { paperId ->
-                    scope.launch {
-                        store.saveGraph(
-                            selectedGraph.copy(
-                                paperIds = selectedGraph.paperIds.filterNot { it == paperId },
-                                connections = selectedGraph.connections.filter {
-                                    it.fromPaperId != paperId && it.toPaperId != paperId
-                                },
-                                updatedAt = Clock.System.now(),
-                            ),
-                        )
-                    }
+                onError = {
+                    errorMessage = it
+                    isSaving = false
                 },
-                onConnect = { fromPaperId, toPaperId ->
-                    scope.launch {
-                        store.saveGraph(
-                            selectedGraph.copy(
-                                connections = (
-                                    selectedGraph.connections +
-                                        GraphConnection(
-                                            fromPaperId = fromPaperId,
-                                            toPaperId = toPaperId,
-                                            type = ConnectionType.RELATED_TOPIC,
-                                        )
-                                    ).distinct(),
-                                updatedAt = Clock.System.now(),
-                            ),
-                        )
-                    }
+            )
+        } else {
+            GraphList(
+                graphs = visibleGraphs,
+                query = graphQuery,
+                sortOrder = sortOrder,
+                errorMessage = errorMessage,
+                onQueryChange = {
+                    graphQuery = it
+                    errorMessage = null
                 },
+                onSortOrderChange = { sortOrder = it },
+                onCreate = { showCreateDialog = true },
+                onOpen = { selectedGraphId = it },
+                onRename = { graphBeingRenamed = it },
+                onDelete = { graphBeingDeleted = it },
             )
         }
     }
 
     if (showCreateDialog) {
-        CreateGraphDialog(
+        GraphNameDialog(
+            title = "Create research graph",
+            confirmLabel = "Create graph",
             onDismiss = { showCreateDialog = false },
-            onCreate = { name ->
+            onConfirm = { name ->
                 val graph = ResearchGraph(
                     id = "graph-${Random.nextLong()}",
                     name = name,
                     updatedAt = Clock.System.now(),
                 )
                 scope.launch {
-                    store.saveGraph(graph)
-                    selectedGraphId = graph.id
-                    showCreateDialog = false
+                    runCatching { store.saveGraph(graph) }
+                        .onSuccess {
+                            selectedGraphId = graph.id
+                            showCreateDialog = false
+                        }
+                        .onFailure {
+                            errorMessage = it.message ?: "Could not create graph."
+                        }
+                }
+            },
+        )
+    }
+
+    graphBeingRenamed?.let { graph ->
+        GraphNameDialog(
+            title = "Rename graph",
+            confirmLabel = "Save name",
+            initialName = graph.name,
+            onDismiss = { graphBeingRenamed = null },
+            onConfirm = { name ->
+                scope.launch {
+                    runCatching {
+                        store.saveGraph(graph.copy(name = name, updatedAt = Clock.System.now()))
+                    }.onFailure {
+                        errorMessage = it.message ?: "Could not rename graph."
+                    }
+                    graphBeingRenamed = null
+                }
+            },
+        )
+    }
+
+    graphBeingDeleted?.let { graph ->
+        AlertDialog(
+            onDismissRequest = { graphBeingDeleted = null },
+            title = { Text("Delete ${graph.name}?") },
+            text = { Text("This removes the graph and its local connections. Saved papers are not deleted.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            runCatching { store.removeGraph(graph.id) }
+                                .onFailure {
+                                    errorMessage = it.message ?: "Could not delete graph."
+                                }
+                            graphBeingDeleted = null
+                        }
+                    },
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { graphBeingDeleted = null }) {
+                    Text("Cancel")
                 }
             },
         )
     }
 }
 
+private enum class GraphSortOrder {
+    RECENT,
+    NAME,
+    PAPERS,
+}
+
 @Composable
-private fun GraphCard(
+private fun GraphList(
+    graphs: List<ResearchGraph>,
+    query: String,
+    sortOrder: GraphSortOrder,
+    errorMessage: String?,
+    onQueryChange: (String) -> Unit,
+    onSortOrderChange: (GraphSortOrder) -> Unit,
+    onCreate: () -> Unit,
+    onOpen: (String) -> Unit,
+    onRename: (ResearchGraph) -> Unit,
+    onDelete: (ResearchGraph) -> Unit,
+) {
+    var sortMenuExpanded by remember { mutableStateOf(false) }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Research graphs", style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        "Map the papers behind a question, chapter, or research direction.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Button(onClick = onCreate) {
+                    Text("New graph")
+                }
+            }
+        }
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedTextField(
+                    modifier = Modifier.weight(1f),
+                    value = query,
+                    onValueChange = onQueryChange,
+                    label = { Text("Search graphs") },
+                    singleLine = true,
+                )
+                Column {
+                    OutlinedButton(onClick = { sortMenuExpanded = true }) {
+                        Text("Sort")
+                    }
+                    DropdownMenu(
+                        expanded = sortMenuExpanded,
+                        onDismissRequest = { sortMenuExpanded = false },
+                    ) {
+                        GraphSortOrder.entries.forEach { order ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        when (order) {
+                                            GraphSortOrder.RECENT -> "Recently updated"
+                                            GraphSortOrder.NAME -> "Name"
+                                            GraphSortOrder.PAPERS -> "Most papers"
+                                        },
+                                    )
+                                },
+                                onClick = {
+                                    onSortOrderChange(order)
+                                    sortMenuExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        errorMessage?.let { message ->
+            item {
+                GraphStatusCard(message = message, isError = true)
+            }
+        }
+        if (graphs.isEmpty()) {
+            item {
+                GraphEmptyState(hasQuery = query.isNotBlank(), onCreate = onCreate)
+            }
+        } else {
+            item {
+                Text(
+                    "${graphs.size} graph${if (graphs.size == 1) "" else "s"}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            items(graphs, key = ResearchGraph::id) { graph ->
+                GraphListCard(
+                    graph = graph,
+                    onOpen = { onOpen(graph.id) },
+                    onRename = { onRename(graph) },
+                    onDelete = { onDelete(graph) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GraphListCard(
     graph: ResearchGraph,
-    paperCount: Int,
     onOpen: () -> Unit,
+    onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(graph.name)
-                Text("$paperCount papers • ${graph.connections.size} connections")
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(graph.name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "${graph.paperIds.size} papers  •  ${graph.connections.size} connections",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    graphInsight(graph),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
-            Row {
-                TextButton(onClick = onOpen) {
-                    Text("Open")
-                }
-                TextButton(onClick = onDelete) {
-                    Text("Delete")
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = onOpen) { Text("Open") }
+                TextButton(onClick = onRename) { Text("Rename") }
+                TextButton(onClick = onDelete) { Text("Delete") }
             }
         }
     }
 }
 
 @Composable
-private fun GraphWorkspace(
-    graph: ResearchGraph,
-    papers: List<Paper>,
-    onBack: () -> Unit,
-    onAddPaper: (String) -> Unit,
-    onRemovePaper: (String) -> Unit,
-    onConnect: (String, String) -> Unit,
+private fun GraphEmptyState(
+    hasQuery: Boolean,
+    onCreate: () -> Unit,
 ) {
-    var selectedPaperForConnection by remember(graph.id) { mutableStateOf<String?>(null) }
-    var expandedPaperMenu by remember { mutableStateOf<String?>(null) }
-    val graphPapers = papers.filter { it.id in graph.paperIds }
-    val availablePapers = papers.filterNot { it.id in graph.paperIds }
-
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        TextButton(onClick = onBack) {
-            Text("Back to graphs")
-        }
-        Text(graph.name)
-        Text("Select a paper menu to add relationships or remove it from this graph.")
-
-        if (graphPapers.isEmpty()) {
-            Text("This graph is empty. Add a saved paper below.")
-        } else {
-            graphPapers.forEach { paper ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(paper.title)
-                            Text(paper.authors.joinToString())
-                        }
-                        Column {
-                            OutlinedButton(
-                                onClick = {
-                                    selectedPaperForConnection = paper.id
-                                    expandedPaperMenu = paper.id
-                                },
-                            ) {
-                                Text("Actions")
-                            }
-                            DropdownMenu(
-                                expanded = expandedPaperMenu == paper.id,
-                                onDismissRequest = { expandedPaperMenu = null },
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Remove from graph") },
-                                    onClick = {
-                                        onRemovePaper(paper.id)
-                                        expandedPaperMenu = null
-                                    },
-                                )
-                                graphPapers
-                                    .filterNot { it.id == paper.id }
-                                    .forEach { target ->
-                                        DropdownMenuItem(
-                                            text = { Text("Connect to ${target.title.take(24)}") },
-                                            onClick = {
-                                                onConnect(paper.id, target.id)
-                                                expandedPaperMenu = null
-                                            },
-                                        )
-                                    }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (graph.connections.isNotEmpty()) {
-            Text("Connections")
-            graph.connections.forEach { connection ->
-                val from = papers.firstOrNull { it.id == connection.fromPaperId }?.title
-                val to = papers.firstOrNull { it.id == connection.toPaperId }?.title
-                Text("${from ?: connection.fromPaperId} → ${to ?: connection.toPaperId}")
-            }
-        }
-
-        Text("Saved papers")
-        availablePapers.forEach { paper ->
-            TextButton(onClick = { onAddPaper(paper.id) }) {
-                Text("Add ${paper.title}")
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                if (hasQuery) "No matching graphs" else "Start with a research question",
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Text(
+                if (hasQuery) {
+                    "Try a different graph name or clear the search."
+                } else {
+                    "Create a local graph to see how your saved papers connect. Nothing leaves this device."
+                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (!hasQuery) {
+                Button(onClick = onCreate) { Text("Create your first graph") }
             }
         }
     }
 }
 
 @Composable
-private fun CreateGraphDialog(
+private fun GraphNameDialog(
+    title: String,
+    confirmLabel: String,
+    initialName: String = "",
     onDismiss: () -> Unit,
-    onCreate: (String) -> Unit,
+    onConfirm: (String) -> Unit,
 ) {
-    var name by remember { mutableStateOf("") }
+    var name by remember(initialName) { mutableStateOf(initialName) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create graph") },
+        title = { Text(title) },
         text = {
             OutlinedTextField(
                 value = name,
@@ -288,16 +388,47 @@ private fun CreateGraphDialog(
         confirmButton = {
             Button(
                 enabled = name.isNotBlank(),
-                onClick = { onCreate(name.trim()) },
+                onClick = { onConfirm(name.trim()) },
             ) {
-                Text("Create")
+                Text(confirmLabel)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
 }
 
+@Composable
+fun GraphStatusCard(
+    message: String,
+    isError: Boolean,
+) {
+    Card(
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = if (isError) {
+                MaterialTheme.colorScheme.errorContainer
+            } else {
+                MaterialTheme.colorScheme.secondaryContainer
+            },
+        ),
+    ) {
+        Text(
+            message,
+            modifier = Modifier.padding(14.dp),
+            color = if (isError) {
+                MaterialTheme.colorScheme.onErrorContainer
+            } else {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            },
+        )
+    }
+}
+
+private fun graphInsight(graph: ResearchGraph): String {
+    return when {
+        graph.paperIds.isEmpty() -> "Ready for your first saved paper"
+        graph.connections.isEmpty() -> "Add a connection to reveal a research path"
+        else -> "${graph.connections.size} relationship${if (graph.connections.size == 1) "" else "s"} mapped locally"
+    }
+}
