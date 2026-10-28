@@ -1,4 +1,4 @@
-package com.paperconnekt.app
+package com.paperconnekt.android
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
@@ -15,25 +15,14 @@ import javax.crypto.spec.GCMParameterSpec
 private const val KEY_ALIAS = "paperconnekt-secrets"
 private const val PREFERENCES_NAME = "paperconnekt-secrets"
 
-private var applicationContext: Context? = null
-
-actual fun configureSecretStore(platformContext: Any?) {
-    applicationContext = (platformContext as? Context)?.applicationContext
-        ?: error("Android Context is required to configure secret storage.")
-}
-
-actual fun createSecretStore(): SecretStore {
-    return AndroidSecretStore(
-        context = requireNotNull(applicationContext) {
-            "Call configureSecretStore before creating the secret store."
-        },
-    )
-}
-
-private class AndroidSecretStore(
-    private val context: Context,
+class AndroidSecretStore(
+    context: Context,
 ) : SecretStore {
-    private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val preferences = appContext.getSharedPreferences(
+        PREFERENCES_NAME,
+        Context.MODE_PRIVATE,
+    )
 
     override suspend fun read(key: SecretKey): String? {
         val encoded = preferences.getString(key.name, null) ?: return null
@@ -41,11 +30,7 @@ private class AndroidSecretStore(
         val iv = payload.copyOfRange(0, 12)
         val encrypted = payload.copyOfRange(12, payload.size)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(
-            Cipher.DECRYPT_MODE,
-            loadKey(),
-            GCMParameterSpec(128, iv),
-        )
+        cipher.init(Cipher.DECRYPT_MODE, loadKey(), GCMParameterSpec(128, iv))
         return cipher.doFinal(encrypted).decodeToString()
     }
 

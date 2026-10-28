@@ -78,19 +78,21 @@ and its native integrations.
 ## Architecture
 
 ```text
-app/composeApp
-        |
-        +--> shared/storage ----> shared/domain
-        |
-        +--> shared/secrets
-        |
-        +--> plugin/native-api
-                  |
-                  +--> plugin/native-plugins/common
-                         |             |
-                         v             v
-                       vscode         idea
-```
+app/android     app/desktop     future app/web
+        \          |             /
+             app/composeApp
+                                 |
+                                 +--> shared/storage ----> shared/domain
+                                 |
+                                 +--> shared/secrets
+                                 |
+                                 +--> plugin/native-api
+                                           |
+                                           +--> plugin/native-plugins/common
+                                                  |             |
+                                                  v             v
+                                                vscode         idea
+             ```
 
 | Layer | Responsibility |
 | --- | --- |
@@ -101,11 +103,14 @@ app/composeApp
 | `plugin/native-plugins/common` | Kotlin behaviour shared by the native plugins, including paper indexing and plugin sessions |
 | `plugin/native-plugins/vscode` | Native VS Code adapter |
 | `plugin/native-plugins/idea` | Native IntelliJ IDEA adapter |
-| `app/composeApp` | Compose Multiplatform application for Android and desktop |
+| `app/composeApp` | Shared Compose Multiplatform UI and application flow |
+| `app/android` | Android launcher, manifest, and Android-native integrations |
+| `app/desktop` | JVM desktop launcher, window configuration, and desktop integrations |
 
-The dependency direction keeps product logic in shared Kotlin modules. UI and
-host integrations depend on those contracts instead of duplicating research
-behaviour in each platform implementation.
+The dependency direction keeps product logic and UI in shared Kotlin modules.
+Each platform module owns only its launcher and native boundary, so Android and
+desktop can evolve independently while a future web module can reuse the same
+Compose application flow.
 
 ## Technology
 

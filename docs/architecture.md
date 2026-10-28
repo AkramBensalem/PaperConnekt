@@ -15,10 +15,17 @@
 ## Dependency direction
 
 ```text
-app/composeApp ──> shared/storage ──> shared/domain
-       │                  └─────────> shared/secrets
-       └──────────────> plugin/native-api
+app/android ───────┐
+app/desktop ───────┼──> app/composeApp ──> shared/storage ──> shared/domain
+future app/web ────┘             │                  └───────> shared/secrets
+                                 └──────────────> plugin/native-api
 ```
+
+`app/composeApp` contains the shared Compose UI and application flow. Platform
+modules own their launchers, manifests, window configuration, and native
+implementations such as secure secret storage. This keeps Android and desktop
+independent while allowing a future web module to consume the same shared UI
+and contracts.
 
 `shared/domain` has no UI or network dependency. `shared/storage` owns local
 repositories and can later add platform persistence without changing feature APIs.
@@ -41,4 +48,3 @@ feature/<name>/
 The initial foundation keeps the app shell intentionally small. Later branches
 should extract each placeholder screen into a feature module only when its shared
 contract is stable.
-

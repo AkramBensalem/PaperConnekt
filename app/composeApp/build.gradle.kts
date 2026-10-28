@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.android.application)
+    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.compose.compiler)
@@ -21,16 +21,6 @@ kotlin {
             implementation(libs.compose.material3)
             implementation(libs.ktor.client.core)
         }
-        named("desktopMain") {
-            dependencies {
-                implementation(libs.compose.desktop)
-                implementation(libs.ktor.client.cio)
-            }
-        }
-        androidMain.dependencies {
-            implementation(libs.androidx.activity.compose)
-            implementation(libs.ktor.client.okhttp)
-        }
     }
 }
 
@@ -39,16 +29,6 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.paperconnekt.app"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
-    }
-}
-
-compose.desktop {
-    application {
-        mainClass = "com.paperconnekt.app.MainKt"
     }
 }
