@@ -2,6 +2,7 @@ package com.paperconnekt.app
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -34,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.domain.model.ResearchGraph
 import kotlin.math.PI
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -51,8 +54,43 @@ fun GraphCanvasPanel(
     val colorScheme = MaterialTheme.colorScheme
     val labelSmall = MaterialTheme.typography.labelSmall
     var pan by remember(graph.id) { mutableStateOf(Offset.Zero) }
+    var nodePositions by remember(graph.id) { mutableStateOf<Map<String, Offset>>(emptyMap()) }
     val canvasModifier = modifier
         .clip(MaterialTheme.shapes.large)
+        .pointerInput(graph.id, papers, zoom, pan, nodePositions) {
+            var draggedPaperId: String? = null
+            detectDragGestures(
+                onDragStart = { start ->
+                    val canvasSize = Size(size.width.toFloat(), size.height.toFloat())
+                    draggedPaperId = papers.indices.firstOrNull { index ->
+                        val position = transformedPosition(
+                            positionFor(papers, index, canvasSize, nodePositions),
+                            canvasSize,
+                            zoom,
+                            pan,
+                        )
+                        (start - position).getDistance() <= nodeRadius(size.width.toFloat())
+                    }?.let(papers::get)?.id
+                },
+                onDragEnd = { draggedPaperId = null },
+                onDragCancel = { draggedPaperId = null },
+            ) { change, dragAmount ->
+                val paperId = draggedPaperId
+                if (paperId == null) {
+                    pan += dragAmount
+                } else {
+                    val canvasSize = Size(size.width.toFloat(), size.height.toFloat())
+                    val current = positionFor(
+                        papers,
+                        papers.indexOfFirst { it.id == paperId },
+                        canvasSize,
+                        nodePositions,
+                    )
+                    nodePositions = nodePositions + (paperId to (current + dragAmount / zoom))
+                    change.consume()
+                }
+            }
+        }
         .pointerInput(graph.id) {
             detectTransformGestures { _, panChange, zoomChange, _ ->
                 pan += panChange
@@ -62,9 +100,10 @@ fun GraphCanvasPanel(
         .pointerInput(graph.id, zoom, pan, papers, selectedPaperId) {
             detectTapGestures { tapPosition ->
                 val index = papers.indices.firstOrNull { index ->
+                    val canvasSize = Size(size.width.toFloat(), size.height.toFloat())
                     val position = transformedPosition(
-                        basePosition(index, papers.size, size = Size(size.width.toFloat(), size.height.toFloat())),
-                        Size(size.width.toFloat(), size.height.toFloat()),
+                        positionFor(papers, index, canvasSize, nodePositions),
+                        canvasSize,
                         zoom,
                         pan,
                     )
@@ -78,57 +117,65 @@ fun GraphCanvasPanel(
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawRect(colorScheme.surfaceContainerLowest)
             val canvasSize = size
+            val positions = papers.mapIndexed { index, paper ->
+                paper.id to positionFor(papers, index, canvasSize, nodePositions)
+            }.toMap()
             graph.connections.forEach { connection ->
                 val fromIndex = papers.indexOfFirst { it.id == connection.fromPaperId }
                 val toIndex = papers.indexOfFirst { it.id == connection.toPaperId }
                 if (fromIndex >= 0 && toIndex >= 0) {
                     val from = transformedPosition(
-                        basePosition(fromIndex, papers.size, canvasSize),
+                        positions[papers[fromIndex].id] ?: Offset.Zero,
                         canvasSize,
                         zoom,
                         pan,
                     )
                     val to = transformedPosition(
-                        basePosition(toIndex, papers.size, canvasSize),
+                        positions[papers[toIndex].id] ?: Offset.Zero,
                         canvasSize,
                         zoom,
                         pan,
                     )
-                    drawLine(
-                        color = when (connection.type) {
+                    val edgeColor = when (connection.type) {
                             com.paperconnekt.domain.model.ConnectionType.CITATION -> colorScheme.primary
                             com.paperconnekt.domain.model.ConnectionType.SHARED_REFERENCE -> colorScheme.tertiary
                             com.paperconnekt.domain.model.ConnectionType.RELATED_TOPIC -> colorScheme.outlineVariant
-                        },
+                        }
+                    drawLine(
+                        color = edgeColor,
                         start = from,
                         end = to,
                         strokeWidth = 2.dp.toPx(),
                         cap = StrokeCap.Round,
                     )
-                    drawCircle(
-                        color = colorScheme.primary,
-                        radius = 3.dp.toPx(),
-                        center = Offset(
-                            x = from.x + (to.x - from.x) * 0.62f,
-                            y = from.y + (to.y - from.y) * 0.62f,
-                        ),
+                    drawArrowHead(
+                        color = edgeColor,
+                        from = from,
+                        to = to,
                     )
                 }
             }
             papers.forEachIndexed { index, paper ->
                 val center = transformedPosition(
-                    basePosition(index, papers.size, canvasSize),
+                    positions[paper.id] ?: Offset.Zero,
                     canvasSize,
                     zoom,
                     pan,
                 )
                 val selected = paper.id == selectedPaperId
-                val radius = nodeRadius(size.width)
+                val connections = graph.connections.count {
+                    it.fromPaperId == paper.id || it.toPaperId == paper.id
+                }
+                val radius = (nodeRadius(size.width) + connections * 1.5f).coerceAtMost(48f)
                 drawCircle(
                     color = if (selected) {
                         colorScheme.primary
                     } else if (graph.paperIds.firstOrNull() == paper.id) {
-                        colorScheme.primaryContainer
+                        colorScheme.primary
+                    } else if (graph.connections.any {
+                            it.fromPaperId == paper.id && it.toPaperId != paper.id
+                        }) {
+                        colorScheme.tertiary
                     } else {
                         colorScheme.secondary
                     },
@@ -223,15 +270,48 @@ fun GraphCanvasPanel(
     }
 }
 
-private fun basePosition(index: Int, count: Int, size: Size): Offset {
-    if (count == 0) return Offset(size.width / 2f, size.height / 2f)
+private fun positionFor(
+    papers: List<Paper>,
+    index: Int,
+    size: Size,
+    saved: Map<String, Offset>,
+): Offset {
+    val paper = papers[index]
+    saved[paper.id]?.let { return it }
     if (index == 0) return Offset(size.width / 2f, size.height / 2f)
-    val neighborCount = (count - 1).coerceAtLeast(1)
-    val angle = (index - 1).toFloat() / neighborCount * (2f * PI.toFloat())
-    val radius = (size.minDimension * 0.34f).coerceAtLeast(90f)
+    val neighbors = (papers.size - 1).coerceAtLeast(1)
+    val angle = (index - 1).toFloat() / neighbors * (2f * PI.toFloat())
+    val radius = (size.minDimension * 0.32f).coerceAtLeast(120f)
     return Offset(
-        x = size.width / 2f + cos(angle) * radius,
-        y = size.height / 2f + sin(angle) * radius,
+        size.width / 2f + cos(angle) * radius,
+        size.height / 2f + sin(angle) * radius,
+    )
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawArrowHead(
+    color: Color,
+    from: Offset,
+    to: Offset,
+) {
+    val angle = atan2(to.y - from.y, to.x - from.x)
+    val tip = from + (to - from) * 0.64f
+    val length = 10.dp.toPx()
+    val left = Offset(
+        tip.x - cos(angle - 0.55f) * length,
+        tip.y - sin(angle - 0.55f) * length,
+    )
+    val right = Offset(
+        tip.x - cos(angle + 0.55f) * length,
+        tip.y - sin(angle + 0.55f) * length,
+    )
+    drawPath(
+        path = Path().apply {
+            moveTo(tip.x, tip.y)
+            lineTo(left.x, left.y)
+            lineTo(right.x, right.y)
+            close()
+        },
+        color = color,
     )
 }
 
