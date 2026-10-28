@@ -20,6 +20,7 @@ kotlin {
             implementation(libs.compose.ui)
             implementation(libs.compose.material3)
             implementation(libs.ktor.client.core)
+            implementation(libs.kotlinx.serialization.json)
         }
     }
 }

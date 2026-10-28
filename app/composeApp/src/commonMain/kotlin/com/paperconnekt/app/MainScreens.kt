@@ -156,6 +156,70 @@ fun DashboardScreen(
 }
 
 @Composable
+private fun AddPaperDialog(
+    onDismiss: () -> Unit,
+    onSave: (title: String, authors: List<String>, year: Int?, pdfPath: String?) -> Unit,
+) {
+    var title by remember { mutableStateOf("") }
+    var authors by remember { mutableStateOf("") }
+    var year by remember { mutableStateOf("") }
+    var pdfPath by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add paper") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = authors,
+                    onValueChange = { authors = it },
+                    label = { Text("Authors, comma separated") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = year,
+                    onValueChange = { year = it },
+                    label = { Text("Year") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = pdfPath,
+                    onValueChange = { pdfPath = it },
+                    label = { Text("PDF path (optional)") },
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = title.isNotBlank(),
+                onClick = {
+                    onSave(
+                        title.trim(),
+                        authors.split(',').map(String::trim).filter(String::isNotEmpty),
+                        year.toIntOrNull(),
+                        pdfPath.trim().ifEmpty { null },
+                    )
+                },
+            ) {
+                Text("Save locally")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
+@Composable
 private fun PaperCard(
     paper: Paper,
     isSaved: Boolean,
@@ -170,70 +234,6 @@ private fun PaperCard(
             Text(paper.title)
             if (paper.authors.isNotEmpty()) {
                 Text(paper.authors.joinToString())
-            }
-
-            @Composable
-            private fun AddPaperDialog(
-                onDismiss: () -> Unit,
-                onSave: (title: String, authors: List<String>, year: Int?, pdfPath: String?) -> Unit,
-            ) {
-                var title by remember { mutableStateOf("") }
-                var authors by remember { mutableStateOf("") }
-                var year by remember { mutableStateOf("") }
-                var pdfPath by remember { mutableStateOf("") }
-
-                AlertDialog(
-                    onDismissRequest = onDismiss,
-                    title = { Text("Add paper") },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = title,
-                                onValueChange = { title = it },
-                                label = { Text("Title") },
-                                singleLine = true,
-                            )
-                            OutlinedTextField(
-                                value = authors,
-                                onValueChange = { authors = it },
-                                label = { Text("Authors, comma separated") },
-                                singleLine = true,
-                            )
-                            OutlinedTextField(
-                                value = year,
-                                onValueChange = { year = it },
-                                label = { Text("Year") },
-                                singleLine = true,
-                            )
-                            OutlinedTextField(
-                                value = pdfPath,
-                                onValueChange = { pdfPath = it },
-                                label = { Text("PDF path (optional)") },
-                                singleLine = true,
-                            )
-                        }
-                    },
-                    confirmButton = {
-                        Button(
-                            enabled = title.isNotBlank(),
-                            onClick = {
-                                onSave(
-                                    title.trim(),
-                                    authors.split(',').map(String::trim).filter(String::isNotEmpty),
-                                    year.toIntOrNull(),
-                                    pdfPath.trim().ifEmpty { null },
-                                )
-                            },
-                        ) {
-                            Text("Save locally")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = onDismiss) {
-                            Text("Cancel")
-                        }
-                    },
-                )
             }
             paper.year?.let { Text(it.toString()) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
