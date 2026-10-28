@@ -58,6 +58,7 @@ fun LibraryScreen(
     store: LocalResearchStore,
     paddingValues: PaddingValues,
     onOpenPaper: (Paper) -> Unit = {},
+    onOpenGraph: (Paper) -> Unit = {},
 ) {
     val entries by store.libraryEntries.collectAsState()
     val papers by store.papers.collectAsState()
@@ -168,6 +169,7 @@ fun LibraryScreen(
                             "No saved papers match this view."
                         },
                         onOpenPaper = onOpenPaper,
+                        onOpenGraph = onOpenGraph,
                         onMove = { movePaper = it },
                         onDelete = { entry ->
                             scope.launch { store.removeLibraryEntry(entry.id) }
@@ -225,6 +227,7 @@ fun LibraryScreen(
                                 "No saved papers match this view."
                             },
                             onOpenPaper = onOpenPaper,
+                            onOpenGraph = onOpenGraph,
                             onMove = { movePaper = it },
                             onDelete = { entry ->
                                 scope.launch { store.removeLibraryEntry(entry.id) }
@@ -599,6 +602,7 @@ private fun LibraryPaperList(
     paperById: Map<String, Paper>,
     emptyLabel: String,
     onOpenPaper: (Paper) -> Unit,
+    onOpenGraph: (Paper) -> Unit,
     onMove: (LibraryEntry) -> Unit,
     onDelete: (LibraryEntry) -> Unit,
 ) {
@@ -618,6 +622,7 @@ private fun LibraryPaperList(
                 PaperLibraryCard(
                     paper = paper,
                     onOpen = { onOpenPaper(paper) },
+                    onOpenGraph = { onOpenGraph(paper) },
                     onMove = { onMove(entry) },
                     onRemove = { onDelete(entry) },
                     canRemove = !entry.id.startsWith("unfiled-"),
@@ -631,6 +636,7 @@ private fun LibraryPaperList(
 private fun PaperLibraryCard(
     paper: Paper,
     onOpen: () -> Unit,
+    onOpenGraph: () -> Unit,
     onMove: () -> Unit,
     onRemove: () -> Unit,
     canRemove: Boolean,
@@ -666,8 +672,13 @@ private fun PaperLibraryCard(
                 color = MaterialTheme.colorScheme.primary,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onOpen, enabled = paper.pdfPath != null) {
-                    Text(if (paper.pdfPath == null) "No PDF" else "Open paper")
+                Button(onClick = onOpenGraph) {
+                    Text("Open graph")
+                }
+                if (paper.pdfPath != null) {
+                    TextButton(onClick = onOpen) {
+                        Text("Open paper")
+                    }
                 }
                 TextButton(onClick = onMove) { Text("Move") }
                 if (canRemove) {

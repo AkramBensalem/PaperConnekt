@@ -24,6 +24,10 @@ import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.LocalResearchStore
 import com.paperconnekt.app.onboarding.OnboardingScreen
+import com.paperconnekt.domain.model.ResearchGraph
+import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlin.random.Random
 
 @Composable
 fun AppShell(
@@ -33,6 +37,25 @@ fun AppShell(
 ) {
     var destination by remember { mutableStateOf(startDestination) }
     var requestedPaper by remember { mutableStateOf<Paper?>(null) }
+    var requestedGraphId by remember { mutableStateOf<String?>(null) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+
+    fun openPaperGraph(paper: Paper) {
+        scope.launch {
+            // Search results may come from OpenAlex and are not in the local store yet.
+            // Persist the seed before opening the canvas so the node is immediately visible.
+            store.savePaper(paper)
+            val graph = ResearchGraph(
+                id = "graph-${Random.nextLong()}",
+                name = paper.title,
+                paperIds = listOf(paper.id),
+                updatedAt = Clock.System.now(),
+            )
+            store.saveGraph(graph)
+            requestedGraphId = graph.id
+            destination = AppDestination.GRAPH
+        }
+    }
 
     if (destination == AppDestination.ONBOARDING) {
         OnboardingScreen(
@@ -105,6 +128,8 @@ fun AppShell(
                         },
                         requestedPaper = requestedPaper,
                         onPaperRequestConsumed = { requestedPaper = null },
+                        requestedGraphId = requestedGraphId,
+                        onOpenGraph = ::openPaperGraph,
                     )
                 }
             }
@@ -142,6 +167,8 @@ fun AppShell(
                     },
                     requestedPaper = requestedPaper,
                     onPaperRequestConsumed = { requestedPaper = null },
+                    requestedGraphId = requestedGraphId,
+                    onOpenGraph = ::openPaperGraph,
                 )
             }
         }

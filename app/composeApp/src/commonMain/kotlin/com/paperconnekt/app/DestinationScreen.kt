@@ -17,6 +17,8 @@ fun DestinationScreen(
     onPaperSelected: (Paper) -> Unit = {},
     requestedPaper: Paper? = null,
     onPaperRequestConsumed: () -> Unit = {},
+    requestedGraphId: String? = null,
+    onOpenGraph: (Paper) -> Unit = {},
 ) {
     when (destination) {
         AppDestination.DASHBOARD -> DashboardScreen(
@@ -24,6 +26,7 @@ fun DestinationScreen(
             paddingValues = paddingValues,
             onOpenAssistant = { onNavigate(AppDestination.ASSISTANT) },
             onOpenLibrary = { onNavigate(AppDestination.LIBRARY) },
+            onOpenGraph = onOpenGraph,
         )
         AppDestination.ASSISTANT -> AssistantScreen(
             store = store,
@@ -31,13 +34,14 @@ fun DestinationScreen(
             initialPaper = requestedPaper,
             onInitialPaperConsumed = onPaperRequestConsumed,
         )
-        AppDestination.GRAPH -> GraphScreen(store, paddingValues)
+        AppDestination.GRAPH -> GraphScreen(store, paddingValues, requestedGraphId)
         AppDestination.LIBRARY -> LibraryScreen(
             store = store,
             paddingValues = paddingValues,
             onOpenPaper = {
                 onPaperSelected(it)
             },
+            onOpenGraph = onOpenGraph,
         )
         AppDestination.SETTINGS -> SettingsScreen(store, secretStore, paddingValues)
         AppDestination.ONBOARDING -> Unit

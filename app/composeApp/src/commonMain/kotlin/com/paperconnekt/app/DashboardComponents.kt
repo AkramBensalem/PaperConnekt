@@ -166,6 +166,7 @@ fun DashboardPaperCard(
     isSaved: Boolean,
     compact: Boolean,
     onOpen: () -> Unit,
+    onOpenGraph: () -> Unit,
     onSave: () -> Unit,
     onRemove: () -> Unit,
 ) {
@@ -224,8 +225,13 @@ fun DashboardPaperCard(
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onOpen, enabled = paper.pdfPath != null || paper.sourceUrl != null) {
-                    Text(if (paper.pdfPath != null) "Open paper" else "Open source")
+                Button(onClick = onOpenGraph) {
+                    Text("Open graph")
+                }
+                if (paper.pdfPath != null || paper.sourceUrl != null) {
+                    TextButton(onClick = onOpen) {
+                        Text(if (paper.pdfPath != null) "Open paper" else "Open source")
+                    }
                 }
                 if (isSaved) {
                     TextButton(onClick = onRemove) { Text("Remove") }

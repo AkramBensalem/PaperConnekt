@@ -46,6 +46,7 @@ fun DashboardScreen(
     onOpenAssistant: () -> Unit = {},
     onOpenLibrary: () -> Unit = {},
     onOpenPaper: (Paper) -> Unit = {},
+    onOpenGraph: (Paper) -> Unit = {},
 ) {
     val papers by store.papers.collectAsState()
     val graphs by store.graphs.collectAsState()
@@ -271,6 +272,7 @@ fun DashboardScreen(
                                 isSaved = papers.any { it.id == paper.id },
                                 compact = compact,
                                 onOpen = { onOpenPaper(paper) },
+                                onOpenGraph = { onOpenGraph(paper) },
                                 onSave = {
                                     scope.launch {
                                         store.savePaper(paper)
