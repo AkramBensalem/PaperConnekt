@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +71,7 @@ fun GraphWorkspace(
     var showConnectionDialog by remember(graph.id) { mutableStateOf(false) }
     var connectionToRemove by remember { mutableStateOf<GraphConnection?>(null) }
     var isExpanding by remember(graph.id) { mutableStateOf(false) }
+    var autoExpansionAttempted by remember(graph.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val graphProvider = remember { OpenAlexGraphProvider(HttpClient()) }
 
@@ -108,6 +110,39 @@ fun GraphWorkspace(
                     }
                     .onFailure { onError(it.message ?: "Could not load graph connections.") }
                 isExpanding = false
+            }
+        }
+    }
+
+    LaunchedEffect(graph.id) {
+        if (!autoExpansionAttempted && graphPapers.size == 1 && graph.connections.isEmpty()) {
+            autoExpansionAttempted = true
+            val seed = graphPapers.single()
+            if (seed.id.startsWith("W")) {
+                isExpanding = true
+                scope.launch {
+                    var expandedGraph = graph
+                    runCatching {
+                        listOf(
+                            GraphExpansionDirection.REFERENCES,
+                            GraphExpansionDirection.CITATIONS,
+                        ).forEach { direction ->
+                            val expansion = graphProvider.expand(seed.id, direction)
+                            expansion.papers.forEach(onSavePaper)
+                            expandedGraph = expandedGraph.copy(
+                                paperIds = (expandedGraph.paperIds + expansion.papers.map(Paper::id)).distinct(),
+                                connections = (expandedGraph.connections + expansion.connections).distinct(),
+                            )
+                        }
+                    }.onSuccess {
+                        saveUpdated(expandedGraph)
+                    }.onFailure {
+                        onError(it.message ?: "Could not load the paper's citation graph.")
+                    }
+                    isExpanding = false
+                }
+            } else {
+                onError("This local paper has no OpenAlex work id, so references and citations are unavailable.")
             }
         }
     }
