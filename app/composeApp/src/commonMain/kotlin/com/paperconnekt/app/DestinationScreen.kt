@@ -12,9 +12,15 @@ fun DestinationScreen(
     store: LocalResearchStore,
     secretStore: SecretStore,
     paddingValues: PaddingValues,
+    onNavigate: (AppDestination) -> Unit = {},
 ) {
     when (destination) {
-        AppDestination.DASHBOARD -> DashboardScreen(store, paddingValues)
+        AppDestination.DASHBOARD -> DashboardScreen(
+            store = store,
+            paddingValues = paddingValues,
+            onOpenAssistant = { onNavigate(AppDestination.ASSISTANT) },
+            onOpenLibrary = { onNavigate(AppDestination.LIBRARY) },
+        )
         AppDestination.ASSISTANT -> AssistantScreen(store, paddingValues)
         AppDestination.GRAPH -> GraphScreen(store, paddingValues)
         AppDestination.LIBRARY -> LibraryScreen(store, paddingValues)

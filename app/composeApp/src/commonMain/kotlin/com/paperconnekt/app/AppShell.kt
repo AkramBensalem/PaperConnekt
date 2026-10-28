@@ -96,6 +96,7 @@ fun AppShell(
                         store = store,
                         secretStore = secretStore,
                         paddingValues = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                        onNavigate = { destination = it },
                     )
                 }
             }
@@ -126,6 +127,7 @@ fun AppShell(
                     store = store,
                     secretStore = secretStore,
                     paddingValues = paddingValues,
+                    onNavigate = { destination = it },
                 )
             }
         }

@@ -17,7 +17,7 @@ class OpenAlexPaperSearchProvider(
         val response = client.get("https://api.openalex.org/works") {
             parameter("search", query)
             parameter("per-page", 20)
-            parameter("select", "id,title,publication_year,authorships,open_access")
+            parameter("select", "id,title,publication_year,authorships,doi,open_access")
         }
         val payload = json.decodeFromString<OpenAlexResponse>(response.bodyAsText())
         return payload.results.mapNotNull { it.toPaper() }
@@ -36,6 +36,7 @@ private data class OpenAlexWork(
     @SerialName("publication_year")
     val publicationYear: Int? = null,
     val authorships: List<OpenAlexAuthorship> = emptyList(),
+    val doi: String? = null,
 )
 
 @Serializable
@@ -58,5 +59,8 @@ private fun OpenAlexWork.toPaper(): Paper? {
         title = paperTitle,
         authors = authorships.mapNotNull { it.author?.displayName },
         year = publicationYear,
+        doi = doi?.substringAfter("doi.org/"),
+        source = "OpenAlex",
+        sourceUrl = id,
     )
 }

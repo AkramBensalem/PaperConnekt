@@ -15,7 +15,9 @@ class LocalPaperSearchProvider(
 
         return store.papers.value.filter { paper ->
             paper.title.lowercase().contains(normalizedQuery) ||
-                paper.authors.any { it.lowercase().contains(normalizedQuery) }
+                paper.authors.any { it.lowercase().contains(normalizedQuery) } ||
+                paper.doi?.lowercase()?.contains(normalizedQuery) == true ||
+                paper.tags.any { it.lowercase().contains(normalizedQuery) }
         }
     }
 }
@@ -39,4 +41,3 @@ class LocalFirstPaperSearchProvider(
             .sortedByDescending(Paper::year)
     }
 }
-
