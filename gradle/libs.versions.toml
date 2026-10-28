@@ -13,6 +13,7 @@ androidx-lifecycle = "2.9.0"
 [libraries]
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeVersion" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeVersion" }
+compose-animation = { module = "org.jetbrains.compose.animation:animation", version.ref = "composeVersion" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeVersion" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
 compose-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeVersion" }

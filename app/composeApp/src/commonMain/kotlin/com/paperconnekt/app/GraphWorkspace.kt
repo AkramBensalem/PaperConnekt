@@ -29,7 +29,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -42,6 +41,7 @@ import com.paperconnekt.domain.model.ConnectionType
 import com.paperconnekt.domain.model.GraphConnection
 import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.domain.model.ResearchGraph
+import com.paperconnekt.app.legacygraph.LegacyGraphCanvasPanel
 import com.paperconnekt.storage.GraphExpansionDirection
 import com.paperconnekt.storage.OpenAlexGraphProvider
 import io.ktor.client.HttpClient
@@ -66,7 +66,6 @@ fun GraphWorkspace(
     var selectedPaperId by remember(graph.id) { mutableStateOf<String?>(null) }
     var paperQuery by remember(graph.id) { mutableStateOf("") }
     var sortByTitle by remember(graph.id) { mutableStateOf(false) }
-    var zoom by remember(graph.id) { mutableFloatStateOf(1f) }
     var showAddPaperDialog by remember(graph.id) { mutableStateOf(false) }
     var showConnectionDialog by remember(graph.id) { mutableStateOf(false) }
     var connectionToRemove by remember { mutableStateOf<GraphConnection?>(null) }
@@ -179,15 +178,13 @@ fun GraphWorkspace(
 
         if (compact) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                GraphCanvasPanel(
+                LegacyGraphCanvasPanel(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(360.dp),
                     graph = graph,
                     papers = graphPapers,
                     selectedPaperId = selectedPaperId,
-                    zoom = zoom,
-                    onZoomChange = { zoom = it },
                     onSelectPaper = { selectedPaperId = it },
                 )
                 GraphDetailsPanel(
@@ -225,13 +222,11 @@ fun GraphWorkspace(
                     .weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                GraphCanvasPanel(
+                LegacyGraphCanvasPanel(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     graph = graph,
                     papers = graphPapers,
                     selectedPaperId = selectedPaperId,
-                    zoom = zoom,
-                    onZoomChange = { zoom = it },
                     onSelectPaper = { selectedPaperId = it },
                 )
                 GraphDetailsPanel(
