@@ -50,8 +50,11 @@ fun DashboardScreen(
     val papers by store.papers.collectAsState()
     val graphs by store.graphs.collectAsState()
     val libraryEntries by store.libraryEntries.collectAsState()
+    val settings by store.settings.collectAsState()
     var query by remember { mutableStateOf("") }
-    var includeRemote by remember { mutableStateOf(false) }
+    var includeRemote by remember(settings.openAlexDiscoveryEnabled) {
+        mutableStateOf(settings.openAlexDiscoveryEnabled)
+    }
     var sortOrder by remember { mutableStateOf(PaperSortOrder.RECENT) }
     var searchResults by remember { mutableStateOf<List<Paper>?>(null) }
     var isSearching by remember { mutableStateOf(false) }
@@ -117,6 +120,9 @@ fun DashboardScreen(
                     compact = compact,
                     onDiscover = {
                         includeRemote = true
+                        scope.launch {
+                            store.updateSettings { it.copy(openAlexDiscoveryEnabled = true) }
+                        }
                         notice = "Optional discovery enabled. Search to query OpenAlex."
                     },
                     onAssistant = onOpenAssistant,
@@ -184,7 +190,14 @@ fun DashboardScreen(
                     ) {
                         FilterChip(
                             selected = includeRemote,
-                            onClick = { includeRemote = !includeRemote },
+                            onClick = {
+                                includeRemote = !includeRemote
+                                scope.launch {
+                                    store.updateSettings {
+                                        it.copy(openAlexDiscoveryEnabled = includeRemote)
+                                    }
+                                }
+                            },
                             label = { Text("Optional online discovery") },
                         )
                         Spacer(Modifier.width(8.dp))

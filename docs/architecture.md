@@ -33,6 +33,13 @@ repositories and can later add platform persistence without changing feature API
 consume the same domain models but must not introduce Supabase or remote session
 requirements.
 
+The settings surface keeps workspace preferences in `AppSettings` and provider
+credentials behind `SecretStore`. Compose only tracks whether a credential is
+configured and never repopulates a saved key into the UI; Android and desktop
+continue to own their respective secret-storage boundaries. OpenAlex discovery
+and Zotero remain explicitly optional settings, so local collection and assistant
+history remain usable without network access or an account.
+
 ## Contest feature slices
 
 Each feature should follow the same shape:
