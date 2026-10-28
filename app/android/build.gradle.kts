@@ -23,6 +23,7 @@ android {
 
 dependencies {
     implementation(project(":app:composeApp"))
+    implementation(project(":shared:storage"))
     implementation(project(":shared:secrets"))
     implementation(libs.androidx.activity.compose)
 }

@@ -10,6 +10,7 @@ kotlin {
 
 dependencies {
     implementation(project(":app:composeApp"))
+    implementation(project(":shared:storage"))
     implementation(project(":shared:secrets"))
     implementation(compose.desktop.currentOs)
     implementation(libs.kotlinx.datetime)
