@@ -1,4 +1,5 @@
 plugins {
+    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
 }
@@ -21,5 +22,9 @@ kotlin {
         desktopMain.dependencies {
             implementation(libs.ktor.client.cio)
         }
+    }
+
+    android {
+        namespace = "com.paperconnekt.shared.storage"
     }
 }
