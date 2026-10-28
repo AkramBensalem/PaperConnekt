@@ -16,5 +16,10 @@ kotlin {
 
     android {
         namespace = "com.paperconnekt.shared.secrets"
+        compileSdk = 35
+
+        defaultConfig {
+            minSdk = 26
+        }
     }
 }
