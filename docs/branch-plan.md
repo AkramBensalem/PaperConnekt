@@ -11,7 +11,7 @@ first-run experience before feature work begins.
 | `contest/dashboard` | Local paper search, paper cards, optional OpenAlex discovery, and local saves |
 | `contest/assistant` | Local assistant history, paper context, and PDF workspace contract |
 | `contest/graph` | Saved graph model, graph list, paper membership, and graph canvas |
-| `contest/library` | Folder hierarchy, paper moves, and local import |
+| `contest/library` | Folder hierarchy, nested navigation, paper placement, and local import |
 | `contest/settings` | Secure provider keys, theme, and optional Zotero settings |
 | `contest/native-plugins` | Native IDE/editor adapters using shared KMP contracts |
 

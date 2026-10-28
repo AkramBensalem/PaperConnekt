@@ -15,7 +15,7 @@ fun DestinationScreen(
         AppDestination.DASHBOARD -> DashboardScreen(store, paddingValues)
         AppDestination.ASSISTANT -> AssistantScreen(store, paddingValues)
         AppDestination.GRAPH -> GraphScreen(store, paddingValues)
-        AppDestination.LIBRARY -> LibraryScreen(paddingValues)
+        AppDestination.LIBRARY -> LibraryScreen(store, paddingValues)
         AppDestination.SETTINGS -> SettingsScreen(store, paddingValues)
         AppDestination.ONBOARDING -> Unit
     }
