@@ -2,13 +2,6 @@ package com.paperconnekt.app
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Hub
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -44,16 +37,21 @@ fun AppShell(
         bottomBar = {
             NavigationBar {
                 listOf(
-                    AppDestination.DASHBOARD to (Icons.Default.Dashboard to "Dashboard"),
-                    AppDestination.ASSISTANT to (Icons.Default.AutoAwesome to "Assistant"),
-                    AppDestination.GRAPH to (Icons.Default.Hub to "Graph"),
-                    AppDestination.LIBRARY to (Icons.Default.Folder to "Library"),
-                    AppDestination.SETTINGS to (Icons.Default.Settings to "Settings"),
+                    AppDestination.DASHBOARD to (NavigationGlyph.DASHBOARD to "Dashboard"),
+                    AppDestination.ASSISTANT to (NavigationGlyph.ASSISTANT to "Assistant"),
+                    AppDestination.GRAPH to (NavigationGlyph.GRAPH to "Graph"),
+                    AppDestination.LIBRARY to (NavigationGlyph.LIBRARY to "Library"),
+                    AppDestination.SETTINGS to (NavigationGlyph.SETTINGS to "Settings"),
                 ).forEach { (item, label) ->
                     NavigationBarItem(
                         selected = destination == item,
                         onClick = { destination = item },
-                        icon = { Icon(label.first, contentDescription = label.second) },
+                        icon = {
+                            NavigationIcon(
+                                glyph = label.first,
+                                contentDescription = label.second,
+                            )
+                        },
                         label = { Text(label.second) },
                     )
                 }
