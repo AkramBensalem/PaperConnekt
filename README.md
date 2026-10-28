@@ -37,7 +37,7 @@ The contest repository is developed in small feature branches:
 1. `contest/foundation` - local-first modules, app shell, and project documentation
 2. `contest/onboarding` - first-run setup and local workspace initialization
 3. `contest/dashboard` - local paper storage with optional OpenAlex discovery
-4. `contest/assistant` - AI history and PDF workspace
+4. `contest/assistant` - local AI history, paper context, and PDF workspace
 5. `contest/graph` - graph persistence and visualization
 6. `contest/library` - hierarchical local library
 7. `contest/settings` - secure key storage and preferences
