@@ -38,7 +38,7 @@ The contest repository is developed in small feature branches:
 2. `contest/onboarding` - first-run setup and local workspace initialization
 3. `contest/dashboard` - local paper storage with optional OpenAlex discovery
 4. `contest/assistant` - local AI history, paper context, and PDF workspace
-5. `contest/graph` - graph persistence and visualization
+5. `contest/graph` - graph persistence, paper membership, and visualization
 6. `contest/library` - hierarchical local library
 7. `contest/settings` - secure key storage and preferences
 8. `contest/native-plugins` - native plugin adapters sharing the KMP contracts
