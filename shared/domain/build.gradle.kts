@@ -15,13 +15,13 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
         }
     }
+}
 
-    android {
-        namespace = "com.paperconnekt.shared.domain"
-        compileSdk = 35
+android {
+    namespace = "com.paperconnekt.shared.domain"
+    compileSdk = 35
 
-        defaultConfig {
-            minSdk = 26
-        }
+    defaultConfig {
+        minSdk = 26
     }
 }
