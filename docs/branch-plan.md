@@ -13,6 +13,6 @@ first-run experience before feature work begins.
 | `contest/graph` | Saved graph model, graph list, paper membership, and graph canvas |
 | `contest/library` | Folder hierarchy, nested navigation, paper placement, and local import |
 | `contest/settings` | Secure provider keys, theme, workspace preferences, and optional Zotero settings |
-| `contest/native-plugins` | Native IDE/editor adapters using shared KMP contracts |
+| `contest/native-plugins` | Three Kotlin modules: plugin-only common code, VS Code adapter, and IntelliJ IDEA adapter |
 
 No branch may add Supabase, mandatory authentication, or a required server.
