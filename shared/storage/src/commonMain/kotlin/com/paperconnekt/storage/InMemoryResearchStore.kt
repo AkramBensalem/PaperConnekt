@@ -41,6 +41,10 @@ class InMemoryResearchStore : LocalResearchStore {
         graphsState.update { current -> (current.filterNot { it.id == graph.id } + graph) }
     }
 
+    override suspend fun removeGraph(graphId: String) {
+        graphsState.update { current -> current.filterNot { it.id == graphId } }
+    }
+
     override suspend fun saveAssistantSession(session: AssistantSession) {
         assistantSessionsState.update { current ->
             (current.filterNot { it.id == session.id } + session)

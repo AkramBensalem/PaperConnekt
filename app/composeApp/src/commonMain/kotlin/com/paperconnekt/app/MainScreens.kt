@@ -156,11 +156,6 @@ fun DashboardScreen(
 }
 
 @Composable
-fun GraphScreen(paddingValues: PaddingValues) {
-    PlaceholderScreen("Research graphs", "Explore saved connections between papers.", paddingValues)
-}
-
-@Composable
 fun LibraryScreen(paddingValues: PaddingValues) {
     PlaceholderScreen("Library", "Organize papers in a local Zotero-style hierarchy.", paddingValues)
 }
