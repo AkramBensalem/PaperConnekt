@@ -1,5 +1,6 @@
 package com.paperconnekt.app
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BorderStroke
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -27,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -208,92 +209,104 @@ fun GraphWorkspace(
                     selectedPaperId = selectedPaperId,
                     onSelectPaper = { selectedPaperId = it },
                 )
-                GraphDetailsPanel(
-                    graph = graph,
-                    papers = visibleGraphPapers,
-                    allPapers = graphPapers,
-                    selectedPaper = selectedPaper,
-                    paperQuery = paperQuery,
-                    sortByTitle = sortByTitle,
-                    onPaperQueryChange = { paperQuery = it },
-                    onSortChange = { sortByTitle = !sortByTitle },
-                    onSelectPaper = { selectedPaperId = it },
-                    onAddPaper = { showAddPaperDialog = true },
-                    onRemovePaper = { paperId ->
-                        selectedPaperId = null
-                        saveUpdated(
-                            graph.copy(
-                                paperIds = graph.paperIds.filterNot { it == paperId },
-                                connections = graph.connections.filter {
-                                    it.fromPaperId != paperId && it.toPaperId != paperId
-                                },
-                            ),
-                        )
-                    },
-                    onConnect = { showConnectionDialog = true },
-                    onExpand = expandGraph,
-                    isExpanding = isExpanding,
-                    onRemoveConnection = { connectionToRemove = it },
-                    showReferences = showReferences,
-                    onToggleReferences = { showReferences = !showReferences },
-                    showCitations = showCitations,
-                    onToggleCitations = { showCitations = !showCitations },
-                    showInterconnections = showInterconnections,
-                    onToggleInterconnections = { showInterconnections = !showInterconnections },
-                    minimumCitations = minimumCitations,
-                    onMinimumCitationsChange = { minimumCitations = it },
-                )
+                if (selectedPaper != null) {
+                    GraphDetailsPanel(
+                        graph = graph,
+                        papers = visibleGraphPapers,
+                        allPapers = graphPapers,
+                        selectedPaper = selectedPaper,
+                        paperQuery = paperQuery,
+                        sortByTitle = sortByTitle,
+                        onPaperQueryChange = { paperQuery = it },
+                        onSortChange = { sortByTitle = !sortByTitle },
+                        onSelectPaper = { selectedPaperId = it },
+                        onAddPaper = { showAddPaperDialog = true },
+                        onRemovePaper = { paperId ->
+                            selectedPaperId = null
+                            saveUpdated(
+                                graph.copy(
+                                    paperIds = graph.paperIds.filterNot { it == paperId },
+                                    connections = graph.connections.filter {
+                                        it.fromPaperId != paperId && it.toPaperId != paperId
+                                    },
+                                ),
+                            )
+                        },
+                        onConnect = { showConnectionDialog = true },
+                        onExpand = expandGraph,
+                        isExpanding = isExpanding,
+                        onRemoveConnection = { connectionToRemove = it },
+                        showReferences = showReferences,
+                        onToggleReferences = { showReferences = !showReferences },
+                        showCitations = showCitations,
+                        onToggleCitations = { showCitations = !showCitations },
+                        showInterconnections = showInterconnections,
+                        onToggleInterconnections = { showInterconnections = !showInterconnections },
+                        minimumCitations = minimumCitations,
+                        onMinimumCitationsChange = { minimumCitations = it },
+                    )
+                }
             }
         } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+            if (selectedPaper == null) {
                 LegacyGraphCanvasPanel(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                     graph = graph,
                     papers = filteredGraphPapers,
                     selectedPaperId = selectedPaperId,
                     onSelectPaper = { selectedPaperId = it },
                 )
-                GraphDetailsPanel(
-                    modifier = Modifier.width(320.dp).fillMaxHeight(),
-                    graph = graph,
-                    papers = visibleGraphPapers,
-                    allPapers = graphPapers,
-                    selectedPaper = selectedPaper,
-                    paperQuery = paperQuery,
-                    sortByTitle = sortByTitle,
-                    onPaperQueryChange = { paperQuery = it },
-                    onSortChange = { sortByTitle = !sortByTitle },
-                    onSelectPaper = { selectedPaperId = it },
-                    onAddPaper = { showAddPaperDialog = true },
-                    onRemovePaper = { paperId ->
-                        selectedPaperId = null
-                        saveUpdated(
-                            graph.copy(
-                                paperIds = graph.paperIds.filterNot { it == paperId },
-                                connections = graph.connections.filter {
-                                    it.fromPaperId != paperId && it.toPaperId != paperId
-                                },
-                            ),
-                        )
-                    },
-                    onConnect = { showConnectionDialog = true },
-                    onExpand = expandGraph,
-                    isExpanding = isExpanding,
-                    onRemoveConnection = { connectionToRemove = it },
-                    showReferences = showReferences,
-                    onToggleReferences = { showReferences = !showReferences },
-                    showCitations = showCitations,
-                    onToggleCitations = { showCitations = !showCitations },
-                    showInterconnections = showInterconnections,
-                    onToggleInterconnections = { showInterconnections = !showInterconnections },
-                    minimumCitations = minimumCitations,
-                    onMinimumCitationsChange = { minimumCitations = it },
-                )
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    LegacyGraphCanvasPanel(
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        graph = graph,
+                        papers = filteredGraphPapers,
+                        selectedPaperId = selectedPaperId,
+                        onSelectPaper = { selectedPaperId = it },
+                    )
+                    GraphDetailsPanel(
+                        modifier = Modifier.width(360.dp).fillMaxHeight(),
+                        graph = graph,
+                        papers = visibleGraphPapers,
+                        allPapers = graphPapers,
+                        selectedPaper = selectedPaper,
+                        paperQuery = paperQuery,
+                        sortByTitle = sortByTitle,
+                        onPaperQueryChange = { paperQuery = it },
+                        onSortChange = { sortByTitle = !sortByTitle },
+                        onSelectPaper = { selectedPaperId = it },
+                        onAddPaper = { showAddPaperDialog = true },
+                        onRemovePaper = { paperId ->
+                            selectedPaperId = null
+                            saveUpdated(
+                                graph.copy(
+                                    paperIds = graph.paperIds.filterNot { it == paperId },
+                                    connections = graph.connections.filter {
+                                        it.fromPaperId != paperId && it.toPaperId != paperId
+                                    },
+                                ),
+                            )
+                        },
+                        onConnect = { showConnectionDialog = true },
+                        onExpand = expandGraph,
+                        isExpanding = isExpanding,
+                        onRemoveConnection = { connectionToRemove = it },
+                        showReferences = showReferences,
+                        onToggleReferences = { showReferences = !showReferences },
+                        showCitations = showCitations,
+                        onToggleCitations = { showCitations = !showCitations },
+                        showInterconnections = showInterconnections,
+                        onToggleInterconnections = { showInterconnections = !showInterconnections },
+                        minimumCitations = minimumCitations,
+                        onMinimumCitationsChange = { minimumCitations = it },
+                    )
+                }
             }
         }
     }
