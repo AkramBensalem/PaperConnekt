@@ -22,9 +22,11 @@ kotlin {
             implementation(libs.compose.material.icons)
             implementation(libs.ktor.client.core)
         }
-        desktopMain.dependencies {
-            implementation(libs.compose.desktop)
-            implementation(libs.ktor.client.cio)
+        named("desktopMain") {
+            dependencies {
+                implementation(libs.compose.desktop)
+                implementation(libs.ktor.client.cio)
+            }
         }
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
