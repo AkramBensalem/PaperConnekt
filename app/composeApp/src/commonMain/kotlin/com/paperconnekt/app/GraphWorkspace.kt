@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BorderStroke
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -36,6 +38,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.paperconnekt.domain.model.ConnectionType
 import com.paperconnekt.domain.model.GraphConnection
@@ -552,37 +557,128 @@ private fun SelectedPaperCard(
     onExpand: (GraphExpansionDirection) -> Unit,
     isExpanding: Boolean,
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+    val isSeed = graph.paperIds.firstOrNull() == paper.id
+    val isReference = graph.connections.any { it.fromPaperId == graph.paperIds.firstOrNull() && it.toPaperId == paper.id }
+    val role = when {
+        isSeed -> "Seed paper"
+        isReference -> "Reference"
+        else -> "Citation"
+    }
+    val roleColor = when {
+        isSeed -> MaterialTheme.colorScheme.primaryContainer
+        isReference -> Color(0xFFCCFBF1)
+        else -> Color(0xFFFEF3C7)
+    }
+    val roleTextColor = when {
+        isSeed -> MaterialTheme.colorScheme.onPrimaryContainer
+        isReference -> Color(0xFF0F766E)
+        else -> Color(0xFFB45309)
+    }
+    val references = graph.connections.count { it.fromPaperId == paper.id }
+    val citations = graph.connections.count { it.toPaperId == paper.id }
+
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Selected paper", style = MaterialTheme.typography.labelLarge)
-            Text(paper.title, style = MaterialTheme.typography.titleSmall)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = roleColor,
+                ) {
+                    Text(
+                        role,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = roleTextColor,
+                    )
+                }
+                Text(
+                    "${paper.citationCount ?: 0} citations",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
-                listOfNotNull(paper.year?.toString(), paper.doi).joinToString("  •  ")
-                    .ifEmpty { "Local metadata only" },
+                paper.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (paper.authors.isNotEmpty()) {
+                Text(
+                    paper.authors.joinToString(", "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                listOfNotNull(
+                    paper.year?.let { "Year $it" },
+                    paper.doi?.let { "DOI $it" },
+                ).joinToString("  •  ").ifEmpty { "Local metadata only" },
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 listOfNotNull(
-                    paper.citationCount?.let { "$it citations" },
-                    paper.referenceCount?.let { "$it references" },
-                ).ifEmpty { listOf("Citation counts unavailable") }.joinToString("  •  "),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    "${paper.referenceCount ?: references} references",
+                    "$citations citing papers",
+                ).joinToString("  •  "),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
             )
-            Button(onClick = onConnect) { Text("Create connection") }
+            if (!paper.abstractText.isNullOrBlank()) {
+                Text(
+                    paper.abstractText!!,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 5,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Graph actions", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { onExpand(GraphExpansionDirection.CITATIONS) }, modifier = Modifier.weight(1f)) {
+                            Text("Citations", style = MaterialTheme.typography.labelSmall)
+                        }
+                        OutlinedButton(onClick = { onExpand(GraphExpansionDirection.REFERENCES) }, modifier = Modifier.weight(1f)) {
+                            Text("References", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                    Button(onClick = onConnect, modifier = Modifier.fillMaxWidth()) {
+                        Text("Create connection")
+                    }
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 TextButton(
                     onClick = { onExpand(GraphExpansionDirection.REFERENCES) },
                     enabled = !isExpanding,
-                ) { Text("References") }
+                ) { Text("Load references") }
                 TextButton(
                     onClick = { onExpand(GraphExpansionDirection.CITATIONS) },
                     enabled = !isExpanding,
-                ) { Text("Citations") }
+                ) { Text("Load citations") }
             }
             if (isExpanding) {
                 Text("Loading citation connections…", style = MaterialTheme.typography.bodySmall)
