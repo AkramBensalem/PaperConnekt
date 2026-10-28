@@ -53,7 +53,7 @@ fun AppShell(
             )
             store.saveGraph(graph)
             requestedGraphId = graph.id
-            destination = AppDestination.GRAPH
+            destination = AppDestination.GRAPH_CANVAS
         }
     }
 
@@ -74,9 +74,9 @@ fun AppShell(
     )
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        if (destination == AppDestination.GRAPH) {
-            // The graph is a focused workspace. Keep it out of the application
-            // navigation rail so the canvas owns the complete available page.
+        if (destination == AppDestination.GRAPH_CANVAS) {
+            // The canvas is a focused workspace. Keep it out of the application
+            // navigation rail so it owns the complete available page.
             DestinationScreen(
                 destination = destination,
                 store = store,
@@ -89,6 +89,7 @@ fun AppShell(
                 },
                 requestedPaper = requestedPaper,
                 onPaperRequestConsumed = { requestedPaper = null },
+                onGraphSelected = { requestedGraphId = it },
                 requestedGraphId = requestedGraphId,
                 onOpenGraph = ::openPaperGraph,
             )
@@ -146,6 +147,7 @@ fun AppShell(
                         },
                         requestedPaper = requestedPaper,
                         onPaperRequestConsumed = { requestedPaper = null },
+                        onGraphSelected = { requestedGraphId = it },
                         requestedGraphId = requestedGraphId,
                         onOpenGraph = ::openPaperGraph,
                     )
@@ -185,6 +187,7 @@ fun AppShell(
                     },
                     requestedPaper = requestedPaper,
                     onPaperRequestConsumed = { requestedPaper = null },
+                    onGraphSelected = { requestedGraphId = it },
                     requestedGraphId = requestedGraphId,
                     onOpenGraph = ::openPaperGraph,
                 )

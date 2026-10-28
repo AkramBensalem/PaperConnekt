@@ -8,6 +8,7 @@ enum class AppDestination {
     DASHBOARD,
     ASSISTANT,
     GRAPH,
+    GRAPH_CANVAS,
     LIBRARY,
     SETTINGS,
 }

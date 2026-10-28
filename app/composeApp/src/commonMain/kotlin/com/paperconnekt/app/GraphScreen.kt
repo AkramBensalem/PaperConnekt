@@ -1,6 +1,8 @@
 package com.paperconnekt.app
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,20 +11,37 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountTree
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AutoGraph
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,6 +51,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.BorderStroke
 import com.paperconnekt.domain.model.ResearchGraph
 import com.paperconnekt.storage.LocalResearchStore
 import com.paperconnekt.app.legacygraph.components.GraphRenameDialog
@@ -43,21 +63,17 @@ import kotlin.random.Random
 fun GraphScreen(
     store: LocalResearchStore,
     paddingValues: PaddingValues,
-    initialGraphId: String? = null,
+    onOpenCanvas: (String) -> Unit = {},
 ) {
     val graphs by store.graphs.collectAsState()
-    val papers by store.papers.collectAsState()
-    var selectedGraphId by remember(initialGraphId) { mutableStateOf(initialGraphId) }
     var graphQuery by remember { mutableStateOf("") }
     var sortOrder by remember { mutableStateOf(GraphSortOrder.RECENT) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var graphBeingRenamed by remember { mutableStateOf<ResearchGraph?>(null) }
     var graphBeingDeleted by remember { mutableStateOf<ResearchGraph?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isSaving by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    val selectedGraph = graphs.firstOrNull { it.id == selectedGraphId }
     val normalizedQuery = graphQuery.trim().lowercase()
     val visibleGraphs = graphs
         .filter { normalizedQuery.isEmpty() || it.name.lowercase().contains(normalizedQuery) }
@@ -74,48 +90,21 @@ fun GraphScreen(
             .fillMaxSize()
             .padding(paddingValues),
     ) {
-        if (selectedGraph != null) {
-            GraphWorkspace(
-                graph = selectedGraph,
-                papers = papers,
-                compact = maxWidth < 860.dp,
-                isSaving = isSaving,
-                errorMessage = errorMessage,
-                onBack = { selectedGraphId = null },
-                onRename = { graphBeingRenamed = selectedGraph },
-                onSave = { updatedGraph ->
-                    isSaving = true
-                    scope.launch {
-                        runCatching { store.saveGraph(updatedGraph) }
-                            .onFailure { errorMessage = it.message ?: "Could not save graph changes." }
-                            .also { isSaving = false }
-                    }
-                },
-                onSavePaper = { paper ->
-                    scope.launch { store.savePaper(paper) }
-                },
-                onError = {
-                    errorMessage = it
-                    isSaving = false
-                },
-            )
-        } else {
-            GraphList(
-                graphs = visibleGraphs,
-                query = graphQuery,
-                sortOrder = sortOrder,
-                errorMessage = errorMessage,
-                onQueryChange = {
-                    graphQuery = it
-                    errorMessage = null
-                },
-                onSortOrderChange = { sortOrder = it },
-                onCreate = { showCreateDialog = true },
-                onOpen = { selectedGraphId = it },
-                onRename = { graphBeingRenamed = it },
-                onDelete = { graphBeingDeleted = it },
-            )
-        }
+        GraphList(
+            graphs = visibleGraphs,
+            query = graphQuery,
+            sortOrder = sortOrder,
+            errorMessage = errorMessage,
+            onQueryChange = {
+                graphQuery = it
+                errorMessage = null
+            },
+            onSortOrderChange = { sortOrder = it },
+            onCreate = { showCreateDialog = true },
+            onOpen = onOpenCanvas,
+            onRename = { graphBeingRenamed = it },
+            onDelete = { graphBeingDeleted = it },
+        )
     }
 
     if (showCreateDialog) {
@@ -132,8 +121,8 @@ fun GraphScreen(
                 scope.launch {
                     runCatching { store.saveGraph(graph) }
                         .onSuccess {
-                            selectedGraphId = graph.id
                             showCreateDialog = false
+                            onOpenCanvas(graph.id)
                         }
                         .onFailure {
                             errorMessage = it.message ?: "Could not create graph."
@@ -189,6 +178,75 @@ fun GraphScreen(
     }
 }
 
+@Composable
+fun GraphCanvasScreen(
+    store: LocalResearchStore,
+    paddingValues: PaddingValues,
+    graphId: String?,
+    onBack: () -> Unit,
+) {
+    val graphs by store.graphs.collectAsState()
+    val papers by store.papers.collectAsState()
+    val graph = graphs.firstOrNull { it.id == graphId }
+    var graphBeingRenamed by remember(graphId) { mutableStateOf<ResearchGraph?>(null) }
+    var errorMessage by remember(graphId) { mutableStateOf<String?>(null) }
+    var isSaving by remember(graphId) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    if (graph == null) {
+        onBack()
+        return
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues),
+    ) {
+        GraphWorkspace(
+            graph = graph,
+            papers = papers,
+            compact = maxWidth < 860.dp,
+            isSaving = isSaving,
+            errorMessage = errorMessage,
+            onBack = onBack,
+            onRename = { graphBeingRenamed = graph },
+            onSave = { updatedGraph ->
+                isSaving = true
+                scope.launch {
+                    runCatching { store.saveGraph(updatedGraph) }
+                        .onFailure { errorMessage = it.message ?: "Could not save graph changes." }
+                        .also { isSaving = false }
+                }
+            },
+            onSavePaper = { paper ->
+                scope.launch { store.savePaper(paper) }
+            },
+            onError = {
+                errorMessage = it
+                isSaving = false
+            },
+        )
+    }
+
+    graphBeingRenamed?.let { renamedGraph ->
+        GraphRenameDialog(
+            title = renamedGraph.name,
+            onDismiss = { graphBeingRenamed = null },
+            onSave = { name ->
+                scope.launch {
+                    runCatching {
+                        store.saveGraph(renamedGraph.copy(name = name, updatedAt = Clock.System.now()))
+                    }.onFailure {
+                        errorMessage = it.message ?: "Could not rename graph."
+                    }
+                    graphBeingRenamed = null
+                }
+            },
+        )
+    }
+}
+
 private enum class GraphSortOrder {
     RECENT,
     NAME,
@@ -209,12 +267,14 @@ private fun GraphList(
     onDelete: (ResearchGraph) -> Unit,
 ) {
     var sortMenuExpanded by remember { mutableStateOf(false) }
-    LazyColumn(
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 320.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 32.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -226,12 +286,14 @@ private fun GraphList(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Button(onClick = onCreate) {
+                FilledTonalButton(onClick = onCreate) {
+                    Icon(Icons.Outlined.Add, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
                     Text("New graph")
                 }
             }
         }
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -240,11 +302,14 @@ private fun GraphList(
                     modifier = Modifier.weight(1f),
                     value = query,
                     onValueChange = onQueryChange,
-                    label = { Text("Search graphs") },
+                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                    placeholder = { Text("Search by graph name") },
                     singleLine = true,
                 )
                 Column {
                     OutlinedButton(onClick = { sortMenuExpanded = true }) {
+                        Icon(Icons.Outlined.Sort, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
                         Text("Sort")
                     }
                     DropdownMenu(
@@ -273,16 +338,16 @@ private fun GraphList(
             }
         }
         errorMessage?.let { message ->
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 GraphStatusCard(message = message, isError = true)
             }
         }
         if (graphs.isEmpty()) {
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 GraphEmptyState(hasQuery = query.isNotBlank(), onCreate = onCreate)
             }
         } else {
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
                     "${graphs.size} graph${if (graphs.size == 1) "" else "s"}",
                     style = MaterialTheme.typography.labelLarge,
@@ -308,34 +373,103 @@ private fun GraphListCard(
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onOpen,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant,
+        ),
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(18.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.Top,
             ) {
-                Text(graph.name, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "${graph.paperIds.size} papers  •  ${graph.connections.size} connections",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.Top,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                CircleShape,
+                            ),
+                        contentAlignment = androidx.compose.ui.Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.AutoGraph,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                    Text(
+                        graph.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 3,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                }
+                IconButton(onClick = onOpen) {
+                    Icon(Icons.Outlined.OpenInNew, contentDescription = "Open ${graph.name}")
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                GraphMetric(Icons.Outlined.Description, "${graph.paperIds.size} papers")
+                GraphMetric(Icons.Outlined.AccountTree, "${graph.connections.size} connections")
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
                 Text(
                     graphInsight(graph),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
                 )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onOpen) { Text("Open") }
-                TextButton(onClick = onRename) { Text("Rename") }
-                TextButton(onClick = onDelete) { Text("Delete") }
+                Row {
+                    IconButton(onClick = onRename) {
+                        Icon(Icons.Outlined.Edit, contentDescription = "Rename ${graph.name}")
+                    }
+                    IconButton(onClick = onDelete) {
+                        Icon(Icons.Outlined.DeleteOutline, contentDescription = "Delete ${graph.name}")
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun GraphMetric(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(17.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
