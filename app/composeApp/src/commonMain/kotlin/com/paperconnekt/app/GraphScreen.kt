@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.paperconnekt.domain.model.ResearchGraph
 import com.paperconnekt.storage.LocalResearchStore
+import com.paperconnekt.app.legacygraph.components.GraphRenameDialog
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlin.random.Random
@@ -143,12 +144,10 @@ fun GraphScreen(
     }
 
     graphBeingRenamed?.let { graph ->
-        GraphNameDialog(
-            title = "Rename graph",
-            confirmLabel = "Save name",
-            initialName = graph.name,
+        GraphRenameDialog(
+            title = graph.name,
             onDismiss = { graphBeingRenamed = null },
-            onConfirm = { name ->
+            onSave = { name ->
                 scope.launch {
                     runCatching {
                         store.saveGraph(graph.copy(name = name, updatedAt = Clock.System.now()))

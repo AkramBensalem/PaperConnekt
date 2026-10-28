@@ -48,6 +48,22 @@ import com.paperconnekt.domain.model.GraphConnection
 import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.domain.model.ResearchGraph
 import com.paperconnekt.app.legacygraph.LegacyGraphCanvasPanel
+import com.paperconnekt.app.legacygraph.ConnectionType as LegacyConnectionType
+import com.paperconnekt.app.legacygraph.GraphNodeSortOrder
+import com.paperconnekt.app.legacygraph.PaperNode
+import com.paperconnekt.app.legacygraph.GuidedReviewDirection
+import com.paperconnekt.app.legacygraph.GuidedReviewState
+import com.paperconnekt.app.legacygraph.GuidedSuggestion
+import com.paperconnekt.app.legacygraph.GuidedCandidate
+import com.paperconnekt.app.legacygraph.GuidedRelation
+import com.paperconnekt.app.legacygraph.GuidedAiVerdict
+import com.paperconnekt.app.legacygraph.rankGuidedCandidates
+import com.paperconnekt.app.legacygraph.filterGraph
+import com.paperconnekt.app.legacygraph.components.PaperSidebar
+import com.paperconnekt.app.legacygraph.components.GraphControls
+import com.paperconnekt.app.legacygraph.components.GraphFilterMenu
+import com.paperconnekt.app.legacygraph.components.GuidedReviewPanel
+import com.paperconnekt.app.legacygraph.toLegacyGraph
 import com.paperconnekt.storage.GraphExpansionDirection
 import com.paperconnekt.storage.OpenAlexGraphProvider
 import io.ktor.client.HttpClient
@@ -81,10 +97,52 @@ fun GraphWorkspace(
     var showCitations by remember(graph.id) { mutableStateOf(true) }
     var showInterconnections by remember(graph.id) { mutableStateOf(true) }
     var minimumCitations by remember(graph.id) { mutableStateOf(0) }
+    var maximumCitations by remember(graph.id) { mutableStateOf(Int.MAX_VALUE) }
+    var minimumSimilarityPercent by remember(graph.id) { mutableStateOf(0) }
+    var showFilters by remember(graph.id) { mutableStateOf(false) }
+    var guidedReview by remember(graph.id) { mutableStateOf(false) }
+    var guidedKeptIds by remember(graph.id) { mutableStateOf<Set<String>>(emptySet()) }
     val scope = rememberCoroutineScope()
     val graphProvider = remember { OpenAlexGraphProvider(HttpClient()) }
 
     val selectedPaper = graphPapers.firstOrNull { it.id == selectedPaperId }
+    val selectedNode = selectedPaper?.let { paper ->
+        val seed = graph.paperIds.firstOrNull()
+        PaperNode(
+            paper = paper,
+            citationCount = paper.citationCount ?: 0,
+            connectionType = when {
+                paper.id == seed -> LegacyConnectionType.CENTRAL
+                graph.connections.any { it.fromPaperId == seed && it.toPaperId == paper.id } -> LegacyConnectionType.CITED_BY_CENTRAL
+                else -> LegacyConnectionType.CITES_CENTRAL
+            },
+            referenceCount = paper.referenceCount ?: graph.connections.count { it.fromPaperId == paper.id },
+            citingCount = paper.citingCount ?: graph.connections.count { it.toPaperId == paper.id },
+        )
+    }
+    val legacyReferenceNodes = graphPapers
+        .filter { paper -> graph.connections.any { it.fromPaperId == graph.paperIds.firstOrNull() && it.toPaperId == paper.id } }
+        .map { paper -> PaperNode(paper, paper.citationCount ?: 0, LegacyConnectionType.CITED_BY_CENTRAL) }
+    val guidedReviewState = selectedPaper?.let { paper ->
+        val candidates = rankGuidedCandidates(paper.id, graph.toLegacyGraph(graphPapers))
+        GuidedReviewState(
+            direction = GuidedReviewDirection.BOTH,
+            batchSize = 5,
+            isQueueLoaded = true,
+            batch = candidates.take(5).map { candidate ->
+                GuidedSuggestion(
+                    candidate = candidate,
+                    reason = "Ranked from this paper's loaded references and citations.",
+                    aiVerdict = null,
+                )
+            },
+            keptIds = guidedKeptIds,
+            candidates = candidates,
+            referenceCount = candidates.count { it.relation == GuidedRelation.REFERENCE },
+            citationCount = candidates.count { it.relation == GuidedRelation.CITATION },
+            remainingCount = candidates.count { it.node.paper.id !in guidedKeptIds },
+        )
+    }
     val visiblePapers = graphPapers
         .filter {
             val query = paperQuery.trim().lowercase()
@@ -94,16 +152,22 @@ fun GraphWorkspace(
         }
         .let { current -> if (sortByTitle) current.sortedBy { it.title.lowercase() } else current }
     val seedId = graph.paperIds.firstOrNull()
-    val filteredGraphPapers = graphPapers.filter { paper ->
-        val isSeed = paper.id == seedId
-        val isReference = graph.connections.any { it.fromPaperId == seedId && it.toPaperId == paper.id }
-        val isCitation = graph.connections.any { it.fromPaperId == paper.id && it.toPaperId == seedId }
-        val relationVisible = isSeed ||
-            (showReferences && isReference) ||
-            (showCitations && isCitation) ||
-            (showInterconnections && !isReference && !isCitation)
-        relationVisible && (paper.citationCount ?: 0) >= minimumCitations
-    }
+    val legacyFullGraph = graph.toLegacyGraph(graphPapers)
+    val graphForFiltering = if (guidedReview) {
+        legacyFullGraph.copy(nodes = legacyFullGraph.nodes.filter { it.paper.id == seedId || it.paper.id in guidedKeptIds })
+    } else legacyFullGraph
+    val filteredLegacyGraph = filterGraph(
+        graph = graphForFiltering,
+        includeCiting = showCitations,
+        includeCited = showReferences,
+        minCitations = minimumCitations,
+        maxCitations = maximumCitations,
+        minimumSimilarityPercent = minimumSimilarityPercent,
+        showInterconnections = showInterconnections,
+        showDisqualified = true,
+        disqualifiedPaperIds = emptySet(),
+    )
+    val filteredGraphPapers = graphPapers.filter { it.id in filteredLegacyGraph.nodes.map { node -> node.paper.id }.toSet() }
     val visibleGraphPapers = visiblePapers.filter { paper -> paper.id in filteredGraphPapers.map { it.id } }
 
     val saveUpdated: (ResearchGraph) -> Unit = { updated ->
@@ -183,10 +247,37 @@ fun GraphWorkspace(
             Column(modifier = Modifier.weight(1f)) {
                 Text(graph.name, style = MaterialTheme.typography.headlineSmall)
                 Text(
-                    "${graphPapers.size} papers  •  ${graph.connections.size} connections",
+                    "${filteredGraphPapers.size} papers  •  ${graph.connections.size} connections${if (guidedReview) "  •  Guided review" else ""}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { guidedReview = !guidedReview }) {
+                    Text(if (guidedReview) "Full graph" else "Guided review")
+                }
+                GraphFilterMenu(
+                    expanded = showFilters,
+                    onOpen = { showFilters = true },
+                    onDismiss = { showFilters = false },
+                ) {
+                    GraphControls(
+                        filterCiting = showCitations,
+                        onToggleCiting = { showCitations = !showCitations },
+                        filterCited = showReferences,
+                        onToggleCited = { showReferences = !showReferences },
+                        minCitations = minimumCitations,
+                        onMinCitationsChanged = { minimumCitations = it },
+                        maxCitations = maximumCitations,
+                        onMaxCitationsChanged = { maximumCitations = it },
+                        minimumSimilarityPercent = minimumSimilarityPercent,
+                        onMinimumSimilarityChanged = { minimumSimilarityPercent = it },
+                        showInterconnections = showInterconnections,
+                        onToggleInterconnections = { showInterconnections = !showInterconnections },
+                        initiallyExpanded = true,
+                        embedded = true,
+                    )
+                }
             }
             OutlinedButton(onClick = onRename) { Text("Rename") }
         }
@@ -210,41 +301,40 @@ fun GraphWorkspace(
                     onSelectPaper = { selectedPaperId = it },
                 )
                 if (selectedPaper != null) {
-                    GraphDetailsPanel(
-                        graph = graph,
-                        papers = visibleGraphPapers,
-                        allPapers = graphPapers,
-                        selectedPaper = selectedPaper,
-                        paperQuery = paperQuery,
-                        sortByTitle = sortByTitle,
-                        onPaperQueryChange = { paperQuery = it },
-                        onSortChange = { sortByTitle = !sortByTitle },
-                        onSelectPaper = { selectedPaperId = it },
-                        onAddPaper = { showAddPaperDialog = true },
-                        onRemovePaper = { paperId ->
-                            selectedPaperId = null
-                            saveUpdated(
-                                graph.copy(
-                                    paperIds = graph.paperIds.filterNot { it == paperId },
-                                    connections = graph.connections.filter {
-                                        it.fromPaperId != paperId && it.toPaperId != paperId
-                                    },
-                                ),
+                    selectedNode?.let { node ->
+                        if (guidedReview && guidedReviewState != null) {
+                            GuidedReviewPanel(
+                                node = node,
+                                review = guidedReviewState,
+                                isEvaluating = false,
+                                keptPapers = graphPapers.filter { it.id in guidedKeptIds }.map { PaperNode(it) },
+                                onClose = { selectedPaperId = null },
+                                onShowDetails = { guidedReview = false },
+                                onShowInsights = {},
+                                onBatchSizeChanged = {},
+                                onShowNext = {},
+                                onKeep = { id -> guidedKeptIds = guidedKeptIds + id },
+                                onSkip = {},
+                                onUndo = { id -> guidedKeptIds = guidedKeptIds - id },
+                                onRevisitSkipped = {},
+                                onReviewPaper = { selectedPaperId = it },
+                                onDismissError = {},
+                                researchTargetContent = {},
+                                modifier = Modifier.fillMaxWidth(),
                             )
-                        },
-                        onConnect = { showConnectionDialog = true },
-                        onExpand = expandGraph,
-                        isExpanding = isExpanding,
-                        onRemoveConnection = { connectionToRemove = it },
-                        showReferences = showReferences,
-                        onToggleReferences = { showReferences = !showReferences },
-                        showCitations = showCitations,
-                        onToggleCitations = { showCitations = !showCitations },
-                        showInterconnections = showInterconnections,
-                        onToggleInterconnections = { showInterconnections = !showInterconnections },
-                        minimumCitations = minimumCitations,
-                        onMinimumCitationsChange = { minimumCitations = it },
-                    )
+                        } else {
+                            PaperSidebar(
+                                node = node,
+                                onClose = { selectedPaperId = null },
+                                onExpand = expandGraph,
+                                onRefresh = { expandGraph(com.paperconnekt.storage.GraphExpansionDirection.REFERENCES) },
+                                isRefreshing = isExpanding,
+                                citedPapers = legacyReferenceNodes,
+                                nodeSortOrder = GraphNodeSortOrder.DEFAULT,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
                 }
             }
         } else {
@@ -270,8 +360,39 @@ fun GraphWorkspace(
                         selectedPaperId = selectedPaperId,
                         onSelectPaper = { selectedPaperId = it },
                     )
-                    GraphDetailsPanel(
-                        modifier = Modifier.width(360.dp).fillMaxHeight(),
+                    if (guidedReview && guidedReviewState != null) {
+                        GuidedReviewPanel(
+                            modifier = Modifier.width(360.dp).fillMaxHeight(),
+                            node = selectedNode!!,
+                            review = guidedReviewState,
+                            isEvaluating = false,
+                            keptPapers = graphPapers.filter { it.id in guidedKeptIds }.map { PaperNode(it) },
+                            onClose = { selectedPaperId = null },
+                            onShowDetails = { guidedReview = false },
+                            onShowInsights = {},
+                            onBatchSizeChanged = {},
+                            onShowNext = {},
+                            onKeep = { id -> guidedKeptIds = guidedKeptIds + id },
+                            onSkip = {},
+                            onUndo = { id -> guidedKeptIds = guidedKeptIds - id },
+                            onRevisitSkipped = {},
+                            onReviewPaper = { selectedPaperId = it },
+                            onDismissError = {},
+                            researchTargetContent = {},
+                        )
+                    } else {
+                        PaperSidebar(
+                            modifier = Modifier.width(360.dp).fillMaxHeight(),
+                            node = selectedNode!!,
+                            onClose = { selectedPaperId = null },
+                            onExpand = expandGraph,
+                            onRefresh = { expandGraph(com.paperconnekt.storage.GraphExpansionDirection.REFERENCES) },
+                            isRefreshing = isExpanding,
+                            citedPapers = legacyReferenceNodes,
+                            nodeSortOrder = GraphNodeSortOrder.DEFAULT,
+                        )
+                    }
+                    /* GraphDetailsPanel(
                         graph = graph,
                         papers = visibleGraphPapers,
                         allPapers = graphPapers,
@@ -305,7 +426,7 @@ fun GraphWorkspace(
                         onToggleInterconnections = { showInterconnections = !showInterconnections },
                         minimumCitations = minimumCitations,
                         onMinimumCitationsChange = { minimumCitations = it },
-                    )
+                    ) */
                 }
             }
         }
