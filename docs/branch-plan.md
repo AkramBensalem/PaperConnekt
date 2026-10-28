@@ -9,7 +9,7 @@ first-run experience before feature work begins.
 | `contest/foundation` | KMP modules, local-first contracts, app shell, docs |
 | `contest/onboarding` | First-run onboarding and workspace initialization |
 | `contest/dashboard` | Local paper search, paper cards, optional OpenAlex discovery, and local saves |
-| `contest/assistant` | Assistant history, paper context, and PDF viewer contract |
+| `contest/assistant` | Local assistant history, paper context, and PDF workspace contract |
 | `contest/graph` | Saved graph model, graph list, and graph canvas |
 | `contest/library` | Folder hierarchy, paper moves, and local import |
 | `contest/settings` | Secure provider keys, theme, and optional Zotero settings |

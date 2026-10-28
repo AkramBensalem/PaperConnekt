@@ -134,7 +134,7 @@ fun DashboardScreen(
             if (showAddPaperDialog) {
                 AddPaperDialog(
                     onDismiss = { showAddPaperDialog = false },
-                    onSave = { title, authors, year ->
+                    onSave = { title, authors, year, pdfPath ->
                         scope.launch {
                             store.savePaper(
                                 Paper(
@@ -142,6 +142,7 @@ fun DashboardScreen(
                                     title = title,
                                     authors = authors,
                                     year = year,
+                                    pdfPath = pdfPath,
                                 ),
                             )
                             results = store.papers.value
@@ -152,11 +153,6 @@ fun DashboardScreen(
             }
         }
     }
-}
-
-@Composable
-fun AssistantScreen(paddingValues: PaddingValues) {
-    PlaceholderScreen("AI assistance", "Your paper conversations and PDF workspace will live here.", paddingValues)
 }
 
 @Composable
@@ -197,11 +193,12 @@ private fun PaperCard(
             @Composable
             private fun AddPaperDialog(
                 onDismiss: () -> Unit,
-                onSave: (title: String, authors: List<String>, year: Int?) -> Unit,
+                onSave: (title: String, authors: List<String>, year: Int?, pdfPath: String?) -> Unit,
             ) {
                 var title by remember { mutableStateOf("") }
                 var authors by remember { mutableStateOf("") }
                 var year by remember { mutableStateOf("") }
+                var pdfPath by remember { mutableStateOf("") }
 
                 AlertDialog(
                     onDismissRequest = onDismiss,
@@ -226,6 +223,12 @@ private fun PaperCard(
                                 label = { Text("Year") },
                                 singleLine = true,
                             )
+                            OutlinedTextField(
+                                value = pdfPath,
+                                onValueChange = { pdfPath = it },
+                                label = { Text("PDF path (optional)") },
+                                singleLine = true,
+                            )
                         }
                     },
                     confirmButton = {
@@ -236,6 +239,7 @@ private fun PaperCard(
                                     title.trim(),
                                     authors.split(',').map(String::trim).filter(String::isNotEmpty),
                                     year.toIntOrNull(),
+                                    pdfPath.trim().ifEmpty { null },
                                 )
                             },
                         ) {
