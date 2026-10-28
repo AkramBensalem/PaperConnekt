@@ -51,6 +51,10 @@ class InMemoryResearchStore : LocalResearchStore {
         }
     }
 
+    override suspend fun removeAssistantSession(sessionId: String) {
+        assistantSessionsState.update { current -> current.filterNot { it.id == sessionId } }
+    }
+
     override suspend fun saveLibraryEntry(entry: LibraryEntry) {
         libraryEntriesState.update { current ->
             (current.filterNot { it.id == entry.id } + entry)

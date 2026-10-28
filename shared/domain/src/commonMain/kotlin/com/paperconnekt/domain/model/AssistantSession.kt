@@ -16,6 +16,7 @@ data class AssistantSession(
 data class AssistantMessage(
     val role: AssistantRole,
     val content: String,
+    val sentAt: Instant? = null,
 )
 
 @Serializable
@@ -23,4 +24,3 @@ enum class AssistantRole {
     USER,
     ASSISTANT,
 }
-
