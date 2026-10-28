@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +41,10 @@ import com.paperconnekt.domain.model.ConnectionType
 import com.paperconnekt.domain.model.GraphConnection
 import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.domain.model.ResearchGraph
+import com.paperconnekt.storage.GraphExpansionDirection
+import com.paperconnekt.storage.OpenAlexGraphProvider
+import io.ktor.client.HttpClient
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 
 @Composable
@@ -52,6 +57,7 @@ fun GraphWorkspace(
     onBack: () -> Unit,
     onRename: () -> Unit,
     onSave: (ResearchGraph) -> Unit,
+    onSavePaper: (Paper) -> Unit,
     onError: (String) -> Unit,
 ) {
     val graphPapers = papers.filter { it.id in graph.paperIds }
@@ -63,6 +69,9 @@ fun GraphWorkspace(
     var showAddPaperDialog by remember(graph.id) { mutableStateOf(false) }
     var showConnectionDialog by remember(graph.id) { mutableStateOf(false) }
     var connectionToRemove by remember { mutableStateOf<GraphConnection?>(null) }
+    var isExpanding by remember(graph.id) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val graphProvider = remember { OpenAlexGraphProvider(HttpClient()) }
 
     val selectedPaper = graphPapers.firstOrNull { it.id == selectedPaperId }
     val visiblePapers = graphPapers
@@ -76,6 +85,31 @@ fun GraphWorkspace(
 
     val saveUpdated: (ResearchGraph) -> Unit = { updated ->
         onSave(updated.copy(updatedAt = Clock.System.now()))
+    }
+    val expandGraph: (GraphExpansionDirection) -> Unit = { direction ->
+        val source = selectedPaper ?: graphPapers.firstOrNull()
+        if (source == null) {
+            onError("Add a paper to the graph before loading connections.")
+        } else if (!isExpanding) {
+            isExpanding = true
+            scope.launch {
+                runCatching { graphProvider.expand(source.id, direction) }
+                    .onSuccess { expansion ->
+                        expansion.papers.forEach(onSavePaper)
+                        saveUpdated(
+                            graph.copy(
+                                paperIds = (graph.paperIds + expansion.papers.map(Paper::id)).distinct(),
+                                connections = (graph.connections + expansion.connections).distinct(),
+                            ),
+                        )
+                        if (expansion.papers.isEmpty()) {
+                            onError("No ${direction.name.lowercase()} were found for this paper.")
+                        }
+                    }
+                    .onFailure { onError(it.message ?: "Could not load graph connections.") }
+                isExpanding = false
+            }
+        }
     }
 
     Column(
@@ -144,6 +178,8 @@ fun GraphWorkspace(
                         )
                     },
                     onConnect = { showConnectionDialog = true },
+                    onExpand = expandGraph,
+                    isExpanding = isExpanding,
                     onRemoveConnection = { connectionToRemove = it },
                 )
             }
@@ -187,6 +223,8 @@ fun GraphWorkspace(
                         )
                     },
                     onConnect = { showConnectionDialog = true },
+                    onExpand = expandGraph,
+                    isExpanding = isExpanding,
                     onRemoveConnection = { connectionToRemove = it },
                 )
             }
@@ -268,6 +306,8 @@ private fun GraphDetailsPanel(
     onAddPaper: () -> Unit,
     onRemovePaper: (String) -> Unit,
     onConnect: () -> Unit,
+    onExpand: (GraphExpansionDirection) -> Unit,
+    isExpanding: Boolean,
     onRemoveConnection: (GraphConnection) -> Unit,
 ) {
     Card(
@@ -342,6 +382,8 @@ private fun GraphDetailsPanel(
                         paper = selectedPaper,
                         graph = graph,
                         onConnect = onConnect,
+                        onExpand = onExpand,
+                        isExpanding = isExpanding,
                     )
                 }
             }
@@ -410,6 +452,8 @@ private fun SelectedPaperCard(
     paper: Paper,
     graph: ResearchGraph,
     onConnect: () -> Unit,
+    onExpand: (GraphExpansionDirection) -> Unit,
+    isExpanding: Boolean,
 ) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
         Column(
@@ -424,7 +468,28 @@ private fun SelectedPaperCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
+            Text(
+                listOfNotNull(
+                    paper.citationCount?.let { "$it citations" },
+                    paper.referenceCount?.let { "$it references" },
+                ).ifEmpty { listOf("Citation counts unavailable") }.joinToString("  •  "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
             Button(onClick = onConnect) { Text("Create connection") }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                TextButton(
+                    onClick = { onExpand(GraphExpansionDirection.REFERENCES) },
+                    enabled = !isExpanding,
+                ) { Text("References") }
+                TextButton(
+                    onClick = { onExpand(GraphExpansionDirection.CITATIONS) },
+                    enabled = !isExpanding,
+                ) { Text("Citations") }
+            }
+            if (isExpanding) {
+                Text("Loading citation connections…", style = MaterialTheme.typography.bodySmall)
+            }
             if (graph.connections.none { it.fromPaperId == paper.id || it.toPaperId == paper.id }) {
                 Text(
                     "Insight: this paper has no mapped relationships yet.",

@@ -33,8 +33,9 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.domain.model.ResearchGraph
-import kotlin.math.ceil
-import kotlin.math.sqrt
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun GraphCanvasPanel(
@@ -94,7 +95,11 @@ fun GraphCanvasPanel(
                         pan,
                     )
                     drawLine(
-                        color = colorScheme.outlineVariant,
+                        color = when (connection.type) {
+                            com.paperconnekt.domain.model.ConnectionType.CITATION -> colorScheme.primary
+                            com.paperconnekt.domain.model.ConnectionType.SHARED_REFERENCE -> colorScheme.tertiary
+                            com.paperconnekt.domain.model.ConnectionType.RELATED_TOPIC -> colorScheme.outlineVariant
+                        },
                         start = from,
                         end = to,
                         strokeWidth = 2.dp.toPx(),
@@ -122,6 +127,8 @@ fun GraphCanvasPanel(
                 drawCircle(
                     color = if (selected) {
                         colorScheme.primary
+                    } else if (graph.paperIds.firstOrNull() == paper.id) {
+                        colorScheme.primaryContainer
                     } else {
                         colorScheme.secondary
                     },
@@ -218,13 +225,13 @@ fun GraphCanvasPanel(
 
 private fun basePosition(index: Int, count: Int, size: Size): Offset {
     if (count == 0) return Offset(size.width / 2f, size.height / 2f)
-    val columns = ceil(sqrt(count.toDouble())).toInt().coerceAtLeast(1)
-    val rows = ceil(count.toDouble() / columns).toInt().coerceAtLeast(1)
-    val column = index % columns
-    val row = index / columns
+    if (index == 0) return Offset(size.width / 2f, size.height / 2f)
+    val neighborCount = (count - 1).coerceAtLeast(1)
+    val angle = (index - 1).toFloat() / neighborCount * (2f * PI.toFloat())
+    val radius = (size.minDimension * 0.34f).coerceAtLeast(90f)
     return Offset(
-        x = size.width * ((column + 0.5f) / columns),
-        y = size.height * ((row + 0.5f) / rows),
+        x = size.width / 2f + cos(angle) * radius,
+        y = size.height / 2f + sin(angle) * radius,
     )
 }
 

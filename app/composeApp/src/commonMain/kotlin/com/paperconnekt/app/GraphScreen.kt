@@ -90,6 +90,9 @@ fun GraphScreen(
                             .also { isSaving = false }
                     }
                 },
+                onSavePaper = { paper ->
+                    scope.launch { store.savePaper(paper) }
+                },
                 onError = {
                     errorMessage = it
                     isSaving = false

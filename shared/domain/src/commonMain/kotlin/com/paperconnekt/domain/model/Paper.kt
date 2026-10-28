@@ -14,4 +14,7 @@ data class Paper(
     val tags: List<String> = emptyList(),
     val source: String = "Local",
     val sourceUrl: String? = null,
+    val citationCount: Int? = null,
+    val referenceCount: Int? = null,
+    val citingCount: Int? = null,
 )
