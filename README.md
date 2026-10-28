@@ -1,60 +1,147 @@
 # PaperConnekt
 
-PaperConnekt is a local-first Kotlin Multiplatform research workspace built for the
-[KotlinConf Student Contest](https://kotlinconf.com/contest/).
+**PaperConnekt is a Kotlin Multiplatform research workspace for reading,
+organising, connecting, and discussing scientific literature.**
 
-The contest edition focuses on a simple, private workflow: no account, no required
-backend, and no Supabase dependency. Research data stays on the device. Optional
-integrations, such as Zotero and AI providers, are configured locally by the user.
+The project grew out of the daily needs of a PhD researcher: finding relevant
+papers, keeping notes close to the source, moving between ideas, and turning a
+large collection of references into a research direction. PaperConnekt brings
+those activities into one focused workspace instead of scattering them across a
+PDF reader, a reference manager, an IDE, and disconnected AI tools.
 
-## Contest scope
+The project is being prepared for the
+[KotlinConf Student Contest](https://kotlinconf.com/contest/), with a strong
+focus on Kotlin Multiplatform, thoughtful product design, and practical value
+for students and researchers.
 
-- Onboarding for a first local workspace
-- Research dashboard for discovering and saving papers
-- AI assistance with conversation history and PDF opening
-- Saved research graphs
-- A local hierarchical library inspired by Zotero
-- Secure local storage for optional provider keys
-- Native Kotlin Multiplatform app and native plugin adapters
+## What PaperConnekt does
+
+### Research dashboard
+
+The dashboard is the starting point for research. It provides a focused view of
+saved papers, manual paper entry, local search, and optional discovery through
+OpenAlex. The workflow is designed to keep the researcher close to the
+literature rather than turning the app into a generic document manager.
+
+### AI research assistance
+
+PaperConnekt keeps assistant conversations alongside the research workspace.
+Users can maintain a history of questions, relate discussions to papers, and
+open a paper from the assistant flow in the PDF workspace. Provider
+credentials are optional and managed locally, so the user can choose whether
+and when to connect an AI provider.
+
+### Research graphs
+
+Research graphs make relationships explicit. A graph can collect papers around
+a question, topic, or thesis chapter, while paper-to-paper connections help
+surface the structure behind a literature review.
+
+### Personal research library
+
+The library provides a local hierarchy for folders and papers, inspired by the
+organisation patterns researchers know from Zotero. It is useful with or
+without a Zotero connection, so the core workflow remains available while
+travelling, teaching, or working offline.
+
+### IDE and editor plugins
+
+Research does not stop when a researcher starts writing. PaperConnekt also
+provides native plugin adapters for IntelliJ IDEA and VS Code. The plugins are
+intended to make the researcher’s preferred writing environment a natural
+extension of the workspace: a place to find papers, consult notes, and move
+between literature and LaTeX or source code without losing context.
+
+The plugin architecture is deliberately shared. A Kotlin `common` plugin
+module contains reusable indexing and session behaviour, while thin native
+adapters connect that behaviour to IntelliJ IDEA and VS Code. The app and
+plugins also use the same Kotlin domain models and storage contracts. This
+avoids rebuilding the research model for every host and demonstrates how
+Kotlin Multiplatform can share meaningful product logic across an application
+and its native integrations.
+
+## Product principles
+
+- **Researcher-centred:** every feature supports reading, organising,
+  connecting, or writing about literature.
+- **Local-first:** the essential workspace is useful on the device and does
+  not depend on an account or a continuously available service.
+- **Private by design:** provider keys are stored through platform-specific
+  secure storage abstractions and are only used when the researcher enables an
+  integration.
+- **Native where it matters:** the shared research model is written in Kotlin,
+  while host-specific UI and integrations use the conventions of each
+  platform.
+- **Composable:** optional providers such as OpenAlex, Zotero, and AI services
+  extend the workspace without defining its core experience.
 
 ## Architecture
 
 ```text
-shared/domain       Serializable research models and navigation contracts
-shared/storage      Local repository interfaces and persistence implementations
-shared/secrets      Secure-storage abstraction for provider keys
-plugin/native-api   Shared contract for native IDE/editor integrations
-app/composeApp      Compose Multiplatform Android and desktop application
+app/composeApp
+        |
+        +--> shared/storage ----> shared/domain
+        |
+        +--> shared/secrets
+        |
+        +--> plugin/native-api
+                  |
+                  +--> plugin/native-plugins/common
+                         |             |
+                         v             v
+                       vscode         idea
 ```
 
-The application has no `remote`, `remotedb`, `server`, or Supabase module. Features
-depend on shared contracts rather than platform-specific UI or network services.
-Provider keys are exposed through a shared `SecretStore`; Android uses the platform
-Keystore and desktop uses the platform preferences store until an OS keychain
-adapter is added.
+| Layer | Responsibility |
+| --- | --- |
+| `shared/domain` | Serializable papers, graphs, library entries, assistant sessions, settings, and navigation contracts |
+| `shared/storage` | Local research-store interfaces, local data access, and optional paper discovery providers |
+| `shared/secrets` | A common contract for storing provider credentials through platform-secure implementations |
+| `plugin/native-api` | The shared contract for native editor and IDE integrations |
+| `plugin/native-plugins/common` | Kotlin behaviour shared by the native plugins, including paper indexing and plugin sessions |
+| `plugin/native-plugins/vscode` | Native VS Code adapter |
+| `plugin/native-plugins/idea` | Native IntelliJ IDEA adapter |
+| `app/composeApp` | Compose Multiplatform application for Android and desktop |
 
-## Branch-by-branch development
+The dependency direction keeps product logic in shared Kotlin modules. UI and
+host integrations depend on those contracts instead of duplicating research
+behaviour in each platform implementation.
 
-The contest repository is developed in small feature branches:
+## Technology
 
-1. `contest/foundation` - local-first modules, app shell, and project documentation
-2. `contest/onboarding` - first-run setup and local workspace initialization
-3. `contest/dashboard` - local paper storage with optional OpenAlex discovery
-4. `contest/assistant` - local AI history, paper context, and PDF workspace
-5. `contest/graph` - graph persistence, paper membership, and visualization
-6. `contest/library` - hierarchical local library and paper organization
-7. `contest/settings` - secure key storage, theme, and optional Zotero preferences
-8. `contest/native-plugins` - native plugin adapters with `common`, `vscode`, and `idea` submodules
+| Area | Technology |
+| --- | --- |
+| Language | Kotlin 2.1.21 |
+| Multiplatform | Kotlin Multiplatform |
+| User interface | Compose Multiplatform and Material 3 |
+| Android | Android SDK 35, minimum SDK 26 |
+| Desktop | Compose Desktop on JVM 17 |
+| Networking | Ktor Client, used by optional discovery integrations |
+| Data format | Kotlinx Serialization |
+| Concurrency | Kotlin Coroutines |
+| Paper discovery | OpenAlex integration, with local workflows available independently |
+| Secret storage | Android Keystore on Android; platform preferences on desktop |
+| Native integrations | Kotlin/JVM adapters for IntelliJ IDEA and VS Code |
 
-Each branch should remain independently understandable. Cross-product behavior
-belongs in `shared/`; plugin-only behavior belongs in
-`plugin/native-plugins/common` and is reused by the VS Code and IntelliJ adapters.
+## Platform status
 
-## Development
+| Platform | Status |
+| --- | --- |
+| Android | Primary mobile target and actively developed |
+| Desktop JVM | Supported Compose Desktop target for research and writing workflows |
+| Windows/Linux desktop | Available through the JVM desktop target, subject to local packaging |
+| macOS | Planned desktop validation target; current development resources do not include a macOS device, so Apple-specific packaging and release validation remain to be completed |
+| iOS and iPadOS | Planned KMP targets; implementation can follow the shared Kotlin foundation when Apple hardware and signing access are available |
+
+The Apple targets are part of the longer-term platform direction. Their current
+validation status reflects development-resource constraints rather than a
+product limitation in the shared architecture.
+
+## Getting started
 
 Use JDK 17 or newer and open the project in IntelliJ IDEA or Android Studio with
-Kotlin Multiplatform support. The contest repository intentionally keeps platform
-adapters small and puts feature logic in common source sets.
+Kotlin Multiplatform support. The project keeps platform adapters small and
+places reusable research logic in common Kotlin source sets.
 
 ## License
 
