@@ -1,4 +1,5 @@
 plugins {
+    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
 }
 
@@ -12,5 +13,13 @@ kotlin {
             api(project(":shared:domain"))
         }
     }
-}
 
+    android {
+        namespace = "com.paperconnekt.shared.secrets"
+        compileSdk = 35
+
+        defaultConfig {
+            minSdk = 26
+        }
+    }
+}

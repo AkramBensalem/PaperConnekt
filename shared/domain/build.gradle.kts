@@ -1,4 +1,5 @@
 plugins {
+    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
 }
@@ -14,5 +15,13 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
         }
     }
-}
 
+    android {
+        namespace = "com.paperconnekt.shared.domain"
+        compileSdk = 35
+
+        defaultConfig {
+            minSdk = 26
+        }
+    }
+}
