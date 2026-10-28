@@ -12,7 +12,7 @@ fun DestinationScreen(
     paddingValues: PaddingValues,
 ) {
     when (destination) {
-        AppDestination.DASHBOARD -> DashboardScreen(paddingValues)
+        AppDestination.DASHBOARD -> DashboardScreen(store, paddingValues)
         AppDestination.ASSISTANT -> AssistantScreen(paddingValues)
         AppDestination.GRAPH -> GraphScreen(paddingValues)
         AppDestination.LIBRARY -> LibraryScreen(paddingValues)
@@ -20,4 +20,3 @@ fun DestinationScreen(
         AppDestination.ONBOARDING -> Unit
     }
 }
-

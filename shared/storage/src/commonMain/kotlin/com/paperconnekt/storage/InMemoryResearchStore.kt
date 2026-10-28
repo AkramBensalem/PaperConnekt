@@ -33,6 +33,10 @@ class InMemoryResearchStore : LocalResearchStore {
         papersState.update { current -> (current.filterNot { it.id == paper.id } + paper) }
     }
 
+    override suspend fun removePaper(paperId: String) {
+        papersState.update { current -> current.filterNot { it.id == paperId } }
+    }
+
     override suspend fun saveGraph(graph: ResearchGraph) {
         graphsState.update { current -> (current.filterNot { it.id == graph.id } + graph) }
     }
@@ -49,4 +53,3 @@ class InMemoryResearchStore : LocalResearchStore {
         }
     }
 }
-

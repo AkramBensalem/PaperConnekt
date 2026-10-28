@@ -16,8 +16,8 @@ interface LocalResearchStore {
 
     suspend fun updateSettings(transform: (AppSettings) -> AppSettings)
     suspend fun savePaper(paper: Paper)
+    suspend fun removePaper(paperId: String)
     suspend fun saveGraph(graph: ResearchGraph)
     suspend fun saveAssistantSession(session: AssistantSession)
     suspend fun saveLibraryEntry(entry: LibraryEntry)
 }
-
