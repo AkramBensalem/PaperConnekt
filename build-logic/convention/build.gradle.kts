@@ -18,9 +18,12 @@ kotlin {
 }
 
 dependencies {
-    compileOnly("com.android.tools.build:gradle:${libs.versions.agp.get()}")
-    compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:${libs.versions.kotlin.get()}")
-    compileOnly("org.jetbrains.compose:compose-gradle-plugin:${libs.versions.compose.get()}")
+    compileOnly("com.android.tools.build:gradle:${libs.findVersion("agp").get().requiredVersion}")
+    compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:${libs.findVersion("kotlin").get().requiredVersion}")
+    compileOnly(
+        "org.jetbrains.compose:compose-gradle-plugin:" +
+            libs.findVersion("compose").get().requiredVersion,
+    )
 }
 
 gradlePlugin {
