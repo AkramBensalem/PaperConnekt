@@ -1,6 +1,7 @@
 rootProject.name = "PaperConnekt"
 
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google()
         mavenCentral()
