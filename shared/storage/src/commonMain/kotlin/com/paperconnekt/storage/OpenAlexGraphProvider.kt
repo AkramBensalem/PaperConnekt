@@ -63,7 +63,7 @@ class OpenAlexGraphProvider(
             parameter("per-page", limit.coerceIn(1, 100))
             parameter("select", WORK_SELECT)
         }
-        val payload = json.decodeFromString<OpenAlexWorksResponse>(response.bodyAsText())
+        val payload = json.decodeFromString<GraphOpenAlexWorksResponse>(response.bodyAsText())
         return OpenAlexGraphExpansion(
             papers = payload.results.mapNotNull { it.toPaper() },
             connections = payload.results.mapNotNull { work ->
@@ -73,18 +73,18 @@ class OpenAlexGraphProvider(
         )
     }
 
-    private suspend fun getWork(workId: String): OpenAlexWork =
+    private suspend fun getWork(workId: String): GraphOpenAlexWork =
         json.decodeFromString(client.get("https://api.openalex.org/works/$workId") {
             parameter("select", WORK_SELECT)
         }.bodyAsText())
 
-    private suspend fun getWorks(ids: List<String>): List<OpenAlexWork> {
+    private suspend fun getWorks(ids: List<String>): List<GraphOpenAlexWork> {
         val response = client.get("https://api.openalex.org/works") {
             parameter("filter", "openalex_id:${ids.joinToString("|")}")
             parameter("per-page", ids.size.coerceIn(1, 100))
             parameter("select", WORK_SELECT)
         }
-        return json.decodeFromString<OpenAlexWorksResponse>(response.bodyAsText()).results
+        return json.decodeFromString<GraphOpenAlexWorksResponse>(response.bodyAsText()).results
     }
 
     private companion object {
@@ -94,32 +94,32 @@ class OpenAlexGraphProvider(
 }
 
 @Serializable
-private data class OpenAlexWorksResponse(
-    val meta: OpenAlexMeta? = null,
-    val results: List<OpenAlexWork> = emptyList(),
+private data class GraphOpenAlexWorksResponse(
+    val meta: GraphOpenAlexMeta? = null,
+    val results: List<GraphOpenAlexWork> = emptyList(),
 )
 
 @Serializable
-private data class OpenAlexMeta(val count: Int? = null)
+private data class GraphOpenAlexMeta(val count: Int? = null)
 
 @Serializable
-private data class OpenAlexWork(
+private data class GraphOpenAlexWork(
     val id: String,
     val title: String? = null,
     @SerialName("publication_year") val publicationYear: Int? = null,
-    val authorships: List<OpenAlexAuthorship> = emptyList(),
+    val authorships: List<GraphOpenAlexAuthorship> = emptyList(),
     val doi: String? = null,
     @SerialName("cited_by_count") val citedByCount: Int? = null,
     @SerialName("referenced_works") val referencedWorks: List<String> = emptyList(),
 )
 
 @Serializable
-private data class OpenAlexAuthorship(val author: OpenAlexAuthor? = null)
+private data class GraphOpenAlexAuthorship(val author: GraphOpenAlexAuthor? = null)
 
 @Serializable
-private data class OpenAlexAuthor(@SerialName("display_name") val displayName: String? = null)
+private data class GraphOpenAlexAuthor(@SerialName("display_name") val displayName: String? = null)
 
-private fun OpenAlexWork.toPaper(): Paper? {
+private fun GraphOpenAlexWork.toPaper(): Paper? {
     val paperTitle = title?.trim().orEmpty()
     if (paperTitle.isEmpty()) return null
     return Paper(
