@@ -8,6 +8,7 @@ import com.paperconnekt.domain.model.ResearchGraph
 import kotlinx.coroutines.flow.StateFlow
 
 interface LocalResearchStore {
+    val isInitialized: StateFlow<Boolean>
     val settings: StateFlow<AppSettings>
     val papers: StateFlow<List<Paper>>
     val graphs: StateFlow<List<ResearchGraph>>

@@ -40,6 +40,18 @@ continue to own their respective secret-storage boundaries. OpenAlex discovery
 and Zotero remain explicitly optional settings, so local collection and assistant
 history remain usable without network access or an account.
 
+The contest workspace is persisted as a versioned JSON snapshot by
+`PersistentResearchStore`. Desktop stores it at
+`~/.paperconnekt/workspace.json`; Android stores it in the app-private
+`files/paperconnekt/workspace.json` directory. Writes go through a temporary file
+and replacement, and a malformed snapshot is moved to `workspace.json.corrupt`
+before the store starts with empty defaults. The snapshot contains papers,
+assistant sessions and messages, graphs, library entries, and `AppSettings`; it
+never contains provider secrets, which remain owned by `SecretStore`. Schema
+changes must increment the snapshot version and add an explicit migration before
+the current model is accepted; unsupported versions are preserved as corrupt
+backups rather than silently discarded.
+
 ## Contest feature slices
 
 Each feature should follow the same shape:

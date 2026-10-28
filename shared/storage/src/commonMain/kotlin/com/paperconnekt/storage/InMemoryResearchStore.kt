@@ -10,13 +10,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-class InMemoryResearchStore : LocalResearchStore {
-    private val settingsState = MutableStateFlow(AppSettings())
-    private val papersState = MutableStateFlow<List<Paper>>(emptyList())
-    private val graphsState = MutableStateFlow<List<ResearchGraph>>(emptyList())
-    private val assistantSessionsState = MutableStateFlow<List<AssistantSession>>(emptyList())
-    private val libraryEntriesState = MutableStateFlow<List<LibraryEntry>>(emptyList())
+open class InMemoryResearchStore(initialized: Boolean = true) : LocalResearchStore {
+    private val initializedState = MutableStateFlow(initialized)
+    protected val settingsState = MutableStateFlow(AppSettings())
+    protected val papersState = MutableStateFlow<List<Paper>>(emptyList())
+    protected val graphsState = MutableStateFlow<List<ResearchGraph>>(emptyList())
+    protected val assistantSessionsState = MutableStateFlow<List<AssistantSession>>(emptyList())
+    protected val libraryEntriesState = MutableStateFlow<List<LibraryEntry>>(emptyList())
 
+    override val isInitialized: StateFlow<Boolean> = initializedState.asStateFlow()
     override val settings: StateFlow<AppSettings> = settingsState.asStateFlow()
     override val papers: StateFlow<List<Paper>> = papersState.asStateFlow()
     override val graphs: StateFlow<List<ResearchGraph>> = graphsState.asStateFlow()
@@ -25,43 +27,43 @@ class InMemoryResearchStore : LocalResearchStore {
     override val libraryEntries: StateFlow<List<LibraryEntry>> =
         libraryEntriesState.asStateFlow()
 
-    override suspend fun updateSettings(transform: (AppSettings) -> AppSettings) {
+    override open suspend fun updateSettings(transform: (AppSettings) -> AppSettings) {
         settingsState.update(transform)
     }
 
-    override suspend fun savePaper(paper: Paper) {
+    override open suspend fun savePaper(paper: Paper) {
         papersState.update { current -> (current.filterNot { it.id == paper.id } + paper) }
     }
 
-    override suspend fun removePaper(paperId: String) {
+    override open suspend fun removePaper(paperId: String) {
         papersState.update { current -> current.filterNot { it.id == paperId } }
     }
 
-    override suspend fun saveGraph(graph: ResearchGraph) {
+    override open suspend fun saveGraph(graph: ResearchGraph) {
         graphsState.update { current -> (current.filterNot { it.id == graph.id } + graph) }
     }
 
-    override suspend fun removeGraph(graphId: String) {
+    override open suspend fun removeGraph(graphId: String) {
         graphsState.update { current -> current.filterNot { it.id == graphId } }
     }
 
-    override suspend fun saveAssistantSession(session: AssistantSession) {
+    override open suspend fun saveAssistantSession(session: AssistantSession) {
         assistantSessionsState.update { current ->
             (current.filterNot { it.id == session.id } + session)
         }
     }
 
-    override suspend fun removeAssistantSession(sessionId: String) {
+    override open suspend fun removeAssistantSession(sessionId: String) {
         assistantSessionsState.update { current -> current.filterNot { it.id == sessionId } }
     }
 
-    override suspend fun saveLibraryEntry(entry: LibraryEntry) {
+    override open suspend fun saveLibraryEntry(entry: LibraryEntry) {
         libraryEntriesState.update { current ->
             (current.filterNot { it.id == entry.id } + entry)
         }
     }
 
-    override suspend fun removeLibraryEntry(entryId: String) {
+    override open suspend fun removeLibraryEntry(entryId: String) {
         libraryEntriesState.update { current ->
             val removedIds = mutableSetOf(entryId)
             var changed: Boolean
@@ -78,5 +80,28 @@ class InMemoryResearchStore : LocalResearchStore {
             } while (changed)
             current.filterNot { it.id in removedIds }
         }
+    }
+
+    internal fun snapshot(): WorkspaceSnapshot = WorkspaceSnapshot(
+        settings = settingsState.value,
+        papers = papersState.value,
+        graphs = graphsState.value,
+        assistantSessions = assistantSessionsState.value,
+        libraryEntries = libraryEntriesState.value,
+    )
+
+    internal fun restore(snapshot: WorkspaceSnapshot) {
+        require(snapshot.version == WorkspaceSnapshot.CURRENT_VERSION) {
+            "Unsupported workspace data version: ${snapshot.version}"
+        }
+        settingsState.value = snapshot.settings
+        papersState.value = snapshot.papers
+        graphsState.value = snapshot.graphs
+        assistantSessionsState.value = snapshot.assistantSessions
+        libraryEntriesState.value = snapshot.libraryEntries
+    }
+
+    internal fun markInitialized() {
+        initializedState.value = true
     }
 }
