@@ -42,10 +42,11 @@ import kotlin.random.Random
 fun GraphScreen(
     store: LocalResearchStore,
     paddingValues: PaddingValues,
+    initialGraphId: String? = null,
 ) {
     val graphs by store.graphs.collectAsState()
     val papers by store.papers.collectAsState()
-    var selectedGraphId by remember { mutableStateOf<String?>(null) }
+    var selectedGraphId by remember(initialGraphId) { mutableStateOf(initialGraphId) }
     var graphQuery by remember { mutableStateOf("") }
     var sortOrder by remember { mutableStateOf(GraphSortOrder.RECENT) }
     var showCreateDialog by remember { mutableStateOf(false) }
