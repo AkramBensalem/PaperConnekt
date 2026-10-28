@@ -2,15 +2,14 @@ package com.paperconnekt.app.legacygraph.components
 
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
+import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun ZoomControls(
@@ -35,7 +34,7 @@ fun ZoomControls(
         ) {
             IconButton(onClick = onZoomIn, modifier = Modifier.size(if (compact) 40.dp else 48.dp)) {
                 Icon(
-                    Icons.Default.Add,
+                    painterResource(Res.drawable.add),
                     contentDescription = "Zoom In",
                     modifier = Modifier.size(if (compact) 18.dp else 24.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -49,7 +48,7 @@ fun ZoomControls(
             )
             IconButton(onClick = onZoomOut, modifier = Modifier.size(if (compact) 40.dp else 48.dp)) {
                 Icon(
-                    Icons.Default.Remove,
+                    painterResource(Res.drawable.remove),
                     contentDescription = "Zoom Out",
                     modifier = Modifier.size(if (compact) 18.dp else 24.dp),
                     tint = MaterialTheme.colorScheme.primary

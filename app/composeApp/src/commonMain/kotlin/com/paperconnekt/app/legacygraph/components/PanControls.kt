@@ -5,17 +5,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun PanControls(
@@ -39,7 +36,7 @@ fun PanControls(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
             contentColor = MaterialTheme.colorScheme.primary
         ) {
-            Icon(Icons.Default.ArrowUpward, contentDescription = "Move graph up", modifier = iconModifier)
+            Icon(painterResource(Res.drawable.arrow_upward), contentDescription = "Move graph up", modifier = iconModifier)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             SmallFloatingActionButton(
@@ -48,7 +45,7 @@ fun PanControls(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
                 contentColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Move graph left", modifier = iconModifier)
+                Icon(painterResource(Res.drawable.arrow_back_material), contentDescription = "Move graph left", modifier = iconModifier)
             }
             Spacer(modifier = Modifier.size(if (compact) 32.dp else 40.dp))
             SmallFloatingActionButton(
@@ -57,7 +54,7 @@ fun PanControls(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
                 contentColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Move graph right", modifier = iconModifier)
+                Icon(painterResource(Res.drawable.arrow_forward), contentDescription = "Move graph right", modifier = iconModifier)
             }
         }
         SmallFloatingActionButton(
@@ -66,7 +63,7 @@ fun PanControls(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
             contentColor = MaterialTheme.colorScheme.primary
         ) {
-            Icon(Icons.Default.ArrowDownward, contentDescription = "Move graph down", modifier = iconModifier)
+            Icon(painterResource(Res.drawable.arrow_downward), contentDescription = "Move graph down", modifier = iconModifier)
         }
     }
 }
