@@ -29,6 +29,9 @@ app/composeApp      Compose Multiplatform Android and desktop application
 
 The application has no `remote`, `remotedb`, `server`, or Supabase module. Features
 depend on shared contracts rather than platform-specific UI or network services.
+Provider keys are exposed through a shared `SecretStore`; Android uses the platform
+Keystore and desktop uses the platform preferences store until an OS keychain
+adapter is added.
 
 ## Branch-by-branch development
 
@@ -40,7 +43,7 @@ The contest repository is developed in small feature branches:
 4. `contest/assistant` - local AI history, paper context, and PDF workspace
 5. `contest/graph` - graph persistence, paper membership, and visualization
 6. `contest/library` - hierarchical local library and paper organization
-7. `contest/settings` - secure key storage and preferences
+7. `contest/settings` - secure key storage, theme, and optional Zotero preferences
 8. `contest/native-plugins` - native plugin adapters sharing the KMP contracts
 
 Each branch should remain independently understandable and keep shared behavior in

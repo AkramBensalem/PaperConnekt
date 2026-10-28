@@ -20,12 +20,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.paperconnekt.domain.navigation.AppDestination
+import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.LocalResearchStore
 import com.paperconnekt.app.onboarding.OnboardingScreen
 
 @Composable
 fun AppShell(
     store: LocalResearchStore,
+    secretStore: SecretStore,
     startDestination: AppDestination,
 ) {
     var destination by remember { mutableStateOf(startDestination) }
@@ -62,6 +64,7 @@ fun AppShell(
             DestinationScreen(
                 destination = destination,
                 store = store,
+                secretStore = secretStore,
                 paddingValues = paddingValues,
             )
         }
