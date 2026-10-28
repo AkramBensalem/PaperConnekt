@@ -55,4 +55,3 @@ adapters small and puts feature logic in common source sets.
 ## License
 
 See the repository license file for the applicable terms.
-
