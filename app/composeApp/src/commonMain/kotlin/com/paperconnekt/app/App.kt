@@ -1,7 +1,6 @@
 package com.paperconnekt.app
 
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -10,6 +9,7 @@ import androidx.compose.ui.Modifier
 import com.paperconnekt.domain.navigation.AppDestination
 import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.InMemoryResearchStore
+import com.paperconnekt.app.theme.PaperConnektTheme
 
 @Composable
 fun PaperConnektApp(secretStore: SecretStore) {
@@ -21,7 +21,7 @@ fun PaperConnektApp(secretStore: SecretStore) {
         AppDestination.ONBOARDING
     }
 
-    MaterialTheme {
+    PaperConnektTheme(preference = settings.selectedTheme) {
         Surface(modifier = Modifier.fillMaxSize()) {
             AppShell(
                 store = store,
