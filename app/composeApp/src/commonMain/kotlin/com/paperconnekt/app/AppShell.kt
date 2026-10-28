@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.paperconnekt.domain.navigation.AppDestination
 import com.paperconnekt.storage.LocalResearchStore
+import com.paperconnekt.app.onboarding.OnboardingScreen
 
 @Composable
 fun AppShell(
@@ -31,10 +32,8 @@ fun AppShell(
 
     if (destination == AppDestination.ONBOARDING) {
         OnboardingScreen(
-            onFinished = {
-                destination = AppDestination.DASHBOARD
-            },
             store = store,
+            onFinished = { destination = AppDestination.DASHBOARD },
         )
         return
     }
@@ -68,4 +67,3 @@ fun AppShell(
         }
     }
 }
-

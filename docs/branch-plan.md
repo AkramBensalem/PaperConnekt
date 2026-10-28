@@ -1,7 +1,8 @@
 # Contest branch plan
 
 All branches are based on the previous contest branch and are pushed to the
-`PaperConnekt` repository.
+`PaperConnekt` repository. The first two branches establish the foundation and
+first-run experience before feature work begins.
 
 | Branch | Deliverable |
 | --- | --- |
@@ -15,4 +16,3 @@ All branches are based on the previous contest branch and are pushed to the
 | `contest/native-plugins` | Native IDE/editor adapters using shared KMP contracts |
 
 No branch may add Supabase, mandatory authentication, or a required server.
-
