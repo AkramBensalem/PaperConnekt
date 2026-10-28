@@ -126,37 +126,38 @@ internal fun ProviderCredentialCard(
                 }
             }
 
-            @Composable
-            private fun CredentialIcon(contentDescription: String) {
-                Canvas(
-                    modifier = Modifier
-                        .semantics { this.contentDescription = contentDescription }
-                        .size(24.dp),
-                ) {
-                    val color = MaterialTheme.colorScheme.primary
-                    val stroke = Stroke(width = 1.8.dp.toPx())
-                    drawCircle(color, center = Offset(7.dp.toPx(), size.height / 2), radius = 4.dp.toPx(), style = stroke)
-                    drawLine(
-                        color,
-                        start = Offset(10.dp.toPx(), size.height / 2),
-                        end = Offset(21.dp.toPx(), size.height / 2),
-                        strokeWidth = stroke.width,
-                        cap = StrokeCap.Round,
-                    )
-                    drawLine(
-                        color,
-                        start = Offset(17.dp.toPx(), size.height / 2),
-                        end = Offset(17.dp.toPx(), size.height / 2 + 4.dp.toPx()),
-                        strokeWidth = stroke.width,
-                        cap = StrokeCap.Round,
-                    )
-                }
-            }
             Text(
                 "The saved value is kept in this device's platform secret store and is never shown here.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall,
             )
         }
+    }
+}
+
+@Composable
+private fun CredentialIcon(contentDescription: String) {
+    val color = MaterialTheme.colorScheme.primary
+    Canvas(
+        modifier = Modifier
+            .semantics { this.contentDescription = contentDescription }
+            .size(24.dp),
+    ) {
+        val stroke = Stroke(width = 1.8.dp.toPx())
+        drawCircle(color, center = Offset(7.dp.toPx(), size.height / 2), radius = 4.dp.toPx(), style = stroke)
+        drawLine(
+            color,
+            start = Offset(10.dp.toPx(), size.height / 2),
+            end = Offset(21.dp.toPx(), size.height / 2),
+            strokeWidth = stroke.width,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color,
+            start = Offset(17.dp.toPx(), size.height / 2),
+            end = Offset(17.dp.toPx(), size.height / 2 + 4.dp.toPx()),
+            strokeWidth = stroke.width,
+            cap = StrokeCap.Round,
+        )
     }
 }

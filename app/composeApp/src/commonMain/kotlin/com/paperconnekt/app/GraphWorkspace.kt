@@ -282,7 +282,7 @@ private fun GraphDetailsPanel(
             item {
                 Text("Graph guide", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    graphGuideText(graph, allPapers),
+                    graphGuide(graph, allPapers),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

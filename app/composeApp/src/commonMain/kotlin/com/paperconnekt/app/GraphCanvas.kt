@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import com.paperconnekt.domain.model.Paper
@@ -46,6 +47,8 @@ fun GraphCanvasPanel(
     onSelectPaper: (String) -> Unit,
 ) {
     val textMeasurer = rememberTextMeasurer()
+    val colorScheme = MaterialTheme.colorScheme
+    val labelSmall = MaterialTheme.typography.labelSmall
     var pan by remember(graph.id) { mutableStateOf(Offset.Zero) }
     val canvasModifier = modifier
         .clip(MaterialTheme.shapes.large)
@@ -72,7 +75,7 @@ fun GraphCanvasPanel(
 
     Box(modifier = canvasModifier) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRect(MaterialTheme.colorScheme.surfaceContainerLowest)
+            drawRect(colorScheme.surfaceContainerLowest)
             val canvasSize = size
             graph.connections.forEach { connection ->
                 val fromIndex = papers.indexOfFirst { it.id == connection.fromPaperId }
@@ -91,14 +94,14 @@ fun GraphCanvasPanel(
                         pan,
                     )
                     drawLine(
-                        color = MaterialTheme.colorScheme.outlineVariant,
+                        color = colorScheme.outlineVariant,
                         start = from,
                         end = to,
                         strokeWidth = 2.dp.toPx(),
                         cap = StrokeCap.Round,
                     )
                     drawCircle(
-                        color = MaterialTheme.colorScheme.primary,
+                        color = colorScheme.primary,
                         radius = 3.dp.toPx(),
                         center = Offset(
                             x = from.x + (to.x - from.x) * 0.62f,
@@ -118,15 +121,15 @@ fun GraphCanvasPanel(
                 val radius = nodeRadius(size.width)
                 drawCircle(
                     color = if (selected) {
-                        MaterialTheme.colorScheme.primary
+                        colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.secondary
+                        colorScheme.secondary
                     },
                     radius = radius,
                     center = center,
                 )
                 drawCircle(
-                    color = MaterialTheme.colorScheme.surface,
+                    color = colorScheme.surface,
                     radius = radius - 5.dp.toPx(),
                     center = center,
                     style = Stroke(width = 2.dp.toPx()),
@@ -134,7 +137,7 @@ fun GraphCanvasPanel(
                 val label = paper.title.take(24)
                 val measured = textMeasurer.measure(
                     label,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = labelSmall,
                 )
                 drawText(
                     textLayoutResult = measured,
@@ -142,7 +145,7 @@ fun GraphCanvasPanel(
                         x = center.x - measured.size.width / 2f,
                         y = center.y + radius + 8.dp.toPx(),
                     ),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = colorScheme.onSurface,
                 )
             }
         }

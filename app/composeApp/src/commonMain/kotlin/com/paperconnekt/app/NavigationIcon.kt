@@ -5,9 +5,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.StrokeCap
@@ -27,6 +27,7 @@ fun NavigationIcon(
     glyph: NavigationGlyph,
     contentDescription: String,
 ) {
+    val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
     Canvas(
         modifier = Modifier
             .alpha(0.92f)
@@ -34,9 +35,8 @@ fun NavigationIcon(
                 this.contentDescription = contentDescription
             }
             .size(24.dp),
-    ) {
+        onDraw = {
         val stroke = Stroke(width = 1.8.dp.toPx())
-        val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
         when (glyph) {
             NavigationGlyph.DASHBOARD -> {
                 drawRoundRect(iconColor, style = stroke)
@@ -111,7 +111,8 @@ fun NavigationIcon(
                         cap = StrokeCap.Round,
                     )
                 }
+                }
             }
-        }
+        },
     )
 }

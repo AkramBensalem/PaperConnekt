@@ -16,10 +16,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SmallTopAppBar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.paperconnekt.domain.model.Paper
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun PdfWorkspaceScreen(
     paper: Paper,
     paddingValues: PaddingValues,
@@ -48,7 +50,7 @@ fun PdfWorkspaceScreen(
             .fillMaxSize()
             .padding(paddingValues),
     ) {
-        SmallTopAppBar(
+        TopAppBar(
             title = {
                 Column {
                     Text(paper.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -69,7 +71,7 @@ fun PdfWorkspaceScreen(
                     label = { Text(if (isAnnotating) "Annotating" else "Annotate") },
                 )
             },
-            colors = TopAppBarDefaults.smallTopAppBarColors(
+            colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             ),
         )
