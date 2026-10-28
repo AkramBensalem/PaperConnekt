@@ -13,6 +13,7 @@ import com.paperconnekt.storage.InMemoryResearchStore
 @Composable
 fun PaperConnektApp() {
     val store = rememberResearchStore()
+    val secretStore = androidx.compose.runtime.remember { createSecretStore() }
     val settings by store.settings.collectAsState()
     val startDestination = if (settings.onboardingCompleted) {
         AppDestination.DASHBOARD
@@ -24,6 +25,7 @@ fun PaperConnektApp() {
         Surface(modifier = Modifier.fillMaxSize()) {
             AppShell(
                 store = store,
+                secretStore = secretStore,
                 startDestination = startDestination,
             )
         }
@@ -34,4 +36,3 @@ fun PaperConnektApp() {
 private fun rememberResearchStore(): InMemoryResearchStore {
     return androidx.compose.runtime.remember { InMemoryResearchStore() }
 }
-

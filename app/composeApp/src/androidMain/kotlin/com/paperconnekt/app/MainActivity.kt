@@ -7,7 +7,7 @@ import androidx.activity.compose.setContent
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        configureSecretStore(this)
         setContent { PaperConnektApp() }
     }
 }
-

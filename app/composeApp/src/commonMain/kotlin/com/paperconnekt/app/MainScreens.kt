@@ -156,14 +156,6 @@ fun DashboardScreen(
 }
 
 @Composable
-fun SettingsScreen(
-    store: LocalResearchStore,
-    paddingValues: PaddingValues,
-) {
-    PlaceholderScreen("Settings", "Configure secure local AI and Zotero keys.", paddingValues)
-}
-
-@Composable
 private fun PaperCard(
     paper: Paper,
     isSaved: Boolean,
