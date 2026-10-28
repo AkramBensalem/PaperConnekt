@@ -20,6 +20,7 @@ interface LocalResearchStore {
     suspend fun saveGraph(graph: ResearchGraph)
     suspend fun removeGraph(graphId: String)
     suspend fun saveAssistantSession(session: AssistantSession)
+    suspend fun removeAssistantSession(sessionId: String)
     suspend fun saveLibraryEntry(entry: LibraryEntry)
     suspend fun removeLibraryEntry(entryId: String)
 }
