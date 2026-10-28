@@ -21,4 +21,5 @@ interface LocalResearchStore {
     suspend fun removeGraph(graphId: String)
     suspend fun saveAssistantSession(session: AssistantSession)
     suspend fun saveLibraryEntry(entry: LibraryEntry)
+    suspend fun removeLibraryEntry(entryId: String)
 }

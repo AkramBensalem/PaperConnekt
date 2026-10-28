@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class LibraryEntry(
     val id: String,
-    val paperId: String,
+    val paperId: String? = null,
     val parentId: String? = null,
     val label: String,
     val kind: LibraryEntryKind,
@@ -16,4 +16,3 @@ enum class LibraryEntryKind {
     FOLDER,
     PAPER,
 }
-

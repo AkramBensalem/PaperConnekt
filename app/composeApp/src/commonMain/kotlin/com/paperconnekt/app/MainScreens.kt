@@ -156,11 +156,6 @@ fun DashboardScreen(
 }
 
 @Composable
-fun LibraryScreen(paddingValues: PaddingValues) {
-    PlaceholderScreen("Library", "Organize papers in a local Zotero-style hierarchy.", paddingValues)
-}
-
-@Composable
 fun SettingsScreen(
     store: LocalResearchStore,
     paddingValues: PaddingValues,

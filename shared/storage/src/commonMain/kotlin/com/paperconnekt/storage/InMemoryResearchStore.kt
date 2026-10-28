@@ -56,4 +56,23 @@ class InMemoryResearchStore : LocalResearchStore {
             (current.filterNot { it.id == entry.id } + entry)
         }
     }
+
+    override suspend fun removeLibraryEntry(entryId: String) {
+        libraryEntriesState.update { current ->
+            val removedIds = mutableSetOf(entryId)
+            var changed: Boolean
+            do {
+                changed = false
+                current.forEach { entry ->
+                    if (entry.parentId != null &&
+                        entry.parentId in removedIds &&
+                        removedIds.add(entry.id)
+                    ) {
+                        changed = true
+                    }
+                }
+            } while (changed)
+            current.filterNot { it.id in removedIds }
+        }
+    }
 }
