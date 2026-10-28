@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":app:composeApp"))
     implementation(project(":shared:secrets"))
     implementation(libs.compose.desktop)
+    implementation(libs.kotlinx.datetime)
 }
 
 compose.desktop {
