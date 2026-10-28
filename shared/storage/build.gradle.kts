@@ -12,7 +12,14 @@ kotlin {
         commonMain.dependencies {
             api(project(":shared:domain"))
             implementation(libs.kotlinx.coroutines)
+            implementation(libs.ktor.client.core)
+            implementation(libs.kotlinx.serialization.json)
+        }
+        androidMain.dependencies {
+            implementation(libs.ktor.client.okhttp)
+        }
+        desktopMain.dependencies {
+            implementation(libs.ktor.client.cio)
         }
     }
 }
-

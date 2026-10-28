@@ -20,12 +20,15 @@ kotlin {
             implementation(libs.compose.ui)
             implementation(libs.compose.material3)
             implementation(libs.compose.material.icons)
-        }
-        androidMain.dependencies {
-            implementation(libs.androidx.activity.compose)
+            implementation(libs.ktor.client.core)
         }
         desktopMain.dependencies {
             implementation(libs.compose.desktop)
+            implementation(libs.ktor.client.cio)
+        }
+        androidMain.dependencies {
+            implementation(libs.androidx.activity.compose)
+            implementation(libs.ktor.client.okhttp)
         }
     }
 }
@@ -48,4 +51,3 @@ compose.desktop {
         mainClass = "com.paperconnekt.app.MainKt"
     }
 }
-
