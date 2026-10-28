@@ -13,13 +13,13 @@ kotlin {
             api(project(":shared:domain"))
         }
     }
+}
 
-    android {
-        namespace = "com.paperconnekt.shared.secrets"
-        compileSdk = 35
+android {
+    namespace = "com.paperconnekt.shared.secrets"
+    compileSdk = 35
 
-        defaultConfig {
-            minSdk = 26
-        }
+    defaultConfig {
+        minSdk = 26
     }
 }

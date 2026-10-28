@@ -25,13 +25,13 @@ kotlin {
             }
         }
     }
+}
 
-    android {
-        namespace = "com.paperconnekt.shared.storage"
-        compileSdk = 35
+android {
+    namespace = "com.paperconnekt.shared.storage"
+    compileSdk = 35
 
-        defaultConfig {
-            minSdk = 26
-        }
+    defaultConfig {
+        minSdk = 26
     }
 }
