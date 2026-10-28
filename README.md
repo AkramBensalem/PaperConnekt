@@ -44,10 +44,11 @@ The contest repository is developed in small feature branches:
 5. `contest/graph` - graph persistence, paper membership, and visualization
 6. `contest/library` - hierarchical local library and paper organization
 7. `contest/settings` - secure key storage, theme, and optional Zotero preferences
-8. `contest/native-plugins` - native plugin adapters sharing the KMP contracts
+8. `contest/native-plugins` - native plugin adapters with `common`, `vscode`, and `idea` submodules
 
-Each branch should remain independently understandable and keep shared behavior in
-`shared/` modules.
+Each branch should remain independently understandable. Cross-product behavior
+belongs in `shared/`; plugin-only behavior belongs in
+`plugin/native-plugins/common` and is reused by the VS Code and IntelliJ adapters.
 
 ## Development
 

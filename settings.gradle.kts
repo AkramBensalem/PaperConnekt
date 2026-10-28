@@ -22,5 +22,7 @@ include(":shared:domain")
 include(":shared:storage")
 include(":shared:secrets")
 include(":plugin:native-api")
+include(":plugin:native-plugins:common")
+include(":plugin:native-plugins:vscode")
+include(":plugin:native-plugins:idea")
 include(":app:composeApp")
-
