@@ -143,7 +143,7 @@ internal fun CompactReaderTopBar(
                 }
             }) {
                 Icon(painterResource(Res.drawable.filled_notes),
-                    if (state.localTitle != null) "Notes and ideas" else "Annotations (${state.annotations.size})")
+                    "Annotations (${state.annotations.size})")
             }
         }
         Box {
@@ -154,7 +154,16 @@ internal fun CompactReaderTopBar(
                 }) { Icon(painterResource(Res.drawable.filled_more_vert), "More reader options") }
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, shape = RoundedCornerShape(16.dp)) {
-                if (state.localTitle == null) {
+                if (state.localTitle != null) {
+                    DropdownMenuItem(
+                        text = { Text(state.annotationSaveStatus) },
+                        leadingIcon = { Icon(painterResource(Res.drawable.filled_description), null) },
+                        enabled = !state.syncing && !state.loading,
+                        onClick = { menu = false; onSync() },
+                        modifier = Modifier.testTag("local-annotation-save-status"),
+                    )
+                    HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                } else {
                     val syncTint = when {
                         state.syncing -> colors.primary
                         syncProblem -> colors.error

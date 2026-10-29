@@ -43,6 +43,13 @@ kotlin {
                 implementation(libs.jlatexmath)
             }
         }
+        val desktopTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(libs.kotlinx.coroutines.test)
+                implementation(compose.desktop.currentOs)
+            }
+        }
     }
 
     compilerOptions {

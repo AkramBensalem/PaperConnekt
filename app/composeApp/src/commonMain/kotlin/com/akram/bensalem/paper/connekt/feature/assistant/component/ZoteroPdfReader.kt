@@ -529,7 +529,7 @@ fun ZoteroPdfReader(
                         ) {
                             BadgedBox(badge = { if (state.annotations.isNotEmpty()) Badge { Text(state.annotations.size.toString()) } }) {
                                 Icon(painterResource(Res.drawable.filled_notes),
-                                    if (state.localTitle != null) "Notes and ideas" else "Annotations (${state.annotations.size})", Modifier.size(18.dp))
+                                    "Annotations (${state.annotations.size})", Modifier.size(18.dp))
                             }
                         }
                         if (pdfMode) {
@@ -674,7 +674,9 @@ fun ZoteroPdfReader(
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(painterResource(Res.drawable.filled_error_outline), null)
                         Text(error, Modifier.weight(1f).padding(horizontal = 8.dp), style = MaterialTheme.typography.bodySmall)
-                        if (state.needsRefresh) TextButton(enabled = !state.syncing, onClick = viewModel::refreshAnnotations, modifier = Modifier.interactivePointer(enabled = !state.syncing)) { Text("Retry sync") }
+                        if (state.needsRefresh) TextButton(enabled = !state.syncing, onClick = viewModel::refreshAnnotations, modifier = Modifier.interactivePointer(enabled = !state.syncing)) {
+                            Text(if (state.localTitle != null) "Retry local save" else "Retry sync")
+                        }
                     }
                 }
             }
@@ -1150,7 +1152,8 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
             }) },
             text = {
                 Column(Modifier.heightIn(max = 560.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Page ${draft.pageIndex + 1} - ${if (draft.editing != null) "Zotero annotation" else "unsaved draft"}")
+                    Text("Page ${draft.pageIndex + 1} - ${if (draft.editing == null) "unsaved draft"
+                        else if (state.localTitle != null) "local annotation" else "Zotero annotation"}")
                     if (draft.editing == null && draft.text.isNotBlank()) {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
@@ -1383,13 +1386,15 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                     }
                     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     state.message?.let { Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall) }
-                    if (state.needsRefresh) Text("Local changes are retained. Use the header sync button to retry.",
+                    if (state.needsRefresh) Text("Unsaved changes are retained. Use the header save-status button to retry.",
                         style = MaterialTheme.typography.bodySmall)
                 }
             },
             confirmButton = {
                 val canSave = state.canWrite && (draft.type !in listOf("note", "text") || draft.comment.isNotBlank())
-                TextButton(enabled = canSave, onClick = viewModel::saveDraft, modifier = Modifier.interactivePointer(enabled = canSave)) { Text("Save to Zotero") }
+                TextButton(enabled = canSave, onClick = viewModel::saveDraft, modifier = Modifier.interactivePointer(enabled = canSave)) {
+                    Text(if (state.localTitle != null) "Save locally" else "Save to Zotero")
+                }
             },
             dismissButton = { TextButton(onClick = viewModel::cancelDraft, modifier = Modifier.interactivePointer()) { Text("Cancel") } }
         )
@@ -1399,12 +1404,8 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ZoteroSyncIndicator(state: PdfWorkspaceState, onRetry: () -> Unit) {
-    if (state.localTitle != null) return
-    val status = when {
-        state.syncing -> "Synchronizing with Zotero"
-        state.needsRefresh || state.pendingWrites > 0 -> "Not synchronized with Zotero. Retry sync"
-        else -> "Synchronized with Zotero. Refresh annotations"
-    }
+    val local = state.localTitle != null
+    val status = state.annotationSaveStatus
     val tint = when {
         state.syncing -> MaterialTheme.colorScheme.primary
         state.needsRefresh || state.pendingWrites > 0 -> MaterialTheme.colorScheme.error
@@ -1420,9 +1421,10 @@ private fun ZoteroSyncIndicator(state: PdfWorkspaceState, onRetry: () -> Unit) {
     TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
         tooltip = { PlainTooltip { Text(state.error?.takeIf { state.needsRefresh } ?: status) } }, state = rememberTooltipState()) {
         IconButton(onClick = onRetry, enabled = enabled,
-            modifier = Modifier.testTag("zotero-sync-status").interactivePointer(enabled = enabled)) {
+            modifier = Modifier.testTag(if (local) "local-annotation-save-status" else "zotero-sync-status").interactivePointer(enabled = enabled)) {
             Box {
-                Icon(painterResource(Res.drawable.filled_sync), status, Modifier.graphicsLayer { rotationZ = rotation }, tint = tint)
+                Icon(painterResource(if (local && !state.syncing) Res.drawable.filled_description else Res.drawable.filled_sync),
+                    status, Modifier.graphicsLayer { rotationZ = rotation }, tint = tint)
                 if (!state.syncing) Icon(
                     if (state.needsRefresh || state.pendingWrites > 0) painterResource(Res.drawable.filled_error) else painterResource(Res.drawable.filled_check_circle),
                     null, Modifier.size(12.dp).align(Alignment.BottomEnd)
@@ -2557,17 +2559,17 @@ fun AnnotationList(viewModel: PdfWorkspaceViewModel, modifier: Modifier = Modifi
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(
-                        if (state.syncing) painterResource(Res.drawable.filled_sync) else if (state.needsRefresh || state.pendingWrites > 0) painterResource(Res.drawable.filled_error_outline) else painterResource(Res.drawable.filled_cloud_done),
+                        painterResource(when {
+                            state.syncing -> Res.drawable.filled_sync
+                            state.needsRefresh || state.pendingWrites > 0 -> Res.drawable.filled_error_outline
+                            state.localTitle != null -> Res.drawable.filled_description
+                            else -> Res.drawable.filled_cloud_done
+                        }),
                         null, Modifier.size(14.dp),
                         tint = if (state.needsRefresh) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        when {
-                            state.syncing -> "Synchronizing with Zotero..."
-                            state.needsRefresh -> "Sync needs attention"
-                            state.pendingWrites > 0 -> "Changes pending sync"
-                            else -> "Connected to Zotero"
-                        },
+                        state.annotationSaveStatus,
                         style = MaterialTheme.typography.bodySmall,
                         color = if (state.needsRefresh) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2705,8 +2707,10 @@ fun AnnotationList(viewModel: PdfWorkspaceViewModel, modifier: Modifier = Modifi
             }
     }
     deleting?.let { annotation ->
-        AlertDialog(onDismissRequest = { deleting = null }, title = { Text("Delete annotation from Zotero?") },
-            text = { Text("This also removes it from Zotero after desktop sync. This cannot be undone here.") },
+        AlertDialog(onDismissRequest = { deleting = null },
+            title = { Text(if (state.localTitle != null) "Delete local annotation?" else "Delete annotation from Zotero?") },
+            text = { Text(if (state.localTitle != null) "This removes the annotation saved on this device. The PDF file is not changed. This cannot be undone here."
+                else "This also removes it from Zotero after desktop sync. This cannot be undone here.") },
             confirmButton = { TextButton(enabled = state.canWrite && allowEditing, onClick = { viewModel.deleteAnnotation(annotation); deleting = null }, modifier = Modifier.interactivePointer(enabled = state.canWrite && allowEditing)) { Text("Delete") } },
             dismissButton = { TextButton(onClick = { deleting = null }, modifier = Modifier.interactivePointer()) { Text("Cancel") } })
     }

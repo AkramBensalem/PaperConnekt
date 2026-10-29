@@ -83,6 +83,7 @@ data class PdfWorkspaceState(
     val target: ZoteroPdfTarget? = null,
     val localTitle: String? = null,
     val localStorageKey: String? = null,
+    val localAnnotationsReady: Boolean = false,
     val pageCount: Int = 0,
     val pageIndex: Int = 0,
     val pageNavigationId: Int = 0,
@@ -111,7 +112,26 @@ data class PdfWorkspaceState(
     val markdown: PdfMarkdownState = PdfMarkdownState(),
     val readingScript: ReadingScriptState = ReadingScriptState(),
 ) {
-    val canWrite: Boolean get() = !loading && page != null && localTitle == null
+    val canWrite: Boolean get() = !loading && page != null &&
+        (localTitle == null || localAnnotationsReady && !needsRefresh)
+    val annotationParentKey: String? get() = localStorageKey ?: target?.attachment?.key
+    val annotationSaveStatus: String get() = if (localTitle != null) {
+        when {
+            syncing -> "Saving annotations on this device..."
+            needsRefresh -> "Local annotations need attention. Retry saving."
+            pendingWrites > 0 -> "Local changes not saved yet"
+            loading -> "Loading local annotations..."
+            !localAnnotationsReady -> "Local annotation storage is unavailable"
+            else -> "Annotations saved on this device"
+        }
+    } else {
+        when {
+            syncing -> "Synchronizing with Zotero..."
+            needsRefresh -> "Sync needs attention"
+            pendingWrites > 0 -> "Changes pending sync"
+            else -> "Connected to Zotero"
+        }
+    }
     val readerPageCount: Int get() = if (viewMode == ReaderViewMode.Markdown) markdown.pages.size else pageCount
 }
 
@@ -124,6 +144,7 @@ class PdfWorkspaceViewModel(
     private val syncDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val usageRecorder: suspend (String?, AiUsageEvent) -> Unit = { _, _ -> },
     private val openDocument: suspend (ByteArray) -> PdfDocument = ::openPdfDocument,
+    private val localAnnotationStore: LocalPdfAnnotationStore? = null,
 ) : ViewModel() {
     var state by mutableStateOf(PdfWorkspaceState())
         private set
@@ -243,22 +264,36 @@ class PdfWorkspaceViewModel(
                 if (token != session) return@launch
                 document = opened
                 opened = null
-                state = state.copy(pageCount = requireNotNull(document).pageCount, loading = false)
-                renderPage()
+                state = state.copy(pageCount = requireNotNull(document).pageCount)
+                if (storageKey != null && localAnnotationStore != null) {
+                    val annotations = validatedAnnotations(localAnnotationStore.load(storageKey))
+                    ensureActive()
+                    if (token != session) return@launch
+                    remoteAnnotations = annotations
+                    state = state.copy(annotations = visibleAnnotations(), localAnnotationsReady = true)
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
                 if (token == session) {
-                    report(exception, "Could not open local PDF")
-                    state = state.copy(loading = false)
+                    report(exception, if (document == null) "Could not open local PDF" else "Could not load local annotations")
+                    state = state.copy(needsRefresh = document != null)
                 }
             } finally {
                 opened?.close()
+                if (token == session) {
+                    state = state.copy(loading = false)
+                    renderPage()
+                }
             }
         }
     }
 
     fun retryOpen() {
+        if (state.localTitle != null && (state.pendingWrites > 0 || state.draft != null)) {
+            state = state.copy(error = "Save pending local annotations or cancel the draft before reopening the PDF.")
+            return
+        }
         val target = state.target
         val title = state.localTitle
         val bytes = pdfBytes
@@ -506,6 +541,10 @@ class PdfWorkspaceViewModel(
     }
 
     fun refreshAnnotations() {
+        if (state.localTitle != null) {
+            refreshLocalAnnotations()
+            return
+        }
         val account = config ?: return
         val target = state.target ?: return
         if (state.syncing || state.loading) return
@@ -538,12 +577,55 @@ class PdfWorkspaceViewModel(
         }
     }
 
+    private fun refreshLocalAnnotations() {
+        val key = state.localStorageKey ?: return
+        val store = localAnnotationStore ?: return
+        if (state.syncing || state.loading) return
+        val token = session
+        state = state.copy(syncing = true, error = null)
+        syncJob = viewModelScope.launch {
+            syncMutex.withLock {
+                try {
+                    val annotations = validatedAnnotations(store.load(key))
+                    ensureActive()
+                    if (token != session) return@withLock
+                    remoteAnnotations = annotations
+                    state = state.copy(
+                        annotations = visibleAnnotations(), localAnnotationsReady = true, needsRefresh = false,
+                    )
+                    drainLocalWrites(key, token)
+                } catch (exception: Exception) {
+                    if (exception is CancellationException) throw exception
+                    if (token == session) {
+                        report(exception, "Could not load or save local annotations; unsaved changes are retained")
+                        state = state.copy(syncing = false, needsRefresh = true)
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun drainLocalWrites(key: String, token: Int) {
+        val store = requireNotNull(localAnnotationStore) { "Local annotation storage is unavailable." }
+        check(state.localAnnotationsReady) { "Load saved local annotations before writing changes." }
+        while (token == session && pendingWrites.isNotEmpty()) {
+            val pending = pendingWrites.first()
+            val annotations = validatedAnnotations(pending.overlay(remoteAnnotations))
+            withContext(NonCancellable) { store.save(key, annotations) }
+            if (token != session) return
+            remoteAnnotations = annotations
+            pendingWrites.removeAt(0)
+            state = state.copy(annotations = visibleAnnotations(), pendingWrites = pendingWrites.size)
+        }
+        if (token == session) state = state.copy(syncing = false, needsRefresh = false)
+    }
+
     private fun visibleAnnotations(): List<ZoteroAnnotation> =
         pendingWrites.fold(remoteAnnotations) { annotations, pending -> pending.overlay(annotations) }
             .sortedWith(compareBy({ it.position.pageIndex }, { it.data["annotationSortIndex"].toString() }))
 
     private fun currentAnnotation(annotations: List<ZoteroAnnotation>, key: String): ZoteroAnnotation =
-        annotations.find { it.key == key } ?: error("Annotation $key was deleted in Zotero. Your local change is retained.")
+        annotations.find { it.key == key } ?: error("Annotation $key no longer exists. Your unsaved change is retained.")
 
     private fun replaceAnnotation(annotation: ZoteroAnnotation): (List<ZoteroAnnotation>) -> List<ZoteroAnnotation> =
         { annotations -> annotations.filterNot { it.key == annotation.key } + annotation }
@@ -571,13 +653,13 @@ class PdfWorkspaceViewModel(
     private fun validatedAnnotations(values: List<ZoteroAnnotation>): List<ZoteroAnnotation> {
         values.forEach { annotation ->
             val position = annotation.position
-            require(position.pageIndex >= 0) { "Invalid Zotero annotation page." }
-            require(position.rects.all { it.size == 4 && it.all(Float::isFinite) }) { "Invalid Zotero annotation rectangle." }
+            require(position.pageIndex >= 0) { "Invalid annotation page." }
+            require(position.rects.all { it.size == 4 && it.all(Float::isFinite) }) { "Invalid annotation rectangle." }
             require(position.paths.all { path -> path.size >= 2 && path.size % 2 == 0 && path.all(Float::isFinite) }) {
-                "Invalid Zotero ink path."
+                "Invalid annotation pen path."
             }
-            require(position.width.isFinite() && position.width > 0f) { "Invalid Zotero ink width." }
-            require(annotation.color.matches(Regex("#[0-9a-fA-F]{6}"))) { "Invalid Zotero annotation color." }
+            require(position.width.isFinite() && position.width > 0f) { "Invalid annotation pen width." }
+            require(annotation.color.matches(Regex("#[0-9a-fA-F]{6}"))) { "Invalid annotation color." }
         }
         return values.sortedWith(compareBy({ it.position.pageIndex }, { it.data["annotationSortIndex"].toString() }))
     }
@@ -849,7 +931,7 @@ class PdfWorkspaceViewModel(
         val draft = state.draft ?: return
         if (!state.canWrite || (draft.type in listOf("note", "text") && draft.comment.isBlank()) ||
             (draft.type == "ink" && draft.paths.isEmpty())) return
-        val attachment = state.target?.attachment?.key ?: return
+        val attachment = state.annotationParentKey ?: return
         val fitted = if (draft.type == "text") draft.copy(rects = fittedTextRects(draft)) else draft
         val payload = annotationPayload(attachment, fitted)
         val key = draft.editing?.key ?: draft.key
@@ -931,8 +1013,12 @@ class PdfWorkspaceViewModel(
         overlay: (List<ZoteroAnnotation>) -> List<ZoteroAnnotation>,
         action: suspend (ZoteroConfig, List<ZoteroAnnotation>) -> Unit,
     ) {
-        val account = config ?: return
-        val target = state.target ?: return
+        val localKey = state.localStorageKey.takeIf { state.localTitle != null }
+        val account = config
+        val target = state.target
+        if (localKey != null) {
+            check(localAnnotationStore != null && state.localAnnotationsReady) { "Local annotations have not loaded." }
+        } else if (account == null || target == null) return
         val token = session
         pendingWrites += PendingWrite(overlay, action)
         state = state.copy(annotations = visibleAnnotations(), pendingWrites = pendingWrites.size, message = null)
@@ -941,11 +1027,13 @@ class PdfWorkspaceViewModel(
         syncJob = viewModelScope.launch {
             syncMutex.withLock {
                 try {
-                    drainWrites(account, target, token)
+                    if (localKey != null) drainLocalWrites(localKey, token)
+                    else drainWrites(requireNotNull(account), requireNotNull(target), token)
                 } catch (exception: Exception) {
                     if (exception is CancellationException) throw exception
                     if (token == session) {
-                        report(exception, "Zotero sync failed; your local changes are retained")
+                        report(exception, if (localKey != null) "Local annotation save failed; unsaved changes are retained"
+                            else "Zotero sync failed; your local changes are retained")
                         state = state.copy(syncing = false, needsRefresh = true)
                     }
                 }
@@ -980,12 +1068,19 @@ class PdfWorkspaceViewModel(
     /** Creates annotations on the agent's behalf without touching the user's in-progress draft. */
     suspend fun agentCreateAnnotations(drafts: List<AnnotationDraft>, reveal: Boolean = true): List<String> {
         if (drafts.isEmpty()) return emptyList()
-        val attachment = state.target?.attachment?.key ?: error("No PDF is open.")
+        val attachment = state.annotationParentKey ?: error("No PDF is open.")
         val payloads = drafts.map { draft ->
             annotationPayload(attachment, draft.copy(aiGenerated = true,
                 rects = if (draft.type == "text") fittedTextRects(draft) else draft.rects))
         }
-        val keys = agentWrite { account -> payloads.map { repository.create(account, it) } }
+        val keys = if (state.localTitle != null) {
+            val annotations = payloads.map { ZoteroAnnotation(it.getValue("key").jsonPrimitive.content, 0, it) }
+            agentLocalWrite { existing ->
+                val keys = annotations.map { it.key }.toSet()
+                existing.filterNot { it.key in keys } + annotations
+            }
+            annotations.map { it.key }
+        } else agentWrite { account -> payloads.map { repository.create(account, it) } }
         if (reveal && state.viewMode == ReaderViewMode.Pdf) state.annotations.find { it.key == keys.first() }?.let {
             if (state.draft == null) selectAnnotation(it)
         }
@@ -996,6 +1091,28 @@ class PdfWorkspaceViewModel(
         check(state.annotations.any { it.key == key }) { "No annotation with key $key." }
         check(state.draft?.editing?.key != key) { "The user is editing this annotation right now." }
         color?.let { require(it.matches(Regex("#[0-9a-fA-F]{6}"))) { "Invalid annotation color." } }
+        if (state.localTitle != null) {
+            agentLocalWrite(editingKey = key) { annotations ->
+                val current = currentAnnotation(annotations, key)
+                val newComment = comment ?: current.comment
+                if (current.type in listOf("note", "text")) {
+                    require(newComment.isNotBlank()) { "Notes and text annotations cannot be empty." }
+                }
+                val edits = mutableMapOf(
+                    "annotationComment" to JsonPrimitive(newComment),
+                    "annotationColor" to JsonPrimitive(color ?: current.color),
+                )
+                if (current.type == "text" && newComment != current.comment) {
+                    val draft = AnnotationDraft("text", current.position.pageIndex, current.position.rects,
+                        comment = newComment, fontSize = current.position.fontSize)
+                    val position = JsonObject(current.positionData +
+                        ("rects" to JsonArray(fittedTextRects(draft).map { r -> JsonArray(r.map(::JsonPrimitive)) })))
+                    edits["annotationPosition"] = JsonPrimitive(position.toString())
+                }
+                replaceAnnotation(current.copy(data = JsonObject(current.data + edits)))(annotations)
+            }
+            return
+        }
         agentWrite { account ->
             check(state.draft?.editing?.key != key) { "The user is editing this annotation right now." }
             val current = currentAnnotation(remoteAnnotations, key)
@@ -1018,11 +1135,39 @@ class PdfWorkspaceViewModel(
     suspend fun agentDeleteAnnotation(key: String) {
         val annotation = state.annotations.find { it.key == key } ?: error("No annotation with key $key.")
         check(state.draft?.editing?.key != key) { "The user is editing this annotation right now." }
-        agentWrite {
+        if (state.localTitle != null) {
+            agentLocalWrite(editingKey = key) { annotations ->
+                currentAnnotation(annotations, key)
+                annotations.filterNot { it.key == key }
+            }
+        } else agentWrite {
             check(state.draft?.editing?.key != key) { "The user is editing this annotation right now." }
             repository.delete(it, currentAnnotation(remoteAnnotations, annotation.key))
         }
         if (state.selectedKey == key) state = state.copy(selectedKey = null)
+    }
+
+    private suspend fun agentLocalWrite(
+        editingKey: String? = null,
+        overlay: (List<ZoteroAnnotation>) -> List<ZoteroAnnotation>,
+    ) {
+        val token = session
+        loadJob?.join()
+        syncJob?.join()
+        check(token == session) { "The PDF was closed." }
+        check(state.localAnnotationsReady && !state.needsRefresh) {
+            "Retry loading or saving local annotations before making agent changes."
+        }
+        check(editingKey == null || state.draft?.editing?.key != editingKey) {
+            "The user is editing this annotation right now."
+        }
+        validatedAnnotations(overlay(visibleAnnotations()))
+        write(overlay) { _, _ -> error("Local annotations must not be sent to Zotero.") }
+        syncJob?.join()
+        check(token == session) { "The PDF was closed." }
+        check(!state.needsRefresh && state.pendingWrites == 0) {
+            state.error ?: "Local annotations could not be saved."
+        }
     }
 
     /** Shows an annotation in the PDF, switching from the Markdown view when necessary. */

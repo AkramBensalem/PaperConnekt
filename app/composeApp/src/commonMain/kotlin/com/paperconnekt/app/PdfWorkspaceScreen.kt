@@ -20,6 +20,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -31,11 +32,23 @@ import androidx.compose.runtime.CompositionLocalProvider
 import com.akram.bensalem.paper.connekt.feature.assistant.AssistantRepository
 import com.akram.bensalem.paper.connekt.feature.assistant.AssistantViewModel
 import com.akram.bensalem.paper.connekt.feature.assistant.PdfWorkspaceViewModel
+import com.akram.bensalem.paper.connekt.feature.assistant.StoredLocalPdfAnnotations
 import com.akram.bensalem.paper.connekt.feature.assistant.component.Workplace
 import com.akram.bensalem.paper.connekt.models.Paper as AssistantPaper
 import com.paperconnekt.domain.model.Paper
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
+
+internal class PdfNavigationGuard {
+    var beforeNavigate: ((() -> Unit) -> Unit)? = null
+
+    fun navigate(action: () -> Unit) {
+        val guard = beforeNavigate
+        if (guard == null) action() else guard(action)
+    }
+}
+
+internal val LocalPdfNavigationGuard = staticCompositionLocalOf<PdfNavigationGuard?> { null }
 
 @Composable
 fun PdfWorkspaceScreen(
@@ -65,12 +78,20 @@ private fun LocalPaperWorkspace(
     onBack: () -> Unit,
 ) {
     val storage = LocalPdfAttachments.current.storage
-    val workspace = viewModel { PdfWorkspaceViewModel() }
+    val workspace = viewModel { PdfWorkspaceViewModel(localAnnotationStore = StoredLocalPdfAnnotations(storage)) }
     val assistant = viewModel { AssistantViewModel(AssistantRepository()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableStateOf(0) }
-    var confirmExit by remember { mutableStateOf(false) }
+    var pendingExit by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val navigation = LocalPdfNavigationGuard.current
+    val requestExit: (() -> Unit) -> Unit = { action ->
+        if (workspace.state.draft != null || workspace.state.pendingWrites > 0) pendingExit = action else action()
+    }
+    DisposableEffect(navigation, workspace) {
+        navigation?.beforeNavigate = requestExit
+        onDispose { navigation?.beforeNavigate = null }
+    }
     val assistantPaper = remember(paper) {
         AssistantPaper(
             id = paper.id,
@@ -106,13 +127,17 @@ private fun LocalPaperWorkspace(
             loading = false
         }
     }
-    if (confirmExit) {
+    if (pendingExit != null) {
         AlertDialog(
-            onDismissRequest = { confirmExit = false },
+            onDismissRequest = { pendingExit = null },
             title = { Text("Discard unsaved changes?") },
-            text = { Text("The current annotation draft has not been saved.") },
-            confirmButton = { TextButton(onClick = onBack) { Text("Discard and exit") } },
-            dismissButton = { TextButton(onClick = { confirmExit = false }) { Text("Keep editing") } },
+            text = { Text("An annotation draft or pending local changes have not been saved. Leaving now may discard them.") },
+            confirmButton = { TextButton(onClick = {
+                val exit = pendingExit
+                pendingExit = null
+                exit?.invoke()
+            }) { Text("Discard and exit") } },
+            dismissButton = { TextButton(onClick = { pendingExit = null }) { Text("Keep editing") } },
         )
     }
     Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
@@ -144,9 +169,7 @@ private fun LocalPaperWorkspace(
                     ideaError = state.ideaError,
                     ideaBoard = assistant,
                     pdfWorkspace = workspace,
-                    onExit = {
-                        if (workspace.state.draft != null) confirmExit = true else onBack()
-                    },
+                    onExit = { requestExit(onBack) },
                 )
             }
         }

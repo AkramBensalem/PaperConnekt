@@ -65,7 +65,7 @@ fun paperAgentSystemPrompt(
     appendLine("## Paper")
     appendLine("Title: ${state.localTitle ?: item?.title ?: state.target?.attachment?.data?.title ?: "Untitled"}")
     if (state.localTitle != null) {
-        appendLine("This is a local PDF. Zotero annotation writes are unavailable; use the Idea Board for saved research notes.")
+        appendLine("This is a local PDF. Annotation tools save on this device only, never to Zotero. The Idea Board also saves locally.")
     }
     item?.creators?.mapNotNull { it.name ?: listOfNotNull(it.firstName, it.lastName).joinToString(" ").ifBlank { null } }
         ?.takeIf { it.isNotEmpty() }?.let { appendLine("Authors: ${it.take(12).joinToString()}${if (it.size > 12) ", et al." else ""}") }

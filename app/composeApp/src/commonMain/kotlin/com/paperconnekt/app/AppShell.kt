@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +37,19 @@ fun AppShell(
     store: LocalResearchStore,
     secretStore: SecretStore,
     startDestination: AppDestination,
+) {
+    val pdfNavigation = remember { PdfNavigationGuard() }
+    CompositionLocalProvider(LocalPdfNavigationGuard provides pdfNavigation) {
+        AppShellContent(store, secretStore, startDestination, pdfNavigation)
+    }
+}
+
+@Composable
+private fun AppShellContent(
+    store: LocalResearchStore,
+    secretStore: SecretStore,
+    startDestination: AppDestination,
+    pdfNavigation: PdfNavigationGuard,
 ) {
     var destination by remember { mutableStateOf(startDestination) }
     var requestedPaper by remember { mutableStateOf<Paper?>(null) }
@@ -124,7 +138,7 @@ fun AppShell(
                     navigationItems.forEach { (item, label) ->
                         NavigationRailItem(
                             selected = destination == item,
-                            onClick = { destination = item },
+                            onClick = { if (destination != item) pdfNavigation.navigate { destination = item } },
                             icon = {
                                 NavigationIcon(
                                     glyph = label.first,
@@ -168,7 +182,7 @@ fun AppShell(
                         navigationItems.forEach { (item, label) ->
                             NavigationBarItem(
                                 selected = destination == item,
-                                onClick = { destination = item },
+                                onClick = { if (destination != item) pdfNavigation.navigate { destination = item } },
                                 icon = {
                                     NavigationIcon(
                                         glyph = label.first,

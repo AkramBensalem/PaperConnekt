@@ -74,13 +74,27 @@ Native picker and drag-and-drop integrations live in `app/desktop` and
 The Assistant workspace reuses `PdfWorkspaceViewModel.openLocal` and the existing
 PDF reader for actual rendering, page navigation, zoom, and text selection.
 The local PDF screen hosts the reference Assistant's `Workplace` directly, using
-its single reader header and the same Notes, AI Agent, and Ideas tabs,
-`NotesManager`, `PaperAgentPanel`, and `IdeaOrganizer` components. Workspace-scoped
+its single reader header and the same Annotations, AI Agent, and Ideas tabs,
+`AnnotationList`, `PaperAgentPanel`, and `IdeaOrganizer` components. Workspace-scoped
 ViewModels are cleared on exit. Local paper IDs namespace saved idea notes;
 attachment-specific keys isolate agent chat history and OCR Markdown when a PDF
-is replaced, without requiring an account. Ideas use
-the existing local Markdown store; research notes retain the reference feature's
-session-only behavior. Local PDFs do not enable Zotero annotation writes.
+is replaced, without requiring an account. Ideas use the existing local Markdown
+store. Local PDFs support the same page notes, page ideas, pen strokes,
+rectangles, text boxes, highlights, underlines, editing, movement, resizing,
+recoloring, and deletion as the Zotero reader. Scanned pages still need a text
+layer for text selection, highlights, and underlines; drawing, text boxes, and
+page notes work without one.
+
+Local annotations reuse the existing annotation payload and rendering code.
+`StoredLocalPdfAnnotations` serializes versioned snapshots through the shared
+`PdfAttachmentStorage` contract. Android and desktop atomically replace a
+per-attachment JSON file in `attachments/annotations`, keyed by a SHA-256 digest
+of the attachment storage key. They do not modify the source PDF or call Zotero.
+Saved annotations reload on reopening; unreadable snapshots block editing rather
+than being silently overwritten. Failed saves retain the visible pending changes
+and expose retry controls. The reader shows **Save locally** and local save
+status instead of claiming Zotero synchronization. Reader exit and application
+navigation warn before discarding a draft or pending local changes.
 The reference sidebar is reused, not a second implementation. This does not
 restore the startup app's provider/backend services: the contest research-agent
 adapter explicitly reports unavailable provider execution instead of returning a

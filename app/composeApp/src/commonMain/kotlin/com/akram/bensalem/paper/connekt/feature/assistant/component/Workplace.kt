@@ -60,6 +60,8 @@ fun Workplace(
     var focusMode by remember(paper.id) { mutableStateOf(false) }
     var ideaToOpen by remember(paper.id) { mutableStateOf<String?>(null) }
     val attachmentKey = pdfWorkspace?.paperStorageKey()
+    val hasPdfAnnotations = pdfWorkspace != null &&
+        (pdfWorkspace.state.target != null || pdfWorkspace.state.localTitle != null)
     val paperAgent = if (pdfWorkspace != null && attachmentKey != null)
         viewModel(key = "paper-agent-${paper.id}") {
             PaperAgentViewModel(pdfWorkspace, ideaBoard = ideaBoard, usageRecorder = usageRecorder)
@@ -108,7 +110,7 @@ fun Workplace(
                     Row(Modifier.padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         panels.forEachIndexed { index, (title, icon) ->
                             val selected = selectedPanel == index
-                            val label = if (index == 0 && pdfWorkspace?.state?.target != null) "Annotations" else title
+                            val label = if (index == 0 && hasPdfAnnotations) "Annotations" else title
                             Surface(
                                 selected = selected,
                                 onClick = { selectedPanel = index },
@@ -135,7 +137,7 @@ fun Workplace(
             }
             Spacer(Modifier.height(if (headerCollapsed) 8.dp else 16.dp))
             when (selectedPanel) {
-                0 -> if (pdfWorkspace?.state?.target != null) {
+                0 -> if (pdfWorkspace != null && hasPdfAnnotations) {
                     AnnotationList(pdfWorkspace, Modifier.fillMaxSize(), ideasOnly = null, headerCollapsed = headerCollapsed,
                         allowEditing = allowEditing)
                 } else {
