@@ -71,6 +71,10 @@ class PaperAgentViewModel(
     private var loadedKey: String? = null
     private var modelLoaded = false
     private val saveLock = Mutex()
+    var storageReady by mutableStateOf(false)
+        private set
+    var storageError by mutableStateOf<String?>(null)
+        private set
 
     /** Loads the saved chats of the open paper once its storage key is known, resuming the most recent one. */
     suspend fun load() {
@@ -79,12 +83,23 @@ class PaperAgentViewModel(
             modelLoaded = true
         }
         val key = workspace.paperStorageKey() ?: return
-        if (key == loadedKey) return
-        loadedKey = key
-        val saved = runCatching { store.load(key) }.onFailure { Napier.e("Could not load agent chats", it) }.getOrDefault(emptyList())
-        val current = conversation.takeIf { it.messages.isNotEmpty() && saved.none { saved -> saved.id == it.id } }
-        conversations = (listOfNotNull(current) + saved).sortedByDescending { it.updatedAt }
-        if (conversation.messages.isEmpty()) conversations.firstOrNull()?.let { conversation = it }
+        saveLock.withLock {
+            if (key == loadedKey && storageReady) return
+            storageReady = false
+            try {
+                val saved = store.load(key).sortedByDescending { it.updatedAt }
+                conversations = saved
+                conversation = saved.firstOrNull() ?: PaperAgentConversation()
+                loadedKey = key
+                storageReady = true
+                storageError = null
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                Napier.e("Could not load agent chats", exception)
+                storageError = "Could not load saved chats: ${exception.message}. Retry before editing."
+            }
+        }
     }
 
     fun askAbout(selection: PdfTextSelection?, pageIndex: Int) {
@@ -172,7 +187,7 @@ class PaperAgentViewModel(
 
     fun send(text: String = input) {
         val message = text.trim()
-        if (message.isEmpty() || running) return
+        if (message.isEmpty() || running || !storageReady) return
         PaperAgentCommand.parse(message)?.let {
             input = ""
             run(it)
@@ -297,7 +312,7 @@ class PaperAgentViewModel(
 
     /** Starts a fresh chat; the current one stays in the history. */
     fun newChat() {
-        if (running) return
+        if (running || !storageReady) return
         showHistory = false
         pinned = null
         if (conversation.messages.isNotEmpty()) conversation = PaperAgentConversation()
@@ -310,7 +325,7 @@ class PaperAgentViewModel(
     }
 
     fun deleteConversation(id: String) {
-        if (running) return
+        if (running || !storageReady) return
         conversations = conversations.filterNot { it.id == id }
         if (conversation.id == id) conversation = PaperAgentConversation()
         persist()
@@ -337,13 +352,28 @@ class PaperAgentViewModel(
     }
 
     private fun persist() {
-        val key = loadedKey ?: workspace.paperStorageKey() ?: return
+        if (!storageReady) return
+        val key = loadedKey ?: return
         val snapshot = conversations.filter { it.messages.isNotEmpty() }
-        viewModelScope.launch {
-            saveLock.withLock {
-                runCatching { store.save(key, snapshot) }.onFailure { Napier.e("Could not save agent chats", it) }
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            withContext(NonCancellable) {
+                saveLock.withLock {
+                    try {
+                        store.save(key, snapshot)
+                        storageError = null
+                    } catch (exception: CancellationException) {
+                        throw exception
+                    } catch (exception: Exception) {
+                        Napier.e("Could not save agent chats", exception)
+                        storageError = "Chat changes have not been saved: ${exception.message}"
+                    }
+                }
             }
         }
+    }
+
+    fun retryStorage() {
+        if (storageReady) persist() else viewModelScope.launch { load() }
     }
 
     private suspend fun recordAgentUsage(

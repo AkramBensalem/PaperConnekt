@@ -3,11 +3,10 @@ package com.akram.bensalem.paper.connekt.feature.assistant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.Path
 import com.akram.bensalem.paper.connekt.shared.utils.paperConnektDataDirectory
-import java.nio.file.StandardCopyOption
+import com.paperconnekt.storage.writePrivateFileAtomically
 
 class FileResearchHistoryStore(
     private val root: Path = paperConnektDataDirectory().resolve("research-history")
@@ -30,18 +29,7 @@ class FileResearchHistoryStore(
 
     override suspend fun save(userId: String, history: ResearchHistory): Unit = withContext(Dispatchers.IO) {
         val file = file(userId)
-        Files.createDirectories(root)
-        val temporary = Files.createTempFile(root, "history", ".json.tmp")
-        try {
-            Files.writeString(temporary, json.encodeToString(history))
-            try {
-                Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-            } catch (_: AtomicMoveNotSupportedException) {
-                Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING)
-            }
-        } finally {
-            Files.deleteIfExists(temporary)
-        }
+        writePrivateFileAtomically(file, json.encodeToString(history).toByteArray(Charsets.UTF_8))
     }
 }
 

@@ -10,6 +10,7 @@ import com.akram.bensalem.paper.connekt.core.aiassistant.PaperAiTask
 import com.akram.bensalem.paper.connekt.core.aiassistant.PaperTriageUsage
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -337,25 +338,27 @@ class AssistantViewModel(
         paperId: String, update: (List<Idea>) -> Pair<Idea, List<Idea>>
     ): Idea {
         awaitIdeaNotes(paperId)
-        return ideaSaveMutex.withLock {
-            require(selectedPaperId == paperId) { "The selected paper has changed." }
-            val (idea, ideas) = update(state.ideas)
-            try {
-                ideaNoteStore.save(paperId, ideas)
-            } catch (exception: Exception) {
-                if (exception is CancellationException) throw exception
-                if (selectedPaperId == paperId) {
-                    state = state.copy(ideaError = "Could not save idea notes: ${exception.message}")
+        return withContext(NonCancellable) {
+            ideaSaveMutex.withLock {
+                require(selectedPaperId == paperId) { "The selected paper has changed." }
+                val (idea, ideas) = update(state.ideas)
+                try {
+                    ideaNoteStore.save(paperId, ideas)
+                } catch (exception: Exception) {
+                    if (exception is CancellationException) throw exception
+                    if (selectedPaperId == paperId) {
+                        state = state.copy(ideaError = "Could not save idea notes: ${exception.message}")
+                    }
+                    throw exception
                 }
-                throw exception
+                if (selectedPaperId == paperId) state = state.copy(ideas = ideas, ideaError = null)
+                idea
             }
-            if (selectedPaperId == paperId) state = state.copy(ideas = ideas, ideaError = null)
-            return@withLock idea
         }
     }
 
     private fun editIdea(paperId: String, edit: suspend () -> Unit) {
-        viewModelScope.launch {
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
                 edit()
             } catch (exception: Exception) {

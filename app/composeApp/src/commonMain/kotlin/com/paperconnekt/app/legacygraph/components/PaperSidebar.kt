@@ -87,6 +87,8 @@ fun PaperSidebar(
     onToggleReferences: () -> Unit = {},
     onToggleCitations: () -> Unit = {},
     onOpenReview: () -> Unit = {},
+    isSavedToLibrary: Boolean = false,
+    onSaveToLibrary: (() -> Unit)? = null,
 ) {
     val paper = node.paper
     var referencesTab by remember(node.paper.id) { mutableStateOf(false) }
@@ -124,6 +126,15 @@ fun PaperSidebar(
         )
         {
             Spacer(modifier = Modifier.height(12.dp))
+            if (onSaveToLibrary != null) {
+                OutlinedButton(
+                    onClick = onSaveToLibrary,
+                    enabled = !isSavedToLibrary,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (isSavedToLibrary) "Saved in Library" else "Save to Library")
+                }
+            }
             // Top Bar
             Row(
                 modifier = Modifier.fillMaxWidth(),

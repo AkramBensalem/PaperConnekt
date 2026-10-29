@@ -146,12 +146,10 @@ fun DashboardScreen(
         AddPaperDialog(
             onDismiss = { showAddPaperDialog = false },
             onSave = { paper ->
-                scope.launch {
-                    store.savePaper(paper)
-                    showAddPaperDialog = false
-                    searchResults = null
-                    notice = "Paper added to your local collection."
-                }
+                store.savePaper(paper)
+                showAddPaperDialog = false
+                searchResults = null
+                notice = "Paper added to your local collection."
             },
         )
     }
@@ -163,9 +161,9 @@ private enum class PaperSortOrder {
 }
 
 @Composable
-private fun AddPaperDialog(
+internal fun AddPaperDialog(
     onDismiss: () -> Unit,
-    onSave: (Paper) -> Unit,
+    onSave: suspend (Paper) -> Unit,
 ) {
     var title by remember { mutableStateOf("") }
     var authors by remember { mutableStateOf("") }
@@ -174,10 +172,14 @@ private fun AddPaperDialog(
     var tags by remember { mutableStateOf("") }
     var abstractText by remember { mutableStateOf("") }
     var pdfPath by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    var saving by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val paperId = remember { "manual-${Random.nextLong()}" }
 
     PaperMetadataDialog(
         title = "Add paper manually",
-        confirmLabel = "Save locally",
+        confirmLabel = if (saving) "Saving..." else "Save locally",
         titleValue = title,
         onTitleChange = { title = it },
         authorsValue = authors,
@@ -192,21 +194,35 @@ private fun AddPaperDialog(
         onAbstractChange = { abstractText = it },
         pdfPathValue = pdfPath,
         onPdfPathChange = { pdfPath = it },
-        onDismiss = onDismiss,
-        enabled = title.isNotBlank(),
+        onDismiss = { if (!saving) onDismiss() },
+        enabled = title.isNotBlank() && !saving,
+        error = error,
+        saving = saving,
         onConfirm = {
-            onSave(
-                Paper(
-                    id = "manual-${Random.nextLong()}",
-                    title = title.trim(),
-                    authors = authors.split(',').map(String::trim).filter(String::isNotEmpty),
-                    year = year.toIntOrNull(),
-                    doi = doi.trim().ifEmpty { null },
-                    tags = tags.split(',').map(String::trim).filter(String::isNotEmpty),
-                    abstractText = abstractText.trim().ifEmpty { null },
-                    pdfPath = pdfPath.trim().ifEmpty { null },
-                ),
+            val paper = Paper(
+                id = paperId,
+                title = title.trim(),
+                authors = authors.split(',').map(String::trim).filter(String::isNotEmpty),
+                year = year.toIntOrNull(),
+                doi = doi.trim().ifEmpty { null },
+                tags = tags.split(',').map(String::trim).filter(String::isNotEmpty),
+                abstractText = abstractText.trim().ifEmpty { null },
+                pdfPath = pdfPath.trim().ifEmpty { null },
             )
+            saving = true
+            error = null
+            scope.launch {
+                try {
+                    onSave(paper)
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (exception: Exception) {
+                    io.github.aakira.napier.Napier.e("Could not save manual paper", exception)
+                    error = exception.message ?: "Could not save this paper. Please retry."
+                } finally {
+                    saving = false
+                }
+            }
         },
     )
 }

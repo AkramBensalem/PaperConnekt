@@ -35,8 +35,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
             PaperConnektApp(
-                secretStore = AndroidSecretStore(applicationContext),
-                workspaceStorage = AndroidWorkspaceStorage(applicationContext),
+                secretStore = remember { AndroidSecretStore(applicationContext) },
+                workspaceStorage = remember { AndroidWorkspaceStorage(applicationContext) },
                 pdfAttachments = pdfAttachments,
             )
         }

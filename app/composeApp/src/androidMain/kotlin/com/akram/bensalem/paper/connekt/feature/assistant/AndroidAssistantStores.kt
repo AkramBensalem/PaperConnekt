@@ -9,7 +9,7 @@ import java.io.File
 
 private val assistantStoreJson = Json { encodeDefaults = true; ignoreUnknownKeys = true }
 private val assistantStorePreferences by lazy {
-    requireAndroidApplicationContext().getSharedPreferences("paperconnekt_assistant", 0)
+    requireAndroidApplicationContext().getSharedPreferences("paperconnekt_contest_assistant", 0)
 }
 
 private fun preferenceKey(prefix: String, key: String): String =
@@ -55,7 +55,7 @@ private class AndroidPaperAgentChatStore : PaperAgentChatStore {
 }
 
 private class AndroidPdfMarkdownStore : PdfMarkdownStore {
-    private val root = File(requireAndroidApplicationContext().filesDir, "paperconnekt/markdown")
+    private val root = File(requireAndroidApplicationContext().noBackupFilesDir, "paperconnekt-contest/markdown")
 
     private fun directory(key: String): File =
         key.split('/').filter(String::isNotBlank).fold(root) { parent, segment ->

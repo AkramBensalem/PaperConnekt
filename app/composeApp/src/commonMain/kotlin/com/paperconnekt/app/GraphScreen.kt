@@ -225,7 +225,13 @@ fun GraphCanvasScreen(
                 }
             },
             onSavePaper = { paper ->
-                scope.launch { store.savePaper(paper) }
+                scope.launch {
+                    runCatching {
+                        if (store.papers.value.none { it.id == paper.id }) {
+                            store.savePaper(paper.copy(pdfPath = null))
+                        }
+                    }.onFailure { errorMessage = it.message ?: "Could not save this paper to the Library." }
+                }
             },
             onError = {
                 errorMessage = it

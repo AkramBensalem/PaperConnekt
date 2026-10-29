@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
 
 class AndroidPdfAttachmentStorage(context: Context) : PdfAttachmentStorage {
     private val resolver = context.applicationContext.contentResolver
-    private val directory = File(context.applicationContext.filesDir, "paperconnekt/attachments")
+    private val directory = File(context.applicationContext.noBackupFilesDir, "paperconnekt-contest/attachments")
 
     override suspend fun importPdf(source: String): String = withContext(Dispatchers.IO) {
         val uri = Uri.parse(source)
@@ -55,12 +55,11 @@ class AndroidPdfAttachmentStorage(context: Context) : PdfAttachmentStorage {
 
     override suspend fun readPdf(path: String): ByteArray = withContext(Dispatchers.IO) {
         val uri = Uri.parse(path)
-        val bytes = if (uri.scheme == "content") {
-            requireNotNull(resolver.openInputStream(uri)) { "The attached PDF cannot be read." }.use { it.readBytes() }
-        } else {
-            File(uri.path ?: path).readBytes()
+        val file = File(uri.path ?: path)
+        require(uri.scheme != "content" && file.canonicalFile.toPath().startsWith(directory.canonicalFile.toPath())) {
+            "This PDF is not an app-managed attachment. Attach it through the Library first."
         }
-        bytes.also(::requirePdfHeader)
+        file.readBytes().also(::requirePdfHeader)
     }
 
     private fun annotationFile(key: String): File {

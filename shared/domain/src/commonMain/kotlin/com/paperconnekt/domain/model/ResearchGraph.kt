@@ -13,6 +13,8 @@ data class ResearchGraph(
     val connections: List<GraphConnection> = emptyList(),
     val nodePositions: Map<String, GraphNodePosition> = emptyMap(),
     val updatedAt: Instant? = null,
+    /** Discovery metadata belongs to the graph, not the user's saved Library. */
+    val discoveredPapers: List<Paper> = emptyList(),
 )
 
 @Serializable
@@ -34,4 +36,3 @@ enum class ConnectionType {
     SHARED_REFERENCE,
     RELATED_TOPIC,
 }
-

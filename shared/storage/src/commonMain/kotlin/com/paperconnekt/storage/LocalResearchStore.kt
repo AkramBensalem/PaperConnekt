@@ -16,7 +16,9 @@ interface LocalResearchStore {
     val libraryEntries: StateFlow<List<LibraryEntry>>
 
     suspend fun updateSettings(transform: (AppSettings) -> AppSettings)
+    /** Saves an explicitly selected item; a metadata refresh cannot clear its attached PDF. */
     suspend fun savePaper(paper: Paper)
+    suspend fun updatePaper(paperId: String, transform: (Paper) -> Paper)
     suspend fun removePaper(paperId: String)
     suspend fun saveGraph(graph: ResearchGraph)
     suspend fun removeGraph(graphId: String)

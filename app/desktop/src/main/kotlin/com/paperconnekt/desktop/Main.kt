@@ -12,8 +12,8 @@ fun main() = application {
         title = "PaperConnekt",
     ) {
         PaperConnektApp(
-            secretStore = DesktopSecretStore(),
-            workspaceStorage = DesktopWorkspaceStorage(),
+            secretStore = remember { DesktopSecretStore() },
+            workspaceStorage = remember { DesktopWorkspaceStorage() },
             pdfAttachments = remember { DesktopPdfAttachmentUi() },
         )
     }

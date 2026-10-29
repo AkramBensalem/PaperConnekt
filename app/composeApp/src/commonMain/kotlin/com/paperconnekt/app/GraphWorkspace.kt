@@ -110,7 +110,8 @@ fun GraphWorkspace(
     onSavePaper: (Paper) -> Unit,
     onError: (String) -> Unit,
 ) {
-    val graphPapers = papers.filter { it.id in graph.paperIds }
+    val graphPapers = (papers + graph.discoveredPapers).distinctBy(Paper::id)
+        .filter { it.id in graph.paperIds }
     val availablePapers = papers.filterNot { it.id in graph.paperIds }
     var selectedPaperId by remember(graph.id) { mutableStateOf<String?>(null) }
     var paperQuery by remember(graph.id) { mutableStateOf("") }
@@ -264,6 +265,11 @@ fun GraphWorkspace(
             )
         )
     }
+    val keepPaper: (String) -> Unit = { id ->
+        graphPapers.firstOrNull { it.id == id }?.let(onSavePaper)
+        guidedKeptIds = guidedKeptIds + id
+        guidedSkippedIds = guidedSkippedIds - id
+    }
     val expandGraph: (GraphExpansionDirection) -> Unit = { direction ->
         val source = selectedPaper ?: graphPapers.firstOrNull()
         if (source == null) {
@@ -273,9 +279,9 @@ fun GraphWorkspace(
             scope.launch {
                 runCatching { graphProvider.expand(source.id, direction) }
                     .onSuccess { expansion ->
-                        expansion.papers.forEach(onSavePaper)
                         saveUpdated(
                             graph.copy(
+                                discoveredPapers = (graph.discoveredPapers + expansion.papers).distinctBy(Paper::id),
                                 paperIds = (graph.paperIds + expansion.papers.map(Paper::id)).distinct(),
                                 connections = (graph.connections + expansion.connections).distinct(),
                             ),
@@ -311,8 +317,8 @@ fun GraphWorkspace(
                         val visibleConnections = expansion.connections.filter {
                             it.fromPaperId in visibleIds && it.toPaperId in visibleIds
                         }
-                        visiblePapers.forEach(onSavePaper)
                         discoveredGraph = discoveredGraph.copy(
+                            discoveredPapers = (discoveredGraph.discoveredPapers + visiblePapers).distinctBy(Paper::id),
                             paperIds = (discoveredGraph.paperIds + visiblePapers.map(Paper::id)).distinct(),
                             connections = (discoveredGraph.connections + visibleConnections).distinct(),
                         )
@@ -361,16 +367,16 @@ fun GraphWorkspace(
             seedPickerError = null
             scope.launch {
                 runCatching {
-                    onSavePaper(paper)
                     var updated = graph.copy(
+                        discoveredPapers = (graph.discoveredPapers + paper).distinctBy(Paper::id),
                         paperIds = (graph.paperIds + paper.id).distinct(),
                         seedPaperIds = ((graph.seedPaperIds.ifEmpty { graph.paperIds.firstOrNull()?.let(::listOf).orEmpty() }) + paper.id).distinct(),
                     )
                     if (paper.id.startsWith("W")) {
                         listOf(GraphExpansionDirection.REFERENCES, GraphExpansionDirection.CITATIONS).forEach { direction ->
                             val expansion = graphProvider.expand(paper.id, direction)
-                            expansion.papers.forEach(onSavePaper)
                             updated = updated.copy(
+                                discoveredPapers = (updated.discoveredPapers + expansion.papers).distinctBy(Paper::id),
                                 paperIds = (updated.paperIds + expansion.papers.map(Paper::id)).distinct(),
                                 connections = (updated.connections + expansion.connections).distinct(),
                             )
@@ -409,6 +415,7 @@ fun GraphWorkspace(
                     seedPaperIds = seedIds - paperId,
                     connections = remainingConnections,
                     nodePositions = graph.nodePositions.filterKeys { it !in removedPaperIds },
+                    discoveredPapers = graph.discoveredPapers.filterNot { it.id in removedPaperIds },
                 ),
             )
             if (selectedPaperId == paperId) selectedPaperId = null
@@ -429,8 +436,8 @@ fun GraphWorkspace(
                             GraphExpansionDirection.CITATIONS,
                         ).forEach { direction ->
                             val expansion = graphProvider.expand(seed.id, direction)
-                            expansion.papers.forEach(onSavePaper)
                             expandedGraph = expandedGraph.copy(
+                                discoveredPapers = (expandedGraph.discoveredPapers + expansion.papers).distinctBy(Paper::id),
                                 paperIds = (expandedGraph.paperIds + expansion.papers.map(Paper::id)).distinct(),
                                 connections = (expandedGraph.connections + expansion.connections).distinct(),
                             )
@@ -547,6 +554,8 @@ fun GraphWorkspace(
                     selectedNode?.let { node ->
                             PaperSidebar(
                                 node = node,
+                                isSavedToLibrary = papers.any { it.id == node.paper.id },
+                                onSaveToLibrary = { onSavePaper(node.paper) },
                                 onClose = { selectedPaperId = null },
                                 onExpand = expandGraph,
                                 onRefresh = { expandGraph(com.paperconnekt.storage.GraphExpansionDirection.REFERENCES) },
@@ -627,6 +636,8 @@ fun GraphWorkspace(
                                 .width(360.dp)
                                 .fillMaxHeight(),
                             node = node,
+                            isSavedToLibrary = papers.any { it.id == node.paper.id },
+                            onSaveToLibrary = { onSavePaper(node.paper) },
                             onClose = { selectedPaperId = null },
                             onExpand = expandGraph,
                             onRefresh = { expandGraph(com.paperconnekt.storage.GraphExpansionDirection.REFERENCES) },
@@ -715,7 +726,7 @@ fun GraphWorkspace(
     }
 
     if (showSeedPicker) {
-        SeedPaperPickerDialog(
+        PaperSearchPickerDialog(
             seeds = graphPapers.filter { it.id in (graph.seedPaperIds.ifEmpty { graph.paperIds.firstOrNull()?.let(::listOf).orEmpty() }) },
             query = seedQuery,
             results = seedResults,
@@ -751,7 +762,7 @@ fun GraphWorkspace(
                 onBatchSizeChanged = { reviewBatchSize = it },
                 onDirectionChanged = { reviewDirection = it },
                 onShowNext = {},
-                onKeep = { id -> guidedKeptIds = guidedKeptIds + id; guidedSkippedIds = guidedSkippedIds - id },
+                onKeep = keepPaper,
                 onSkip = { id -> guidedSkippedIds = guidedSkippedIds + id; guidedKeptIds = guidedKeptIds - id },
                 onUndo = { id -> guidedKeptIds = guidedKeptIds - id; guidedSkippedIds = guidedSkippedIds - id },
                 onRevisitSkipped = { guidedSkippedIds = emptySet() },
@@ -768,7 +779,7 @@ fun GraphWorkspace(
             review = graphInsightsReview,
             keptElsewhere = emptySet(),
             onLoad = {},
-            onKeep = { guidedKeptIds = guidedKeptIds + it },
+            onKeep = keepPaper,
             onSkip = { guidedSkippedIds = guidedSkippedIds + it },
             onUndo = { guidedKeptIds = guidedKeptIds - it; guidedSkippedIds = guidedSkippedIds - it },
             onDismiss = { showInsightsDialog = false },
@@ -1257,7 +1268,7 @@ private fun EmptyGraphStateCard(
 }
 
 @Composable
-private fun SeedPaperPickerDialog(
+internal fun PaperSearchPickerDialog(
     seeds: List<Paper>,
     query: String,
     results: List<Paper>,
@@ -1273,6 +1284,9 @@ private fun SeedPaperPickerDialog(
     onAdd: (Paper) -> Unit,
     onRemove: (String) -> Unit,
     onDismiss: () -> Unit,
+    libraryMode: Boolean = false,
+    savedPaperIds: Set<String> = emptySet(),
+    hasSearched: Boolean = false,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -1298,16 +1312,17 @@ private fun SeedPaperPickerDialog(
                         Icon(painterResource(Res.drawable.filled_stars), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            "Seed papers (${seeds.size})",
+                            if (libraryMode) "Find papers on OpenAlex" else "Seed papers (${seeds.size})",
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier.weight(1f),
                         )
                         IconButton(onClick = onDismiss) {
-                            Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close seed picker")
+                            Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close paper picker")
                         }
                     }
                     Text(
-                        "Add papers to explore direct citations and shared references. Removing a seed keeps its papers and connections.",
+                        if (libraryMode) "Search academic literature, then save only the papers you choose to your local Library."
+                        else "Add papers to explore direct citations and shared references. Removing a seed keeps its papers and connections.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1338,7 +1353,7 @@ private fun SeedPaperPickerDialog(
                     if (isAdding) {
                         LinearProgressIndicator(Modifier.fillMaxWidth())
                         Text(
-                            "Finding citation connections…",
+                            if (libraryMode) "Saving paper locally…" else "Finding citation connections…",
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.padding(vertical = 8.dp),
                         )
@@ -1357,6 +1372,7 @@ private fun SeedPaperPickerDialog(
                                     modifier = Modifier.weight(1f),
                                     value = query,
                                     onValueChange = onQueryChange,
+                                    enabled = !isSearching && !isAdding,
                                     label = { Text("Search title, author, or DOI") },
                                     singleLine = true,
                                 )
@@ -1402,14 +1418,16 @@ private fun SeedPaperPickerDialog(
                                         )
                                         Spacer(Modifier.height(12.dp))
                                         Text(
-                                            if (query.isBlank()) "Search for a paper to add a seed"
+                                            if (libraryMode && !hasSearched) "Search for a paper to save"
+                                            else if (query.isBlank()) "Search for a paper to add a seed"
                                             else "No research papers found for \"$query\"",
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
                                         )
                                         Spacer(Modifier.height(6.dp))
                                         Text(
-                                            if (query.isBlank()) "Search across academic literature to start building this graph."
+                                            if (libraryMode && !hasSearched) "Search OpenAlex by title, author, keywords, or DOI."
+                                            else if (query.isBlank()) "Search across academic literature to start building this graph."
                                             else "Try adjusting your query, keywords, or DOI.",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1457,8 +1475,11 @@ private fun SeedPaperPickerDialog(
                                                         }
                                                     }
                                                 }
-                                                TextButton(onClick = { onAdd(paper) }, enabled = !isAdding) {
-                                                    Text("Add seed")
+                                                TextButton(
+                                                    onClick = { onAdd(paper) },
+                                                    enabled = !isAdding && (!libraryMode || paper.id !in savedPaperIds),
+                                                ) {
+                                                    Text(if (!libraryMode) "Add seed" else if (paper.id in savedPaperIds) "Saved" else "Save locally")
                                                 }
                                             }
                                         }

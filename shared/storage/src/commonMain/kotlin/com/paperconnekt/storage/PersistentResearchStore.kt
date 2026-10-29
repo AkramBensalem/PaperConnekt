@@ -2,6 +2,8 @@ package com.paperconnekt.storage
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import com.paperconnekt.domain.model.AppSettings
@@ -29,8 +31,10 @@ class PersistentResearchStore(
                 restore(json.decodeFromString<WorkspaceSnapshot>(content))
             } catch (error: SerializationException) {
                 storage.quarantineCorruptData()
+                throw IllegalStateException("The saved workspace could not be read. It was preserved as workspace.json.corrupt. Retry to start an empty workspace.", error)
             } catch (error: IllegalArgumentException) {
                 storage.quarantineCorruptData()
+                throw IllegalStateException("The saved workspace version is unsupported. It was preserved as workspace.json.corrupt. Retry to start an empty workspace.", error)
             }
         }
         initialized = true
@@ -38,33 +42,42 @@ class PersistentResearchStore(
     }
 
     override suspend fun updateSettings(transform: (AppSettings) -> AppSettings) =
-        mutate { super.updateSettings(transform) }
+        mutate { updateSettings(transform) }
 
     override suspend fun savePaper(paper: Paper) =
-        mutate { super.savePaper(paper) }
+        mutate { savePaper(paper) }
 
-    override suspend fun removePaper(paperId: String) = mutate { super.removePaper(paperId) }
+    override suspend fun removePaper(paperId: String) = mutate { removePaper(paperId) }
 
     override suspend fun saveGraph(graph: ResearchGraph) =
-        mutate { super.saveGraph(graph) }
+        mutate { saveGraph(graph) }
 
-    override suspend fun removeGraph(graphId: String) = mutate { super.removeGraph(graphId) }
+    override suspend fun removeGraph(graphId: String) = mutate { removeGraph(graphId) }
 
     override suspend fun saveAssistantSession(session: AssistantSession) =
-        mutate { super.saveAssistantSession(session) }
+        mutate { saveAssistantSession(session) }
 
     override suspend fun removeAssistantSession(sessionId: String) =
-        mutate { super.removeAssistantSession(sessionId) }
+        mutate { removeAssistantSession(sessionId) }
 
     override suspend fun saveLibraryEntry(entry: LibraryEntry) =
-        mutate { super.saveLibraryEntry(entry) }
+        mutate { saveLibraryEntry(entry) }
 
     override suspend fun removeLibraryEntry(entryId: String) =
-        mutate { super.removeLibraryEntry(entryId) }
+        mutate { removeLibraryEntry(entryId) }
 
-    private suspend fun mutate(operation: suspend () -> Unit) = mutex.withLock {
-        check(initialized) { "Research store must be initialized before it is used" }
-        operation()
-        storage.write(json.encodeToString(snapshot()))
+    override suspend fun updatePaper(paperId: String, transform: (Paper) -> Paper) =
+        mutate { updatePaper(paperId, transform) }
+
+    private suspend fun mutate(operation: suspend InMemoryResearchStore.() -> Unit) = withContext(NonCancellable) {
+        mutex.withLock {
+            check(initialized) { "Research store must be initialized before it is used" }
+            val current = snapshot()
+            val staged = InMemoryResearchStore().apply { restore(current) }
+            staged.operation()
+            val updated = staged.snapshot()
+            storage.write(json.encodeToString(updated))
+            restore(updated)
+        }
     }
 }

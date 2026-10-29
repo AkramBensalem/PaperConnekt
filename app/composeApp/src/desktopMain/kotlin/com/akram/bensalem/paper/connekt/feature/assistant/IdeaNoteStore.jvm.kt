@@ -2,11 +2,11 @@ package com.akram.bensalem.paper.connekt.feature.assistant
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.Path
 import com.akram.bensalem.paper.connekt.shared.utils.paperConnektDataDirectory
-import java.nio.file.StandardCopyOption
+import com.paperconnekt.storage.createPrivateDirectories
+import com.paperconnekt.storage.writePrivateFileAtomically
 
 class FileIdeaNoteStore(
     private val root: Path = paperConnektDataDirectory().resolve("idea-notes"),
@@ -31,7 +31,7 @@ class FileIdeaNoteStore(
 
     override suspend fun save(paperId: String, ideas: List<Idea>) = withContext(Dispatchers.IO) {
         val directory = directory(paperId)
-        Files.createDirectories(directory)
+        createPrivateDirectories(directory)
         val expectedFiles = ideas.associate { idea ->
             safeId(idea.id) to "${slug(idea.title)}--${safeId(idea.id)}.md"
         }
@@ -60,33 +60,29 @@ class FileIdeaNoteStore(
         } else {
             "cream"
         }
-        val titleIndex = if (hasPageColor) 2 else 1
+        val positionIndex = if (hasPageColor) 2 else 1
+        val position = lines.getOrNull(positionIndex)?.let(positionMarker::matchEntire)
+        val x = position?.groupValues?.get(1)?.toFloatOrNull() ?: 0f
+        val y = position?.groupValues?.get(2)?.toFloatOrNull() ?: 0f
+        require(x.isFinite() && y.isFinite()) { "Idea note has an invalid position." }
+        val titleIndex = positionIndex + if (position != null) 1 else 0
         val titleLine = lines.getOrNull(titleIndex)
         val title = titleLine?.removePrefix("# ")?.takeIf { it != titleLine }
             ?: file.fileName.toString().removeSuffix(".md")
         val bodyStart = if (lines.getOrNull(titleIndex + 1).isNullOrEmpty()) titleIndex + 2 else titleIndex + 1
         val body = lines.drop(bodyStart).joinToString("\n").removeSuffix("\n")
-        return Idea(id = id, title = title, description = body, pageColor = pageColor)
+        return Idea(id = id, title = title, description = body, x = x, y = y, pageColor = pageColor)
     }
 
     private fun renderIdea(idea: Idea): String {
         val title = idea.title.replace(Regex("[\\r\\n]+"), " ").trim()
         val pageColor = idea.pageColor.takeIf { it in supportedPageColors } ?: "cream"
-        return "<!-- paperconnekt-idea:${safeId(idea.id)} -->\n<!-- paperconnekt-page-color:$pageColor -->\n# $title\n\n${idea.description}\n"
+        require(idea.x.isFinite() && idea.y.isFinite()) { "Idea note has an invalid position." }
+        return "<!-- paperconnekt-idea:${safeId(idea.id)} -->\n<!-- paperconnekt-page-color:$pageColor -->\n<!-- paperconnekt-position:${idea.x},${idea.y} -->\n# $title\n\n${idea.description}\n"
     }
 
     private fun writeAtomically(file: Path, contents: String) {
-        val temporary = Files.createTempFile(file.parent, "idea", ".md.tmp")
-        try {
-            Files.writeString(temporary, contents)
-            try {
-                Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-            } catch (_: AtomicMoveNotSupportedException) {
-                Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING)
-            }
-        } finally {
-            Files.deleteIfExists(temporary)
-        }
+        writePrivateFileAtomically(file, contents.toByteArray(Charsets.UTF_8))
     }
 
     private fun safeId(id: String): String =
@@ -102,6 +98,7 @@ class FileIdeaNoteStore(
     private companion object {
         val idMarker = Regex("<!-- paperconnekt-idea:([a-zA-Z0-9_-]+) -->")
         val pageColorMarker = Regex("<!-- paperconnekt-page-color:([a-z]+) -->")
+        val positionMarker = Regex("<!-- paperconnekt-position:([^,]+),([^ ]+) -->")
         val supportedPageColors = setOf("cream", "sage", "sky", "lavender", "rose")
     }
 }

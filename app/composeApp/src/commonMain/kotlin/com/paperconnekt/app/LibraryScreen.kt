@@ -112,15 +112,38 @@ fun LibraryScreen(
     var selectedPaperId by remember { mutableStateOf<String?>(null) }
     var permanentlyDeletePaper by remember { mutableStateOf<Paper?>(null) }
     var expandedFolders by remember { mutableStateOf(setOf<String>()) }
+    var storageError by remember { mutableStateOf<String?>(null) }
+    var showPaperSearch by remember { mutableStateOf(false) }
+    var showManualPaper by remember { mutableStateOf(false) }
+
+    suspend fun addPaper(paper: Paper) {
+        if (store.papers.value.none { it.id == paper.id }) {
+            store.savePaper(paper)
+        }
+        selectedFolderId = null
+        view = LibraryView.ALL
+        query = ""
+    }
+
+    fun saveChange(operation: suspend () -> Unit) {
+        scope.launch {
+            try {
+                operation()
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                io.github.aakira.napier.Napier.e("Could not save Library changes", error)
+                storageError = error.message ?: "Could not save Library changes."
+            }
+        }
+    }
 
     val folders = entries.filter { it.kind == LibraryEntryKind.FOLDER }
     val paperEntries = entries.filter { it.kind == LibraryEntryKind.PAPER }
     val paperById = papers.associateBy(Paper::id)
     val selectedPaper = selectedPaperId?.let(paperById::get)
     val attachPdf: suspend (Paper, String) -> Unit = { paper, path ->
-        val latest = store.papers.value.firstOrNull { it.id == paper.id }
-        checkNotNull(latest) { "This item is no longer in the library." }
-        store.savePaper(latest.copy(pdfPath = path))
+        store.updatePaper(paper.id) { it.copy(pdfPath = path) }
     }
     val activePapers = papers.filterNot(Paper::archived)
     val archivedPapers = papers.filter(Paper::archived)
@@ -183,6 +206,8 @@ fun LibraryScreen(
                     query = query,
                     onQueryChange = { query = it },
                     onNewFolder = { showCreateFolder = true },
+                    onFindPaper = { showPaperSearch = true },
+                    onAddManually = { showManualPaper = true },
                     compact = compact,
                 )
             },
@@ -241,17 +266,17 @@ fun LibraryScreen(
                         onOpenGraph = onOpenGraph,
                         onMove = { movePaper = it },
                         onEdit = { editPaper = it },
-                        onToggleCompleted = { paper -> scope.launch { store.savePaper(paper.copy(completed = !paper.completed)) } },
+                        onToggleCompleted = { paper -> saveChange { store.updatePaper(paper.id) { it.copy(completed = !it.completed) } } },
                         onSelect = { selectedPaperId = it.id },
                         onDelete = { entry ->
                             entry.paperId?.let { paperById[it] }?.let { paper ->
                                 if (view == LibraryView.ARCHIVE) permanentlyDeletePaper = paper
-                                else scope.launch { store.savePaper(paper.copy(archived = true)) }
+                                else saveChange { store.updatePaper(paper.id) { it.copy(archived = true) } }
                             }
                         },
                         onRestore = { entry ->
                             entry.paperId?.let { paperById[it] }?.let { paper ->
-                                scope.launch { store.savePaper(paper.copy(archived = false)) }
+                                saveChange { store.updatePaper(paper.id) { it.copy(archived = false) } }
                             }
                         },
                         archiveView = view == LibraryView.ARCHIVE,
@@ -337,17 +362,17 @@ fun LibraryScreen(
                             onOpenGraph = onOpenGraph,
                             onMove = { movePaper = it },
                             onEdit = { editPaper = it },
-                            onToggleCompleted = { paper -> scope.launch { store.savePaper(paper.copy(completed = !paper.completed)) } },
+                            onToggleCompleted = { paper -> saveChange { store.updatePaper(paper.id) { it.copy(completed = !it.completed) } } },
                             onSelect = { selectedPaperId = it.id },
                             onDelete = { entry ->
                             entry.paperId?.let { paperById[it] }?.let { paper ->
                                 if (view == LibraryView.ARCHIVE) permanentlyDeletePaper = paper
-                                else scope.launch { store.savePaper(paper.copy(archived = true)) }
+                                else saveChange { store.updatePaper(paper.id) { it.copy(archived = true) } }
                             }
                             },
                             onRestore = { entry ->
                                 entry.paperId?.let { paperById[it] }?.let { paper ->
-                                    scope.launch { store.savePaper(paper.copy(archived = false)) }
+                                    saveChange { store.updatePaper(paper.id) { it.copy(archived = false) } }
                                 }
                             },
                             archiveView = view == LibraryView.ARCHIVE,
@@ -368,13 +393,29 @@ fun LibraryScreen(
         }
     }
 
+    if (showPaperSearch) {
+        LibraryPaperSearchDialog(
+            savedPapers = papers,
+            onSave = ::addPaper,
+            onDismiss = { showPaperSearch = false },
+        )
+    }
+    if (showManualPaper) {
+        AddPaperDialog(
+            onDismiss = { showManualPaper = false },
+            onSave = {
+                addPaper(it)
+                showManualPaper = false
+            },
+        )
+    }
     if (showCreateFolder) {
         FolderNameDialog(
             title = "Create folder",
             confirmLabel = "Create",
             onDismiss = { showCreateFolder = false },
             onConfirm = { name ->
-                scope.launch {
+                saveChange {
                     store.saveLibraryEntry(
                         LibraryEntry(
                             id = "folder-${Random.nextLong()}",
@@ -396,7 +437,7 @@ fun LibraryScreen(
             confirmLabel = "Save",
             onDismiss = { renameFolder = null },
             onConfirm = { name ->
-                scope.launch {
+                saveChange {
                     store.saveLibraryEntry(folder.copy(label = name))
                     renameFolder = null
                 }
@@ -411,7 +452,7 @@ fun LibraryScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        scope.launch {
+                        saveChange {
                             store.removeLibraryEntry(folder.id)
                             if (selectedFolderId == folder.id) selectedFolderId = null
                             deleteFolder = null
@@ -430,7 +471,7 @@ fun LibraryScreen(
             folders = folders,
             onDismiss = { movePaper = null },
             onMove = { folderId ->
-                scope.launch {
+                saveChange {
                     store.saveLibraryEntry(entry.copy(parentId = folderId))
                     movePaper = null
                 }
@@ -442,10 +483,10 @@ fun LibraryScreen(
             paper = paper,
             onDismiss = { editPaper = null },
             onSave = { updated ->
-                scope.launch {
-                    val latest = store.papers.value.firstOrNull { it.id == updated.id }
-                    checkNotNull(latest) { "This item is no longer in the library." }
-                    store.savePaper(updated.copy(pdfPath = latest.pdfPath))
+                saveChange {
+                    store.updatePaper(updated.id) { latest ->
+                        updated.copy(pdfPath = latest.pdfPath, archived = latest.archived)
+                    }
                     editPaper = null
                 }
             },
@@ -459,7 +500,7 @@ fun LibraryScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        scope.launch {
+                        saveChange {
                             store.removePaper(paper.id)
                             permanentlyDeletePaper = null
                         }
@@ -467,6 +508,16 @@ fun LibraryScreen(
                 ) { Text("Delete permanently") }
             },
             dismissButton = { TextButton(onClick = { permanentlyDeletePaper = null }) { Text("Cancel") } },
+        )
+    }
+    storageError?.let { error ->
+        AlertDialog(
+            onDismissRequest = { storageError = null },
+            title = { Text("Library changes were not saved") },
+            text = { Text(error) },
+            confirmButton = {
+                TextButton(onClick = { storageError = null }) { Text("Dismiss") }
+            },
         )
     }
 }
@@ -545,8 +596,11 @@ private fun LibraryHeader(
     query: String,
     onQueryChange: (String) -> Unit,
     onNewFolder: () -> Unit,
+    onFindPaper: () -> Unit,
+    onAddManually: () -> Unit,
     compact: Boolean,
 ) {
+    var addMenuExpanded by remember { mutableStateOf(false) }
     TopAppBar(
         title = {
             Column {
@@ -569,8 +623,36 @@ private fun LibraryHeader(
                 textStyle = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.width(8.dp))
+            Box {
+                if (compact) {
+                    IconButton(onClick = { addMenuExpanded = true }) {
+                        Icon(painterResource(Res.drawable.filled_add), contentDescription = "Add paper")
+                    }
+                } else {
+                    Button(onClick = { addMenuExpanded = true }) {
+                        Icon(painterResource(Res.drawable.filled_add), contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Add paper")
+                    }
+                }
+                DropdownMenu(
+                    expanded = addMenuExpanded,
+                    onDismissRequest = { addMenuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Find on OpenAlex") },
+                        leadingIcon = { Icon(painterResource(Res.drawable.filled_search), contentDescription = null) },
+                        onClick = { addMenuExpanded = false; onFindPaper() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Add manually") },
+                        leadingIcon = { Icon(painterResource(Res.drawable.filled_description), contentDescription = null) },
+                        onClick = { addMenuExpanded = false; onAddManually() },
+                    )
+                }
+            }
             if (compact) {
-                IconButton(onClick = onNewFolder) { Icon(painterResource(Res.drawable.filled_add), contentDescription = "New collection") }
+                IconButton(onClick = onNewFolder) { Icon(painterResource(Res.drawable.filled_create_new_folder), contentDescription = "New collection") }
             } else {
                 Button(onClick = onNewFolder) {
                     Icon(painterResource(Res.drawable.filled_create_new_folder), contentDescription = null)

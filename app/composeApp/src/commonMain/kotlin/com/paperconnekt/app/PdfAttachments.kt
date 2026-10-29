@@ -4,10 +4,10 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -18,6 +18,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,7 +38,10 @@ import com.paperconnekt.app.resources.filled_description
 import com.paperconnekt.storage.PdfAttachmentStorage
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.painterResource
 
 interface PdfAttachmentUi {
@@ -62,6 +66,8 @@ internal fun PdfAttachmentCard(
     pdfPath: String?,
     onAttached: suspend (String) -> Unit,
     onOpen: (() -> Unit)? = null,
+    onBusyChanged: (Boolean) -> Unit = {},
+    enabled: Boolean = true,
 ) {
     val platform = LocalPdfAttachments.current
     val scope = rememberCoroutineScope()
@@ -70,19 +76,22 @@ internal fun PdfAttachmentCard(
     var error by remember { mutableStateOf<String?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     var pendingReplacement by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(busy) { onBusyChanged(busy) }
     val background by animateColorAsState(
         if (hovering) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
     )
 
     fun attach(source: String) {
-        if (busy) return
+        if (busy || !enabled) return
         busy = true
         error = null
         message = null
-        scope.launch {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
-                val path = platform.storage.importPdf(source)
-                onAttached(path)
+                withContext(NonCancellable) {
+                    val path = platform.storage.importPdf(source)
+                    onAttached(path)
+                }
                 message = "PDF attached and saved on this device."
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -96,7 +105,7 @@ internal fun PdfAttachmentCard(
     }
 
     fun accept(sources: List<String>) {
-        if (busy) return
+        if (busy || !enabled) return
         error = null
         message = null
         if (sources.size != 1) {
@@ -109,7 +118,7 @@ internal fun PdfAttachmentCard(
     }
 
     val dropModifier = platform.dropTarget(
-        enabled = !busy && pendingReplacement == null,
+        enabled = enabled && !busy && pendingReplacement == null,
         onHover = { hovering = it },
         onDrop = ::accept,
         onError = { error = it },
@@ -117,52 +126,59 @@ internal fun PdfAttachmentCard(
     Surface(
         modifier = Modifier.fillMaxWidth().then(dropModifier),
         color = background,
-        shape = MaterialTheme.shapes.medium,
+        shape = RoundedCornerShape(20.dp),
         border = BorderStroke(
             if (hovering) 2.dp else 1.dp,
             if (hovering) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
         ),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = if (pdfPath != null) MaterialTheme.colorScheme.primaryContainer
+                    else MaterialTheme.colorScheme.surfaceContainerHighest,
             ) {
                 if (busy) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(modifier = Modifier.padding(16.dp).size(24.dp), strokeWidth = 2.dp)
                 } else {
                     Icon(
                         painterResource(if (pdfPath == null) Res.drawable.filled_attach_file else Res.drawable.filled_description),
                         contentDescription = null,
+                        modifier = Modifier.padding(16.dp).size(24.dp),
                         tint = MaterialTheme.colorScheme.primary,
                     )
                 }
-                Text(
-                    if (busy) "Attaching PDF..." else if (hovering) "Drop PDF here" else if (pdfPath == null) "Attach a PDF" else "PDF attached",
-                    style = MaterialTheme.typography.titleSmall,
-                )
             }
+            Text(
+                if (busy) "Copying your PDF..." else if (hovering) "Drop to attach" else if (pdfPath == null) "Drop your PDF here" else "Ready to read",
+                style = MaterialTheme.typography.titleSmall,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
             if (pdfPath != null) {
                 Text(
                     pdfPath.substringAfterLast('/').substringAfterLast('\\'),
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }
             Text(
-                "Drop one PDF here or browse files. A copy stays on this device.",
+                if (pdfPath == null) "Or browse to choose a file.\nOne PDF per paper."
+                else "An independent copy is stored on this device.",
                 style = MaterialTheme.typography.bodySmall,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (pdfPath != null && onOpen != null) {
-                Button(onClick = onOpen, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Open PDF") }
+                Button(onClick = onOpen, enabled = enabled && !busy, modifier = Modifier.fillMaxWidth()) { Text("Open PDF") }
             }
             OutlinedButton(
-                enabled = !busy && pendingReplacement == null,
+                enabled = enabled && !busy && pendingReplacement == null,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
                     busy = true

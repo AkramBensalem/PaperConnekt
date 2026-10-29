@@ -85,6 +85,13 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
     LaunchedEffect(itemCount, agent.liveActions.size) { if (itemCount > 0 && !agent.showHistory) listState.animateScrollToItem(itemCount - 1) }
 
     Column(modifier.fillMaxSize().testTag("paper-agent-panel")) {
+        agent.storageError?.let { error ->
+            Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = agent::retryStorage) { Text("Retry chat storage") }
+        }
+        if (!agent.storageReady && agent.storageError == null) {
+            Text("Loading saved chats...", style = MaterialTheme.typography.bodySmall)
+        }
         AnimatedVisibility(visible = !headerCollapsed) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(Res.drawable.filled_auto_awesome), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
@@ -186,7 +193,7 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                         Spacer(Modifier.height(12.dp))
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             agentSuggestions.forEach { suggestion ->
-                                SuggestionChip(onClick = { agent.send(suggestion) }, label = { Text(suggestion) },
+                                SuggestionChip(onClick = { agent.send(suggestion) }, enabled = agent.storageReady, label = { Text(suggestion) },
                                     modifier = Modifier.clipChipInteraction().interactivePointer())
                             }
                         }
@@ -248,8 +255,8 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                 Spacer(Modifier.width(6.dp))
                 if (agent.running) FilledTonalIconButton(onClick = agent::stop, modifier = Modifier.interactivePointer()) {
                     Icon(painterResource(Res.drawable.filled_stop), "Stop")
-                } else FilledIconButton(onClick = send, enabled = agent.input.isNotBlank(),
-                    modifier = Modifier.interactivePointer(enabled = agent.input.isNotBlank()).testTag("paper-agent-send")) {
+                } else FilledIconButton(onClick = send, enabled = agent.input.isNotBlank() && agent.storageReady,
+                    modifier = Modifier.interactivePointer(enabled = agent.input.isNotBlank() && agent.storageReady).testTag("paper-agent-send")) {
                     Icon(painterResource(Res.drawable.filled_send), "Send")
                 }
             }

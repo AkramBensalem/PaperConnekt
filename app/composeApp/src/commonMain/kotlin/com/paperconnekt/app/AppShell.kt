@@ -58,15 +58,13 @@ private fun AppShellContent(
 
     fun openPaperGraph(paper: Paper) {
         scope.launch {
-            // Search results may come from OpenAlex and are not in the local store yet.
-            // Persist the seed before opening the canvas so the node is immediately visible.
-            store.savePaper(paper)
             val graph = ResearchGraph(
                 id = "graph-${Random.nextLong()}",
                 name = paper.title,
                 paperIds = listOf(paper.id),
                 seedPaperIds = listOf(paper.id),
                 updatedAt = Clock.System.now(),
+                discoveredPapers = listOf(paper),
             )
             store.saveGraph(graph)
             requestedGraphId = graph.id

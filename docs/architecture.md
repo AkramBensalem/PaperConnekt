@@ -42,15 +42,51 @@ history remain usable without network access or an account.
 
 The contest workspace is persisted as a versioned JSON snapshot by
 `PersistentResearchStore`. Desktop stores it at
-`~/.paperconnekt/workspace.json`; Android stores it in the app-private
-`files/paperconnekt/workspace.json` directory. Writes go through a temporary file
+`~/.paperconnekt-contest/workspace.json`; Android stores it in app-private,
+non-backed-up `noBackupFilesDir/paperconnekt-contest/workspace.json`. All desktop
+research stores use the same root (overridable with `paperconnekt.data.dir`),
+separate from the previous application's `~/.paperconnekt` directory. Platform
+storage instances are remembered for the application lifetime, not recreated
+during recomposition. Writes go through a temporary file
 and replacement, and a malformed snapshot is moved to `workspace.json.corrupt`
-before the store starts with empty defaults. The snapshot contains papers,
+before the user can explicitly retry with empty defaults. Read failures are
+shown instead of silently appearing as an empty Library. The snapshot contains papers,
 assistant sessions and messages, graphs, library entries, and `AppSettings`; it
-never contains provider secrets, which remain owned by `SecretStore`. Schema
-changes must increment the snapshot version and add an explicit migration before
-the current model is accepted; unsupported versions are preserved as corrupt
-backups rather than silently discarded.
+never contains provider secrets, which remain owned by `SecretStore`.
+Incompatible schema changes must increment the snapshot version and add an explicit
+migration; additive fields with defaults remain backward compatible. Unsupported
+versions are preserved as corrupt backups rather than silently discarded.
+
+The Library and Assistant paper shelf contain only explicitly saved items:
+manual additions, **Save to Library**, or **Keep** in guided review. Graph seed
+selection and automatic reference/citation expansion do not save Library items.
+Graph discovery metadata is stored in `ResearchGraph.discoveredPapers` alongside
+the graph's connections so reopening a graph does not require polluting the
+Library. A saved item's metadata takes precedence over graph discovery metadata.
+Discovery never writes to the saved-paper store. Item updates transform the
+latest item under the store mutex; metadata upserts cannot clear an attached PDF.
+Workspace mutations are written successfully before publishing updated state,
+and in-flight writes finish even if the initiating screen is disposed.
+
+The Library owns paper acquisition through **Add paper > Find on OpenAlex** and
+**Add paper > Add manually**, on both compact and wide layouts. OpenAlex lookup
+reuses the graph seed picker's result cards and pagination, searching by title,
+author, keywords, or DOI only when requested. Results are not saved until
+**Save locally** is selected; existing Library items show **Saved** and are not
+overwritten. New items appear in **All papers** and can be moved into a collection.
+Manual entry accepts metadata and an optional managed PDF copy. Save failures
+keep the dialog open with the entered values and an error for retry.
+The manual-entry dialog uses a two-column metadata/attachment layout on wide
+windows and a scrollable single column on compact windows. Its header and action
+footer remain visible while scrolling. The title receives initial keyboard
+focus; optional year input is validated inline. Saving and PDF import disable
+conflicting actions, and save errors appear beside the fixed footer.
+
+On POSIX desktops the app creates data directories with mode `0700` and files
+with mode `0600`; Android uses its application sandbox and disables backup.
+These are local access controls, not encryption or protection against the OS
+administrator or other processes running as the same desktop user. The app
+never needs to modify the original PDF selected by the user.
 
 ## Local PDF attachments
 
@@ -62,11 +98,12 @@ choose **Open PDF** to enter **Assistant / PDF Viewer**.
 
 `PdfAttachmentStorage` is the shared import/read contract. Its desktop and Android
 adapters validate the PDF header and copy the document into a unique managed
-folder: `~/.paperconnekt/attachments` on desktop and the app-private
-`files/paperconnekt/attachments` directory on Android. `Paper.pdfPath` stores the
+folder: `~/.paperconnekt-contest/attachments` on desktop and the app-private
+`noBackupFilesDir/paperconnekt-contest/attachments` directory on Android. `Paper.pdfPath` stores the
 managed path in the existing workspace snapshot; source files are never modified,
-and moving the original does not break the attachment. Existing manually entered
-paths remain readable. Attachments stay local and require no provider or sign-in.
+and moving the original does not break the attachment. Manual additions use the
+same copy/import control, not a raw external file path; the reader accepts only
+managed attachments. Attachments stay local and require no provider or sign-in.
 Replacement does not delete the previous managed copy.
 
 Native picker and drag-and-drop integrations live in `app/desktop` and
@@ -79,7 +116,10 @@ its single reader header and the same Annotations, AI Agent, and Ideas tabs,
 ViewModels are cleared on exit. Local paper IDs namespace saved idea notes;
 attachment-specific keys isolate agent chat history and OCR Markdown when a PDF
 is replaced, without requiring an account. Ideas use the existing local Markdown
-store. Local PDFs support the same page notes, page ideas, pen strokes,
+store, including saved card positions and colors. Agent chat history must load
+successfully before editing is enabled, and load/save errors expose retry rather
+than overwriting unreadable history with an empty list. In-flight board and chat
+saves survive normal workspace disposal. Local PDFs support the same page notes, page ideas, pen strokes,
 rectangles, text boxes, highlights, underlines, editing, movement, resizing,
 recoloring, and deletion as the Zotero reader. Scanned pages still need a text
 layer for text selection, highlights, and underlines; drawing, text boxes, and

@@ -32,7 +32,22 @@ open class InMemoryResearchStore(initialized: Boolean = true) : LocalResearchSto
     }
 
     override open suspend fun savePaper(paper: Paper) {
-        papersState.update { current -> (current.filterNot { it.id == paper.id } + paper) }
+        papersState.update { current ->
+            val existing = current.firstOrNull { it.id == paper.id }
+            val saved = paper.copy(pdfPath = paper.pdfPath ?: existing?.pdfPath)
+            current.filterNot { it.id == paper.id } + saved
+        }
+    }
+
+    override open suspend fun updatePaper(paperId: String, transform: (Paper) -> Paper) {
+        papersState.update { current ->
+            check(current.any { it.id == paperId }) { "This item is no longer in the Library." }
+            current.map { paper ->
+                if (paper.id != paperId) paper else transform(paper).also {
+                    require(it.id == paperId) { "An item update cannot change its ID." }
+                }
+            }
+        }
     }
 
     override open suspend fun removePaper(paperId: String) {

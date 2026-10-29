@@ -1,14 +1,25 @@
 package com.paperconnekt.app
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -16,15 +27,34 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.filled_close
+import com.paperconnekt.app.resources.filled_description
 import com.paperconnekt.domain.model.Paper
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun DashboardHeader(
@@ -327,48 +357,256 @@ fun PaperMetadataDialog(
     onDismiss: () -> Unit,
     enabled: Boolean,
     onConfirm: () -> Unit,
+    error: String? = null,
+    saving: Boolean = false,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+    var attachingPdf by remember { mutableStateOf(false) }
+    val titleFocus = remember { FocusRequester() }
+    val busy = saving || attachingPdf
+    val invalidYear = yearValue.isNotBlank() &&
+        (yearValue.toIntOrNull()?.let { it in 1..9999 } != true)
+    LaunchedEffect(Unit) { titleFocus.requestFocus() }
+
+    Dialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        BoxWithConstraints(
+            Modifier.fillMaxSize().safeDrawingPadding().imePadding(),
+            contentAlignment = Alignment.Center,
+        ) {
+            val compact = maxWidth < 760.dp
+            val inset = if (compact) 20.dp else 28.dp
+            Surface(
+                modifier = Modifier
+                    .padding(if (compact) 8.dp else 24.dp)
+                    .widthIn(max = 1000.dp)
+                    .fillMaxWidth()
+                    .fillMaxHeight(if (compact) 0.98f else 0.92f),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                tonalElevation = 0.dp,
             ) {
-                OutlinedTextField(titleValue, onTitleChange, label = { Text("Title") }, singleLine = true)
-                OutlinedTextField(authorsValue, onAuthorsChange, label = { Text("Authors, comma separated") }, singleLine = true)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        value = yearValue,
-                        onValueChange = onYearChange,
-                        label = { Text("Year") },
-                        singleLine = true,
-                    )
-                    OutlinedTextField(
-                        modifier = Modifier.weight(2f),
-                        value = doiValue,
-                        onValueChange = onDoiChange,
-                        label = { Text("DOI") },
-                        singleLine = true,
-                    )
+                Column {
+                    Row(
+                        Modifier.fillMaxWidth().padding(inset),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                        ) {
+                            Icon(
+                                painterResource(Res.drawable.filled_description),
+                                contentDescription = null,
+                                modifier = Modifier.padding(14.dp).size(24.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(title, style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                "Build your collection, one paper at a time.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        IconButton(onClick = onDismiss, enabled = !busy) {
+                            Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close add paper")
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Column(
+                        Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(inset),
+                        verticalArrangement = Arrangement.spacedBy(24.dp),
+                    ) {
+                        val metadata: @Composable () -> Unit = {
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                PaperFormSection("Paper details", "Only a title is required. You can edit everything later.")
+                                PaperFormField(
+                                    value = titleValue,
+                                    onValueChange = onTitleChange,
+                                    label = "Paper title *",
+                                    placeholder = "Enter the full title",
+                                    modifier = Modifier.focusRequester(titleFocus),
+                                    singleLine = false,
+                                    enabled = !saving,
+                                )
+                                PaperFormField(
+                                    value = authorsValue,
+                                    onValueChange = onAuthorsChange,
+                                    label = "Authors",
+                                    placeholder = "e.g. Ada Lovelace, Alan Turing",
+                                    enabled = !saving,
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    PaperFormField(
+                                        value = yearValue,
+                                        onValueChange = onYearChange,
+                                        label = "Year",
+                                        placeholder = "2026",
+                                        modifier = Modifier.weight(0.35f),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        isError = invalidYear,
+                                        enabled = !saving,
+                                    )
+                                    PaperFormField(
+                                        value = doiValue,
+                                        onValueChange = onDoiChange,
+                                        label = "DOI",
+                                        placeholder = "10.1234/example",
+                                        modifier = Modifier.weight(0.65f),
+                                        enabled = !saving,
+                                    )
+                                }
+                                if (invalidYear) {
+                                    Text(
+                                        "Enter a year between 1 and 9999, or leave it empty.",
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                                PaperFormField(
+                                    value = abstractValue,
+                                    onValueChange = onAbstractChange,
+                                    label = "Abstract",
+                                    placeholder = "What is this paper about?",
+                                    singleLine = false,
+                                    minLines = 4,
+                                    enabled = !saving,
+                                )
+                                PaperFormField(
+                                    value = tagsValue,
+                                    onValueChange = onTagsChange,
+                                    label = "Tags",
+                                    placeholder = "e.g. machine learning, literature review",
+                                    enabled = !saving,
+                                )
+                                Text(
+                                    "Separate authors and tags with commas.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        val attachment: @Composable () -> Unit = {
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                PaperFormSection("Reading copy", "Optional PDF attachment")
+                                PdfAttachmentCard(
+                                    pdfPath = pdfPathValue.ifBlank { null },
+                                    onAttached = { onPdfPathChange(it) },
+                                    onBusyChanged = { attachingPdf = it },
+                                    enabled = !saving,
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                ) {
+                                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text("Your research stays local", style = MaterialTheme.typography.labelLarge)
+                                        Text(
+                                            "A separate PDF copy is kept in app-managed storage. Your original file is never changed.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        if (compact) {
+                            metadata()
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            attachment()
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+                                Column(Modifier.weight(1.5f)) { metadata() }
+                                Column(Modifier.weight(1f)) { attachment() }
+                            }
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    error?.let {
+                        Text(
+                            it,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = inset, vertical = 8.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = inset, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        if (!compact) {
+                            Text(
+                                "Local Library / No account required",
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                        }
+                        TextButton(onClick = onDismiss, enabled = !busy) { Text("Cancel") }
+                        Button(
+                            enabled = enabled && !busy && !invalidYear,
+                            onClick = onConfirm,
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+                        ) {
+                            if (saving) {
+                                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(confirmLabel)
+                        }
+                    }
                 }
-                OutlinedTextField(tagsValue, onTagsChange, label = { Text("Tags, comma separated") }, singleLine = true)
-                OutlinedTextField(
-                    abstractValue,
-                    onAbstractChange,
-                    label = { Text("Abstract (optional)") },
-                    minLines = 3,
-                )
-                OutlinedTextField(pdfPathValue, onPdfPathChange, label = { Text("PDF path (optional)") }, singleLine = true)
             }
-        },
-        confirmButton = {
-            Button(enabled = enabled, onClick = onConfirm) { Text(confirmLabel) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        },
+        }
+    }
+}
+
+@Composable
+private fun PaperFormSection(title: String, subtitle: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(title, style = MaterialTheme.typography.titleSmall)
+        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun PaperFormField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    singleLine: Boolean = true,
+    minLines: Int = 1,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    isError: Boolean = false,
+    enabled: Boolean = true,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        placeholder = { Text(placeholder) },
+        modifier = modifier.fillMaxWidth(),
+        singleLine = singleLine,
+        minLines = minLines,
+        maxLines = if (singleLine) 1 else 6,
+        keyboardOptions = keyboardOptions,
+        isError = isError,
+        enabled = enabled,
+        shape = RoundedCornerShape(12.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+        ),
     )
 }

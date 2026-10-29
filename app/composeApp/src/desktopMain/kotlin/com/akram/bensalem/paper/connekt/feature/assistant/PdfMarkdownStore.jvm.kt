@@ -6,9 +6,10 @@ import kotlinx.serialization.json.Json
 import java.nio.file.Files
 import java.nio.file.Path
 import com.akram.bensalem.paper.connekt.shared.utils.paperConnektDataDirectory
-import java.nio.file.StandardCopyOption
+import com.paperconnekt.storage.createPrivateDirectories
+import com.paperconnekt.storage.writePrivateFileAtomically
 
-/** Stores converted papers under `~/.paperconnekt/markdown/<key>/document.md` with a `figures/` folder. */
+/** Stores converted papers and figures in the contest app's private data directory. */
 class FilePdfMarkdownStore(
     private val root: Path = paperConnektDataDirectory().resolve("markdown"),
 ) : PdfMarkdownStore {
@@ -23,8 +24,8 @@ class FilePdfMarkdownStore(
     override suspend fun save(key: String, document: OcrDocument): String = withContext(Dispatchers.IO) {
         val dir = directory(key)
         val figures = dir.resolve(FIGURES)
-        Files.createDirectories(figures)
-        document.images.forEach { (id, bytes) -> Files.write(figures.resolve(safePathSegment(id)), bytes) }
+        createPrivateDirectories(figures)
+        document.images.forEach { (id, bytes) -> writePrivateFileAtomically(figures.resolve(safePathSegment(id)), bytes) }
         writeAtomically(dir, PENDING, "pending")
         Files.deleteIfExists(dir.resolve(READING))
         if (document.layout != null) {
@@ -54,7 +55,7 @@ class FilePdfMarkdownStore(
     override suspend fun setPendingSync(key: String, pending: Boolean) = withContext(Dispatchers.IO) {
         val dir = directory(key)
         if (pending) {
-            Files.createDirectories(dir)
+            createPrivateDirectories(dir)
             writeAtomically(dir, PENDING, "pending")
         } else {
             Files.deleteIfExists(dir.resolve(PENDING))
@@ -75,18 +76,12 @@ class FilePdfMarkdownStore(
 
     override suspend fun saveReadingScript(key: String, script: String) = withContext(Dispatchers.IO) {
         val dir = directory(key)
-        Files.createDirectories(dir)
+        createPrivateDirectories(dir)
         writeAtomically(dir, READING, script)
     }
 
     private fun writeAtomically(dir: Path, name: String, content: String) {
-        val temporary = Files.createTempFile(dir, name, ".tmp")
-        try {
-            Files.writeString(temporary, content)
-            Files.move(temporary, dir.resolve(name), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-        } finally {
-            Files.deleteIfExists(temporary)
-        }
+        writePrivateFileAtomically(dir.resolve(name), content.toByteArray(Charsets.UTF_8))
     }
 
     private fun resolveFigures(dir: Path, markdown: String): String =

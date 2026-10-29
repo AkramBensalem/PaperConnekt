@@ -3,26 +3,24 @@ package com.paperconnekt.storage
 import java.io.File
 import java.net.URI
 import java.nio.file.Files
-import java.nio.file.AtomicMoveNotSupportedException
-import java.nio.file.StandardCopyOption.ATOMIC_MOVE
-import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.security.MessageDigest
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class DesktopPdfAttachmentStorage(
-    private val directory: File = File(System.getProperty("user.home"), ".paperconnekt/attachments"),
+    private val directory: File = desktopAppDataDirectory().resolve("attachments").toFile(),
 ) : PdfAttachmentStorage {
     override suspend fun importPdf(source: String): String = withContext(Dispatchers.IO) {
         val file = if (source.startsWith("file:")) File(URI(source)) else File(source)
         require(file.isFile && file.canRead()) { "The selected file cannot be read." }
         file.inputStream().use { requirePdfHeader(it.readNBytes(5)) }
-        check(directory.mkdirs() || directory.isDirectory) { "Unable to create the PDF attachment directory." }
+        createPrivateDirectories(directory.toPath())
         val destination = File(File(directory, UUID.randomUUID().toString()), file.name)
-        check(destination.parentFile.mkdirs()) { "Unable to create the PDF attachment folder." }
+        createPrivateDirectories(destination.parentFile.toPath())
         try {
             file.copyTo(destination)
+            makePrivateFile(destination.toPath())
             destination.absolutePath
         } catch (error: Exception) {
             Files.deleteIfExists(destination.toPath())
@@ -32,6 +30,9 @@ class DesktopPdfAttachmentStorage(
 
     override suspend fun readPdf(path: String): ByteArray = withContext(Dispatchers.IO) {
         val file = if (path.startsWith("file:")) File(URI(path)) else File(path)
+        require(file.canonicalFile.toPath().startsWith(directory.canonicalFile.toPath())) {
+            "This PDF is not an app-managed attachment. Attach it through the Library first."
+        }
         file.readBytes().also(::requirePdfHeader)
     }
 
@@ -48,18 +49,7 @@ class DesktopPdfAttachmentStorage(
 
     override suspend fun writeAnnotations(key: String, content: String) = withContext(Dispatchers.IO) {
         val file = annotationFile(key)
-        Files.createDirectories(file.parentFile.toPath())
-        val temporary = Files.createTempFile(file.parentFile.toPath(), "annotations-", ".tmp")
-        try {
-            Files.write(temporary, content.toByteArray(Charsets.UTF_8))
-            try {
-                Files.move(temporary, file.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
-            } catch (_: AtomicMoveNotSupportedException) {
-                Files.move(temporary, file.toPath(), REPLACE_EXISTING)
-            }
-        } finally {
-            Files.deleteIfExists(temporary)
-        }
+        writePrivateFileAtomically(file.toPath(), content.toByteArray(Charsets.UTF_8))
         Unit
     }
 }
