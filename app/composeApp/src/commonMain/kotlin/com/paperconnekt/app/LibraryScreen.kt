@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -52,7 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -693,22 +691,22 @@ private fun LibraryContextBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        FilterChip(
+        WorkspaceFilterChip(
             selected = view == LibraryView.ALL && selectedFolder == null,
             onClick = { onViewChange(LibraryView.ALL) },
             label = { Text("All papers") },
         )
-        FilterChip(
+        WorkspaceFilterChip(
             selected = view == LibraryView.UNFILED,
             onClick = { onViewChange(LibraryView.UNFILED) },
             label = { Text("Unfiled") },
         )
-        FilterChip(
+        WorkspaceFilterChip(
             selected = view == LibraryView.RECENT,
             onClick = { onViewChange(LibraryView.RECENT) },
             label = { Text("Recent") },
         )
-        FilterChip(
+        WorkspaceFilterChip(
             selected = view == LibraryView.ARCHIVE,
             onClick = { onViewChange(LibraryView.ARCHIVE) },
             label = { Text("Archive") },
@@ -851,11 +849,10 @@ private fun FolderTreeRow(
     val siblingGuideColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.32f)
     Column {
         Surface(
+            onClick = { onSelectFolder(folder.id) },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = (depth * 12).dp)
-                .clip(MaterialTheme.shapes.small)
-                .clickable { onSelectFolder(folder.id) },
+                .padding(start = (depth * 12).dp),
             color = if (folder.id == selectedFolderId) {
                 MaterialTheme.colorScheme.primaryContainer
             } else {
@@ -987,10 +984,8 @@ private fun LibraryRootRow(
     onClick: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.small)
-            .clickable(onClick = onClick),
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
         color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
         border = if (selected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)) else null,
         shape = MaterialTheme.shapes.small,
@@ -1023,10 +1018,8 @@ private fun ArchiveRow(
     onClick: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.small)
-            .clickable(onClick = onClick),
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
         color = if (selected) MaterialTheme.colorScheme.errorContainer else Color.Transparent,
         shape = MaterialTheme.shapes.small,
     ) {
@@ -1146,10 +1139,11 @@ private fun PaperLibraryCard(
     archiveView: Boolean,
 ) {
     Surface(
+        onClick = onSelect,
         modifier = Modifier
             .fillMaxWidth()
-            .height(76.dp)
-            .clickable(onClick = onSelect),
+            .height(76.dp),
+        shape = MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {

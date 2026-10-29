@@ -24,6 +24,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
@@ -79,7 +80,8 @@ fun GraphControls(
 
             if (!embedded) Row(
                 modifier = Modifier
-                    .fillMaxWidth().clickable { isCollapsed = !isCollapsed },
+                    .fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                    .clickable { isCollapsed = !isCollapsed },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {

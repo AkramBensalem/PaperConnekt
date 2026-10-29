@@ -449,7 +449,8 @@ private fun CommandSuggestions(commands: List<PaperAgentCommand>, onRun: (PaperA
     Column(Modifier.fillMaxWidth().padding(bottom = 6.dp).clip(RoundedCornerShape(12.dp))
         .background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(vertical = 4.dp).testTag("paper-agent-commands")) {
         commands.forEach { command ->
-            Row(Modifier.fillMaxWidth().clickable(onClick = { onRun(command) }).interactivePointer()
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = { onRun(command) }).interactivePointer()
                 .padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(command.command, style = MaterialTheme.typography.labelLarge.copy(fontFamily = FontFamily.Monospace),
                     color = MaterialTheme.colorScheme.primary, modifier = Modifier.width(76.dp))

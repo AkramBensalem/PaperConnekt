@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -1228,9 +1227,9 @@ private fun EmptyGraphStateCard(
     onClick: () -> Unit,
 ) {
     Card(
+        onClick = onClick,
         modifier = modifier
-            .widthIn(min = 280.dp, max = 420.dp)
-            .clickable(onClick = onClick),
+            .widthIn(min = 280.dp, max = 420.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,

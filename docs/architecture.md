@@ -30,13 +30,33 @@ and contracts.
 The Dashboard, Library, Assistant, Graph list, and Settings share
 `WorkspaceHeader`: a responsive title surface with Material icons, summary chips,
 and wrapping actions. Library and graph search use the same labelled field with
-clear-search controls. Primary actions use teal; secondary actions use neutral
-tonal surfaces in both light and dark themes. Header entrance, button hover/press,
+clear-search controls. Primary actions retain the brand blue; backgrounds, cards,
+borders, text, and secondary actions use coordinated cool blue/slate tones, with
+muted violet tertiary accents in both light and dark themes. Header entrance, button hover/press,
 and search focus use finite Compose animations (no continuous decorative motion).
 Focused PDF and graph-canvas workspaces retain their task-specific toolbars.
 On compact Library layouts, **Browse collections** opens the collection picker
 in a dismissible dialog so the header and folder tree do not crowd out papers.
 View filters and header actions wrap rather than truncating on narrow windows.
+
+The shared theme supplies blue interaction state layers rather than inheriting
+gray text colors for hover and ripple feedback. Hover is subtle; keyboard focus,
+press, and drag feedback remain visible. Clickable cards and rows use Material's
+clickable surfaces so indications share their rounded bounds. Graph chips reuse
+the shared rounded interaction helper instead of a no-op compatibility shim.
+Foundation clickables explicitly inherit the blue Material indication as well.
+Library view filters use `WorkspaceFilterChip`: a selectable rounded row with
+`indication = null` and explicit animated blue hover/press containers. A stronger
+border marks keyboard focus; tab selection semantics and keyboard activation
+remain intact. No default ripple or hover overlay is used for these filters.
+
+All Material typography roles use bundled **DM Sans** from Google Fonts, with
+regular, medium, semibold, and bold TrueType weights in shared Compose resources.
+Headings use tighter tracking; body text uses more generous line spacing for
+reading. Fonts work offline on Android and desktop without fetching a web font
+at runtime. The SIL Open Font License is bundled as
+`composeResources/files/dm_sans_license.txt`. Explicit monospace code and serif
+math/editor styles keep their existing specialized font families.
 
 `shared/domain` has no UI or network dependency. `shared/storage` owns local
 repositories and can later add platform persistence without changing feature APIs.

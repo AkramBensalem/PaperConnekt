@@ -1269,7 +1269,8 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         Surface(
-                            modifier = Modifier.fillMaxWidth().clickable { editMarkdown = true },
+                            onClick = { editMarkdown = true },
+                            modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             border = BorderStroke(1.dp, noteTint.copy(alpha = 0.5f)),
                             color = noteBackground
