@@ -33,16 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountTree
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.AutoGraph
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,6 +46,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.BorderStroke
 import com.paperconnekt.domain.model.ResearchGraph
 import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.outlined_account_tree
+import com.paperconnekt.app.resources.outlined_add
+import com.paperconnekt.app.resources.outlined_auto_graph
+import com.paperconnekt.app.resources.outlined_delete_outline
+import com.paperconnekt.app.resources.outlined_description
+import com.paperconnekt.app.resources.outlined_edit
+import com.paperconnekt.app.resources.outlined_open_in_new
+import com.paperconnekt.app.resources.outlined_search
+import com.paperconnekt.app.resources.outlined_sort
 import com.paperconnekt.app.resources.research_graph_empty
 import com.paperconnekt.storage.LocalResearchStore
 import com.paperconnekt.app.legacygraph.components.GraphRenameDialog
@@ -406,7 +405,7 @@ private fun GraphListCard(
                         contentAlignment = androidx.compose.ui.Alignment.Center,
                     ) {
                         Icon(
-                            Icons.Outlined.AutoGraph,
+                            painterResource(Res.drawable.outlined_auto_graph),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
@@ -419,7 +418,7 @@ private fun GraphListCard(
                     )
                 }
                 IconButton(onClick = onOpen) {
-                    Icon(Icons.Outlined.OpenInNew, contentDescription = "Open ${graph.name}")
+                    Icon(painterResource(Res.drawable.outlined_open_in_new), contentDescription = "Open ${graph.name}")
                 }
             }
             Row(
@@ -427,8 +426,8 @@ private fun GraphListCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                GraphMetric(Icons.Outlined.Description, "${graph.paperIds.size} papers")
-                GraphMetric(Icons.Outlined.AccountTree, "${graph.connections.size} connections")
+                GraphMetric(painterResource(Res.drawable.outlined_description), "${graph.paperIds.size} papers")
+                GraphMetric(painterResource(Res.drawable.outlined_account_tree), "${graph.connections.size} connections")
             }
             Spacer(Modifier.weight(1f))
             Row(
@@ -446,10 +445,10 @@ private fun GraphListCard(
                 )
                 Row {
                     IconButton(onClick = onRename) {
-                        Icon(Icons.Outlined.Edit, contentDescription = "Rename ${graph.name}")
+                        Icon(painterResource(Res.drawable.outlined_edit), contentDescription = "Rename ${graph.name}")
                     }
                     IconButton(onClick = onDelete) {
-                        Icon(Icons.Outlined.DeleteOutline, contentDescription = "Delete ${graph.name}")
+                        Icon(painterResource(Res.drawable.outlined_delete_outline), contentDescription = "Delete ${graph.name}")
                     }
                 }
             }
@@ -461,9 +460,9 @@ private fun GraphListCard(
 private fun GraphWorkflowGuide() {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val steps = listOf(
-            Triple(Icons.Outlined.Description, "Start with a question", "Name the problem, chapter, or claim you want to understand."),
-            Triple(Icons.Outlined.AccountTree, "Connect evidence", "Link papers by method, citation, result, or research direction."),
-            Triple(Icons.Outlined.AutoGraph, "Find the next gap", "Use the shape of the map to spot clusters, edges, and open paths."),
+            Triple(painterResource(Res.drawable.outlined_description), "Start with a question", "Name the problem, chapter, or claim you want to understand."),
+            Triple(painterResource(Res.drawable.outlined_account_tree), "Connect evidence", "Link papers by method, citation, result, or research direction."),
+            Triple(painterResource(Res.drawable.outlined_auto_graph), "Find the next gap", "Use the shape of the map to spot clusters, edges, and open paths."),
         )
         if (maxWidth < 760.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -483,7 +482,7 @@ private fun GraphWorkflowGuide() {
 
 @Composable
 private fun WorkflowStepCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.painter.Painter,
     title: String,
     description: String,
     modifier: Modifier,
@@ -547,7 +546,7 @@ private fun GraphCreateCard(
                 contentAlignment = androidx.compose.ui.Alignment.Center,
             ) {
                 Icon(
-                    Icons.Outlined.Add,
+                    painterResource(Res.drawable.outlined_add),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimary,
                 )
@@ -589,7 +588,7 @@ private fun GraphOrientationCard(
                 contentAlignment = androidx.compose.ui.Alignment.Center,
             ) {
                 Icon(
-                    Icons.Outlined.AutoGraph,
+                    painterResource(Res.drawable.outlined_auto_graph),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimary,
                 )
@@ -669,12 +668,12 @@ private fun GraphSearchControls(
         modifier = modifier.fillMaxWidth(),
         value = query,
         onValueChange = onQueryChange,
-        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+        leadingIcon = { Icon(painterResource(Res.drawable.outlined_search), contentDescription = null) },
         placeholder = { Text("Search graphs") },
         trailingIcon = {
             Box {
                 IconButton(onClick = onSortClick) {
-                    Icon(Icons.Outlined.Sort, contentDescription = "Sort graphs")
+                    Icon(painterResource(Res.drawable.outlined_sort), contentDescription = "Sort graphs")
                 }
                 DropdownMenu(
                     expanded = sortMenuExpanded,
@@ -707,7 +706,7 @@ private fun GraphSearchControls(
 
 @Composable
 private fun GraphMetric(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.painter.Painter,
     label: String,
 ) {
     Row(
@@ -753,7 +752,7 @@ private fun GraphEmptyState(
                 )
                 if (!hasQuery) {
                     Button(onClick = onCreate) {
-                        Icon(Icons.Outlined.Add, contentDescription = null)
+                        Icon(painterResource(Res.drawable.outlined_add), contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text("Create your first graph")
                     }

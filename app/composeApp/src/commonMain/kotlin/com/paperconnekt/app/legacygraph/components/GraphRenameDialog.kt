@@ -1,10 +1,11 @@
 package com.paperconnekt.app.legacygraph.components
 
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.filled_edit
+import org.jetbrains.compose.resources.painterResource
 import com.paperconnekt.app.legacygraph.interactivePointer
 
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -27,7 +28,7 @@ internal fun GraphRenameDialog(
     var newTitle by remember { mutableStateOf(title) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.Edit, contentDescription = null) },
+        icon = { Icon(painterResource(Res.drawable.filled_edit), contentDescription = null) },
         title = { Text("Rename Graph") },
         text = {
             OutlinedTextField(

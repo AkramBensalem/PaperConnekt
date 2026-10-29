@@ -1,12 +1,18 @@
 package com.paperconnekt.app.legacygraph.components
 
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.filled_add
+import com.paperconnekt.app.resources.filled_arrow_drop_down
+import com.paperconnekt.app.resources.filled_auto_awesome
+import com.paperconnekt.app.resources.filled_check
+import com.paperconnekt.app.resources.filled_close
+import com.paperconnekt.app.resources.filled_stop
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -66,7 +72,7 @@ internal fun RelevanceTargetPanel(
     Card(modifier.testTag("relevance-target"), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Default.AutoAwesome, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                Icon(painterResource(Res.drawable.filled_auto_awesome), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                 Text("Research target", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primaryContainer) {
                     Text("GPT-6 Luna", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -103,7 +109,7 @@ internal fun RelevanceTargetPanel(
                 onClick = { onDraftChange(draft.copy(criteria = draft.criteria + newRelevanceCriterion())) },
                 modifier = Modifier.interactivePointer()
             ) {
-                Icon(Icons.Default.Add, null, Modifier.size(16.dp))
+                Icon(painterResource(Res.drawable.filled_add), null, Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
                 Text("Add criterion")
             }
@@ -131,7 +137,7 @@ internal fun RelevanceTargetPanel(
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = onStop, modifier = Modifier.interactivePointer()) {
-                            Icon(Icons.Default.Stop, null, Modifier.size(16.dp))
+                            Icon(painterResource(Res.drawable.filled_stop), null, Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
                             Text("Stop")
                         }
@@ -150,7 +156,7 @@ internal fun RelevanceTargetPanel(
                         enabled = !draft.isEmpty && evaluationEnabled,
                         modifier = Modifier.weight(1f).interactivePointer(enabled = !draft.isEmpty && evaluationEnabled)
                     ) {
-                        Icon(Icons.Default.AutoAwesome, null, Modifier.size(16.dp))
+                        Icon(painterResource(Res.drawable.filled_auto_awesome), null, Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("Save & evaluate")
                     }
@@ -162,7 +168,7 @@ internal fun RelevanceTargetPanel(
                         enabled = pending > 0 && !relevance.profile.isEmpty && evaluationEnabled,
                         modifier = Modifier.fillMaxWidth().interactivePointer(enabled = pending > 0 && !relevance.profile.isEmpty && evaluationEnabled)
                     ) {
-                        Icon(if (pending > 0) Icons.Default.AutoAwesome else Icons.Default.Check, null, Modifier.size(16.dp))
+                        Icon(if (pending > 0) painterResource(Res.drawable.filled_auto_awesome) else painterResource(Res.drawable.filled_check), null, Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(when {
                             relevance.profile.isEmpty -> "Add a criterion to evaluate"
@@ -218,7 +224,7 @@ private fun CriterionCard(
                 FieldPicker(criterion.field) { onChange(criterion.copy(field = it)) }
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = onRemove, modifier = Modifier.size(28.dp).interactivePointer()) {
-                    Icon(Icons.Default.Close, "Remove criterion", Modifier.size(16.dp))
+                    Icon(painterResource(Res.drawable.filled_close), "Remove criterion", Modifier.size(16.dp))
                 }
             }
             OutlinedTextField(
@@ -271,7 +277,7 @@ private fun ConnectorPill(connector: RelevanceConnector, isFirst: Boolean, onCha
                     fontWeight = FontWeight.Bold,
                     color = if (negated) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer
                 )
-                Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
+                Icon(painterResource(Res.drawable.filled_arrow_drop_down), null, Modifier.size(16.dp))
             }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -298,7 +304,7 @@ private fun FieldPicker(field: RelevanceField, onChange: (RelevanceField) -> Uni
         ) {
             Row(Modifier.padding(start = 8.dp, end = 2.dp, top = 3.dp, bottom = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(field.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
+                Icon(painterResource(Res.drawable.filled_arrow_drop_down), null, Modifier.size(16.dp))
             }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {

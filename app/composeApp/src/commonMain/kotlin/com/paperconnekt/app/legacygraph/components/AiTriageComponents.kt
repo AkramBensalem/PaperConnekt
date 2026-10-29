@@ -1,5 +1,18 @@
 package com.paperconnekt.app.legacygraph.components
 
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.filled_auto_awesome
+import com.paperconnekt.app.resources.filled_block
+import com.paperconnekt.app.resources.filled_check
+import com.paperconnekt.app.resources.filled_clear
+import com.paperconnekt.app.resources.filled_close
+import com.paperconnekt.app.resources.filled_error_outline
+import com.paperconnekt.app.resources.filled_keyboard_arrow_down
+import com.paperconnekt.app.resources.filled_keyboard_arrow_up
+import com.paperconnekt.app.resources.filled_psychology
+import com.paperconnekt.app.resources.filled_search
+import com.paperconnekt.app.resources.filled_visibility
+import org.jetbrains.compose.resources.painterResource
 import com.paperconnekt.app.legacygraph.interactivePointer
 import com.paperconnekt.app.legacygraph.clipChipInteraction
 
@@ -13,8 +26,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,7 +83,7 @@ fun AiTriageSection(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                Icons.Default.AutoAwesome,
+                                painterResource(Res.drawable.filled_auto_awesome),
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer
@@ -97,7 +108,7 @@ fun AiTriageSection(
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     Icon(
-                        if (expandedInstructions) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        if (expandedInstructions) painterResource(Res.drawable.filled_keyboard_arrow_up) else painterResource(Res.drawable.filled_keyboard_arrow_down),
                         contentDescription = null,
                         modifier = Modifier.size(14.dp)
                     )
@@ -150,7 +161,7 @@ fun AiTriageSection(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Analyzing with AI…", style = MaterialTheme.typography.labelMedium)
                 } else {
-                    Icon(Icons.Default.Psychology, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(painterResource(Res.drawable.filled_psychology), contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         if (triageResults.isEmpty()) "Evaluate Relevance" else "Re-evaluate Relevance",
@@ -172,7 +183,7 @@ fun AiTriageSection(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Default.ErrorOutline,
+                            painterResource(Res.drawable.filled_error_outline),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(16.dp)
@@ -243,7 +254,7 @@ fun AiTriageSection(
                                 shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                             ) {
-                                Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Icon(painterResource(Res.drawable.filled_visibility), contentDescription = null, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Inspect Report", style = MaterialTheme.typography.labelSmall)
                             }
@@ -258,7 +269,7 @@ fun AiTriageSection(
                                     ),
                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                                 ) {
-                                    Icon(Icons.Default.Block, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    Icon(painterResource(Res.drawable.filled_block), contentDescription = null, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("Apply ($disqualifyCount)", style = MaterialTheme.typography.labelSmall)
                                 }
@@ -364,7 +375,7 @@ fun AiTriageDialog(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    Icons.Default.AutoAwesome,
+                                    painterResource(Res.drawable.filled_auto_awesome),
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                     modifier = Modifier.size(20.dp)
@@ -387,7 +398,7 @@ fun AiTriageDialog(
                     }
 
                     IconButton(onClick = onDismiss, modifier = Modifier.interactivePointer()) {
-                        Icon(Icons.Default.Close, contentDescription = "Close dialog")
+                        Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close dialog")
                     }
                 }
 
@@ -416,11 +427,11 @@ fun AiTriageDialog(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     placeholder = { Text("Filter papers or rationale keywords…") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                    leadingIcon = { Icon(painterResource(Res.drawable.filled_search), contentDescription = null, modifier = Modifier.size(18.dp)) },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { searchQuery = "" }, modifier = Modifier.interactivePointer()) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear", modifier = Modifier.size(16.dp))
+                                Icon(painterResource(Res.drawable.filled_clear), contentDescription = "Clear", modifier = Modifier.size(16.dp))
                             }
                         }
                     },
@@ -445,14 +456,14 @@ fun AiTriageDialog(
                         selected = filterTab == TriageFilterTab.KEEP,
                         onClick = { filterTab = TriageFilterTab.KEEP },
                         label = { Text("Keep ($keepCount)") },
-                        leadingIcon = { Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp), tint = KeepColor) },
+                        leadingIcon = { Icon(painterResource(Res.drawable.filled_check), null, modifier = Modifier.size(14.dp), tint = KeepColor) },
                         modifier = Modifier.clipChipInteraction().interactivePointer()
                     )
                     FilterChip(
                         selected = filterTab == TriageFilterTab.DISQUALIFY,
                         onClick = { filterTab = TriageFilterTab.DISQUALIFY },
                         label = { Text("Disqualify ($disqualifyCount)") },
-                        leadingIcon = { Icon(Icons.Default.Block, null, modifier = Modifier.size(14.dp), tint = DisqualifyColor) },
+                        leadingIcon = { Icon(painterResource(Res.drawable.filled_block), null, modifier = Modifier.size(14.dp), tint = DisqualifyColor) },
                         modifier = Modifier.clipChipInteraction().interactivePointer()
                     )
                 }
@@ -507,7 +518,7 @@ fun AiTriageDialog(
                                 onClick = onApply,
                                 colors = ButtonDefaults.buttonColors(containerColor = DisqualifyColor), modifier = Modifier.interactivePointer()
                             ) {
-                                Icon(Icons.Default.Block, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(painterResource(Res.drawable.filled_block), contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Apply Disqualifications")
                             }
@@ -552,7 +563,7 @@ private fun TriageResultCard(result: PaperTriageResult) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                if (isKeep) Icons.Default.Check else Icons.Default.Block,
+                                if (isKeep) painterResource(Res.drawable.filled_check) else painterResource(Res.drawable.filled_block),
                                 contentDescription = null,
                                 modifier = Modifier.size(12.dp),
                                 tint = if (isKeep) KeepColor else DisqualifyColor

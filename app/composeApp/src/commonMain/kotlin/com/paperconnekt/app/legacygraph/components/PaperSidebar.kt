@@ -1,5 +1,23 @@
 package com.paperconnekt.app.legacygraph.components
 
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.filled_account_tree
+import com.paperconnekt.app.resources.filled_add
+import com.paperconnekt.app.resources.filled_archive
+import com.paperconnekt.app.resources.filled_arrow_back
+import com.paperconnekt.app.resources.filled_arrow_drop_down
+import com.paperconnekt.app.resources.filled_arrow_forward
+import com.paperconnekt.app.resources.filled_block
+import com.paperconnekt.app.resources.filled_check
+import com.paperconnekt.app.resources.filled_close
+import com.paperconnekt.app.resources.filled_expand_less
+import com.paperconnekt.app.resources.filled_expand_more
+import com.paperconnekt.app.resources.filled_refresh
+import com.paperconnekt.app.resources.filled_sort
+import com.paperconnekt.app.resources.filled_stars
+import com.paperconnekt.app.resources.filled_tune
+import com.paperconnekt.app.resources.filled_unarchive
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -10,11 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -132,11 +145,11 @@ fun PaperSidebar(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = when {
-                                isDisqualified -> Icons.Default.Block
-                                node.connectionType == ConnectionType.CENTRAL -> Icons.Default.Stars
-                                node.connectionType == ConnectionType.CITED_BY_CENTRAL -> Icons.AutoMirrored.Filled.ArrowBack
-                                else -> Icons.AutoMirrored.Filled.ArrowForward
+                            painter = when {
+                                isDisqualified -> painterResource(Res.drawable.filled_block)
+                                node.connectionType == ConnectionType.CENTRAL -> painterResource(Res.drawable.filled_stars)
+                                node.connectionType == ConnectionType.CITED_BY_CENTRAL -> painterResource(Res.drawable.filled_arrow_back)
+                                else -> painterResource(Res.drawable.filled_arrow_forward)
                             },
                             contentDescription = null,
                             modifier = Modifier.size(14.dp),
@@ -172,7 +185,7 @@ fun PaperSidebar(
                         onClick = onOpenReview,
                         modifier = Modifier.size(32.dp).interactivePointer(),
                     ) {
-                        Icon(Icons.Default.Tune, contentDescription = "Review connections", modifier = Modifier.size(18.dp))
+                        Icon(painterResource(Res.drawable.filled_tune), contentDescription = "Review connections", modifier = Modifier.size(18.dp))
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     IconButton(
@@ -183,7 +196,7 @@ fun PaperSidebar(
                         if (isRefreshing) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                         } else {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh paper information", modifier = Modifier.size(18.dp))
+                            Icon(painterResource(Res.drawable.filled_refresh), contentDescription = "Refresh paper information", modifier = Modifier.size(18.dp))
                         }
                     }
                     Spacer(modifier = Modifier.width(4.dp))
@@ -191,7 +204,7 @@ fun PaperSidebar(
                         onClick = onClose,
                         modifier = Modifier.size(32.dp).interactivePointer()
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = "Close details panel", modifier = Modifier.size(18.dp))
+                        Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close details panel", modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -361,7 +374,7 @@ fun PaperSidebar(
                                 modifier = Modifier.weight(1f).height(4.dp),
                             )
                         } else {
-                            Icon(Icons.Default.AccountTree, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(painterResource(Res.drawable.filled_account_tree), contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 if (connectionDiscoveryComplete) "Connections discovered 100%" else "Find Connections with Graph",
@@ -394,7 +407,7 @@ fun PaperSidebar(
                                 modifier = Modifier.fillMaxWidth().interactivePointer(enabled = canUseAsSeed),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
-                                Icon(Icons.Default.Stars, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(painterResource(Res.drawable.filled_stars), contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text("Use as seed paper")
                             }
@@ -410,7 +423,7 @@ fun PaperSidebar(
                                     contentColor = Color(0xFF0F766E)
                                 )
                             ) {
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(painterResource(Res.drawable.filled_check), contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Restore Paper to Graph", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                             }
@@ -421,7 +434,7 @@ fun PaperSidebar(
                                 shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                             ) {
-                                Icon(Icons.Default.Block, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(painterResource(Res.drawable.filled_block), contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Disqualify from Graph", style = MaterialTheme.typography.labelSmall)
                             }
@@ -519,7 +532,7 @@ fun PaperSidebar(
                         }
                         IconButton(onClick = { referencesExpanded = !referencesExpanded }, modifier = Modifier.size(28.dp)) {
                             Icon(
-                                if (referencesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                if (referencesExpanded) painterResource(Res.drawable.filled_expand_less) else painterResource(Res.drawable.filled_expand_more),
                                 contentDescription = if (referencesExpanded) "Collapse references" else "Expand references",
                             )
                         }
@@ -656,7 +669,7 @@ fun PaperSidebar(
                             Text("Paper Statistics", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         }
                         IconButton(onClick = { statisticsExpanded = !statisticsExpanded }, modifier = Modifier.size(28.dp)) {
-                            Icon(if (statisticsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = "Toggle paper statistics")
+                            Icon(if (statisticsExpanded) painterResource(Res.drawable.filled_expand_less) else painterResource(Res.drawable.filled_expand_more), contentDescription = "Toggle paper statistics")
                         }
                     }
                     AnimatedVisibility(visible = statisticsExpanded) {
@@ -752,7 +765,7 @@ private fun CollapsibleCitationSection(title: String, content: String, initially
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CopyIconButton(textToCopy = content, contentDescription = "Copy $title")
                     IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(28.dp)) {
-                        Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = "Toggle $title")
+                        Icon(if (expanded) painterResource(Res.drawable.filled_expand_less) else painterResource(Res.drawable.filled_expand_more), contentDescription = "Toggle $title")
                     }
                 }
             }
@@ -798,7 +811,7 @@ private fun ReferenceRow(
 
             IconButton(onClick = onAdd, modifier = Modifier.size(28.dp).interactivePointer()) {
                 Icon(
-                    imageVector = if (restore) Icons.Default.Unarchive else Icons.Default.Add,
+                    painter = if (restore) painterResource(Res.drawable.filled_unarchive) else painterResource(Res.drawable.filled_add),
                     contentDescription = if (restore) "Restore paper" else "Add paper to graph",
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -808,7 +821,7 @@ private fun ReferenceRow(
             if (!restore) {
                 IconButton(onClick = onArchive, modifier = Modifier.size(28.dp).interactivePointer()) {
                     Icon(
-                        imageVector = Icons.Default.Archive,
+                        painter = painterResource(Res.drawable.filled_archive),
                         contentDescription = "Archive reference",
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -829,7 +842,7 @@ private fun NodeSortMenu(order: GraphNodeSortOrder, onOrderChanged: (GraphNodeSo
             onClick = { expanded = true },
             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp), modifier = Modifier.interactivePointer()
         ) {
-            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null, modifier = Modifier.size(14.dp))
+            Icon(painterResource(Res.drawable.filled_sort), contentDescription = null, modifier = Modifier.size(14.dp))
             Spacer(modifier = Modifier.width(4.dp))
             Text(order.label(), style = MaterialTheme.typography.labelSmall)
         }
@@ -862,7 +875,7 @@ private fun SortMenu(order: ReferenceSortOrder, onOrderChanged: (ReferenceSortOr
             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp), modifier = Modifier.interactivePointer()
         ) {
             Text("Sort: ${order.name.lowercase().replaceFirstChar { it.uppercase() }}", style = MaterialTheme.typography.labelSmall)
-            Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(14.dp))
+            Icon(painterResource(Res.drawable.filled_arrow_drop_down), contentDescription = null, modifier = Modifier.size(14.dp))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DisableSelection {

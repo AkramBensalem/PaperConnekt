@@ -1,19 +1,23 @@
 package com.paperconnekt.app.legacygraph.components
 
+import androidx.compose.ui.graphics.painter.Painter
+
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.filled_filter_list
+import com.paperconnekt.app.resources.filled_info
+import com.paperconnekt.app.resources.filled_keyboard_arrow_down
+import com.paperconnekt.app.resources.filled_keyboard_arrow_up
+import com.paperconnekt.app.resources.filled_layers
+import org.jetbrains.compose.resources.painterResource
 import com.paperconnekt.app.legacygraph.interactivePointer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
 import androidx.compose.animation.AnimatedVisibility
@@ -23,8 +27,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.runtime.*
 
 import androidx.compose.animation.animateContentSize
@@ -83,7 +85,7 @@ fun GraphControls(
             ) {
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.FilterList,
+                        painterResource(Res.drawable.filled_filter_list),
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.primary
@@ -92,7 +94,7 @@ fun GraphControls(
                     Text("Graph Filters", style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                 }
                 Icon(
-                    if (isCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                    if (isCollapsed) painterResource(Res.drawable.filled_keyboard_arrow_down) else painterResource(Res.drawable.filled_keyboard_arrow_up),
                     contentDescription = if (isCollapsed) "Expand" else "Collapse",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -110,28 +112,28 @@ fun GraphControls(
                         label = "References",
                         checked = filterCiting,
                         onCheckedChange = { onToggleCiting() },
-                        icon = Icons.Default.Layers
+                        icon = painterResource(Res.drawable.filled_layers)
                     )
 
                     ControlToggle(
                         label = "Citations",
                         checked = filterCited,
                         onCheckedChange = { onToggleCited() },
-                        icon = Icons.Default.Info
+                        icon = painterResource(Res.drawable.filled_info)
                     )
 
                     ControlToggle(
                         label = "Show Disqualified",
                         checked = showDisqualified,
                         onCheckedChange = { onToggleShowDisqualified() },
-                        icon = Icons.Default.FilterList
+                        icon = painterResource(Res.drawable.filled_filter_list)
                     )
 
                     ControlToggle(
                         label = "Interconnections",
                         checked = showInterconnections,
                         onCheckedChange = { onToggleInterconnections() },
-                        icon = Icons.Default.Layers
+                        icon = painterResource(Res.drawable.filled_layers)
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -176,7 +178,7 @@ private fun ControlToggle(
     label: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    icon: ImageVector
+    icon: Painter
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)

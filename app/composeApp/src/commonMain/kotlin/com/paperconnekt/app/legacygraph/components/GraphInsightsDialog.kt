@@ -1,5 +1,32 @@
 package com.paperconnekt.app.legacygraph.components
 
+import androidx.compose.ui.graphics.painter.Painter
+
+import org.jetbrains.compose.resources.DrawableResource
+
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.filled_account_balance
+import com.paperconnekt.app.resources.filled_arrow_drop_down
+import com.paperconnekt.app.resources.filled_auto_awesome
+import com.paperconnekt.app.resources.filled_bar_chart
+import com.paperconnekt.app.resources.filled_bubble_chart
+import com.paperconnekt.app.resources.filled_calendar_month
+import com.paperconnekt.app.resources.filled_check
+import com.paperconnekt.app.resources.filled_close
+import com.paperconnekt.app.resources.filled_format_quote
+import com.paperconnekt.app.resources.filled_groups
+import com.paperconnekt.app.resources.filled_info
+import com.paperconnekt.app.resources.filled_insights
+import com.paperconnekt.app.resources.filled_person
+import com.paperconnekt.app.resources.filled_psychology
+import com.paperconnekt.app.resources.filled_remove_circle_outline
+import com.paperconnekt.app.resources.filled_restart_alt
+import com.paperconnekt.app.resources.filled_scatter_plot
+import com.paperconnekt.app.resources.filled_text_fields
+import com.paperconnekt.app.resources.filled_tune
+import com.paperconnekt.app.resources.filled_undo
+import com.paperconnekt.app.resources.filled_whatshot
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -15,9 +42,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,7 +55,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
@@ -76,12 +99,12 @@ import kotlin.math.pow
 import kotlin.math.log10
 import kotlinx.coroutines.launch
 
-private enum class InsightTab(val label: String, val icon: ImageVector) {
-    IMPACT("Impact map", Icons.Default.ScatterPlot),
-    RELEVANCE("Relevance map", Icons.Default.BubbleChart),
-    RISING("Fastest rising", Icons.Default.Whatshot),
-    TIMELINE("Timeline", Icons.Default.BarChart),
-    PEOPLE("Authors & venues", Icons.Default.Groups)
+private enum class InsightTab(val label: String, val icon: DrawableResource) {
+    IMPACT("Impact map", Res.drawable.filled_scatter_plot),
+    RELEVANCE("Relevance map", Res.drawable.filled_bubble_chart),
+    RISING("Fastest rising", Res.drawable.filled_whatshot),
+    TIMELINE("Timeline", Res.drawable.filled_bar_chart),
+    PEOPLE("Authors & venues", Res.drawable.filled_groups)
 }
 
 private fun Float.coerceInSafe(minimum: Float, maximum: Float): Float =
@@ -178,7 +201,7 @@ fun GuidedInsightsDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(Icons.Default.Insights, null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(painterResource(Res.drawable.filled_insights), null, tint = MaterialTheme.colorScheme.primary)
                     Column(Modifier.weight(1f)) {
                         Text(if (graphOverview) "Graph insights" else "Neighborhood insights", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                         Text(
@@ -190,7 +213,7 @@ fun GuidedInsightsDialog(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    IconButton(onClick = onDismiss, modifier = Modifier.interactivePointer()) { Icon(Icons.Default.Close, "Close insights") }
+                    IconButton(onClick = onDismiss, modifier = Modifier.interactivePointer()) { Icon(painterResource(Res.drawable.filled_close), "Close insights") }
                 }
 
                 val relationFilter: @Composable () -> Unit = {
@@ -235,7 +258,7 @@ fun GuidedInsightsDialog(
                             onClick = { relevanceYAxis = axis },
                             label = { Text(axis.label) },
                             leadingIcon = {
-                                Icon(if (axis == RelevanceYAxis.YEAR) Icons.Default.CalendarMonth else Icons.Default.FormatQuote,
+                                Icon(if (axis == RelevanceYAxis.YEAR) painterResource(Res.drawable.filled_calendar_month) else painterResource(Res.drawable.filled_format_quote),
                                     null, Modifier.size(16.dp))
                             },
                             colors = insightChipColors(),
@@ -282,14 +305,14 @@ fun GuidedInsightsDialog(
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Tune, null, tint = MaterialTheme.colorScheme.primary)
+                                Icon(painterResource(Res.drawable.filled_tune), null, tint = MaterialTheme.colorScheme.primary)
                                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
                                     Text("Insight filters", style = MaterialTheme.typography.titleMedium)
                                     Text("Changes apply to the charts immediately",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                GraphAction(Icons.Default.Close, "Close insight filters", { showControls = false })
+                                GraphAction(painterResource(Res.drawable.filled_close), "Close insight filters", { showControls = false })
                             }
                             if (!graphOverview) {
                                 InsightFilterSection("Relation") {
@@ -334,7 +357,7 @@ fun GuidedInsightsDialog(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Icon(entry.icon, null, Modifier.size(16.dp))
+                                    Icon(painterResource(entry.icon), null, Modifier.size(16.dp))
                                     Text(entry.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             },
@@ -347,9 +370,9 @@ fun GuidedInsightsDialog(
                     Modifier.fillMaxWidth(),
                     itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
-                    GraphAction(Icons.Default.Tune, "Insight filters", { showControls = true })
+                    GraphAction(painterResource(Res.drawable.filled_tune), "Insight filters", { showControls = true })
                     TextButton(onClick = { compactDetails = !compactDetails }, modifier = Modifier.interactivePointer()) {
-                        Icon(if (compactDetails) Icons.Default.ScatterPlot else Icons.Default.Info, null, Modifier.size(18.dp))
+                        Icon(if (compactDetails) painterResource(Res.drawable.filled_scatter_plot) else painterResource(Res.drawable.filled_info), null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(if (compactDetails) "Back to chart" else if (selected != null) "Paper details"
                             else if (tab == InsightTab.RELEVANCE) "Research target" else "How to read it")
@@ -447,8 +470,8 @@ private fun InsightIntervalControls(interval: InsightInterval, onApply: (Insight
                 selected = active,
                 onClick = { expanded = true },
                 label = { Text(if (active) interval.summary() else "Focus interval", maxLines = 1) },
-                leadingIcon = { Icon(Icons.Default.Tune, null, Modifier.size(16.dp)) },
-                trailingIcon = { Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp)) },
+                leadingIcon = { Icon(painterResource(Res.drawable.filled_tune), null, Modifier.size(16.dp)) },
+                trailingIcon = { Icon(painterResource(Res.drawable.filled_arrow_drop_down), null, Modifier.size(16.dp)) },
                 colors = insightChipColors(),
                 border = insightChipBorder(active),
                 modifier = Modifier.clipChipInteraction().interactivePointer()
@@ -471,7 +494,7 @@ private fun InsightIntervalControls(interval: InsightInterval, onApply: (Insight
         if (active) IconButton(
             onClick = { onApply(InsightInterval()) },
             modifier = Modifier.interactivePointer()
-        ) { Icon(Icons.Default.RestartAlt, "Reset focus interval", Modifier.size(18.dp)) }
+        ) { Icon(painterResource(Res.drawable.filled_restart_alt), "Reset focus interval", Modifier.size(18.dp)) }
     }
 }
 
@@ -578,7 +601,7 @@ private fun RelevanceSourceSelector(source: RelevanceSource, onChange: (Relevanc
                 modifier = Modifier.interactivePointer()
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(if (entry == RelevanceSource.AI) Icons.Default.AutoAwesome else Icons.Default.TextFields, null, Modifier.size(14.dp))
+                    Icon(if (entry == RelevanceSource.AI) painterResource(Res.drawable.filled_auto_awesome) else painterResource(Res.drawable.filled_text_fields), null, Modifier.size(14.dp))
                     Text(entry.label, style = MaterialTheme.typography.labelMedium)
                 }
             }
@@ -781,7 +804,7 @@ private fun InsightTabContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.AutoAwesome, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Icon(painterResource(Res.drawable.filled_auto_awesome), null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                         Text(
                             when {
                                 relevance.isEvaluating -> "Evaluating… ${relevance.evaluated}/${relevance.total} done"
@@ -801,7 +824,7 @@ private fun InsightTabContent(
                     Text("No publication years are available for these papers.")
                 } else if (plotted.isEmpty()) Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.Psychology, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
+                        Icon(painterResource(Res.drawable.filled_psychology), null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
                         Text("No paper evaluated for this target yet", style = MaterialTheme.typography.titleSmall)
                         Text("Open Research target, then evaluate. Each paper gets a 0–100 % match.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -861,11 +884,11 @@ private fun InsightTabContent(
         InsightTab.TIMELINE -> InsightTimeline(insights, visible, node?.let(::insightYear), palette, showKeptOverlay, modifier, node == null)
         InsightTab.PEOPLE -> BoxWithConstraints(modifier) {
             if (maxWidth < 600.dp) Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                RankedBars("Most frequent authors", Icons.Default.Person, insights.topAuthors, palette, Modifier.weight(1f).fillMaxWidth())
-                RankedBars("Most frequent venues", Icons.Default.AccountBalance, insights.topVenues, palette, Modifier.weight(1f).fillMaxWidth())
+                RankedBars("Most frequent authors", painterResource(Res.drawable.filled_person), insights.topAuthors, palette, Modifier.weight(1f).fillMaxWidth())
+                RankedBars("Most frequent venues", painterResource(Res.drawable.filled_account_balance), insights.topVenues, palette, Modifier.weight(1f).fillMaxWidth())
             } else Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                RankedBars("Most frequent authors", Icons.Default.Person, insights.topAuthors, palette, Modifier.weight(1f).fillMaxHeight())
-                RankedBars("Most frequent venues", Icons.Default.AccountBalance, insights.topVenues, palette, Modifier.weight(1f).fillMaxHeight())
+                RankedBars("Most frequent authors", painterResource(Res.drawable.filled_person), insights.topAuthors, palette, Modifier.weight(1f).fillMaxHeight())
+                RankedBars("Most frequent venues", painterResource(Res.drawable.filled_account_balance), insights.topVenues, palette, Modifier.weight(1f).fillMaxHeight())
             }
         }
     }
@@ -1395,7 +1418,7 @@ private fun InsightTimeline(
 }
 
 @Composable
-private fun RankedBars(title: String, icon: ImageVector, items: List<InsightRankedLabel>, palette: InsightPalette, modifier: Modifier) {
+private fun RankedBars(title: String, icon: Painter, items: List<InsightRankedLabel>, palette: InsightPalette, modifier: Modifier) {
     Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1502,7 +1525,7 @@ private fun InsightDetails(
                 Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
                     Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Default.AutoAwesome, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                            Icon(painterResource(Res.drawable.filled_auto_awesome), null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                             Text("$percent% match with your target", style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer)
                         }
@@ -1528,7 +1551,7 @@ private fun InsightDetails(
                 when (paper.status) {
                     InsightStatus.KEPT, InsightStatus.SKIPPED -> if (paper.id in review.keptIds || paper.id in review.skippedIds) {
                         OutlinedButton(onClick = { onUndo(paper.id) }, modifier = Modifier.interactivePointer()) {
-                            Icon(Icons.AutoMirrored.Filled.Undo, null, Modifier.size(16.dp))
+                            Icon(painterResource(Res.drawable.filled_undo), null, Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Undo")
                         }
@@ -1539,12 +1562,12 @@ private fun InsightDetails(
                     }
                     else -> {
                         Button(onClick = { onKeep(paper.id) }, modifier = Modifier.interactivePointer()) {
-                            Icon(Icons.Default.Check, null, Modifier.size(16.dp))
+                            Icon(painterResource(Res.drawable.filled_check), null, Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Keep")
                         }
                         OutlinedButton(onClick = { onSkip(paper.id) }, modifier = Modifier.interactivePointer()) {
-                            Icon(Icons.Default.Close, null, Modifier.size(16.dp))
+                            Icon(painterResource(Res.drawable.filled_close), null, Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Skip")
                         }
@@ -1567,7 +1590,7 @@ private fun DiscardButton(onClick: () -> Unit) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
         modifier = Modifier.interactivePointer().testTag("insight-discard")
     ) {
-        Icon(Icons.Default.RemoveCircleOutline, null, Modifier.size(16.dp))
+        Icon(painterResource(Res.drawable.filled_remove_circle_outline), null, Modifier.size(16.dp))
         Spacer(Modifier.width(6.dp))
         Text("Discard · not what I'm looking for")
     }
@@ -1581,7 +1604,7 @@ private fun DiscardedBar(title: String, onUndo: () -> Unit, onClose: () -> Unit)
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(Icons.Default.RemoveCircleOutline, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.inverseOnSurface)
+            Icon(painterResource(Res.drawable.filled_remove_circle_outline), null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.inverseOnSurface)
             Text(
                 "Discarded “${title.ifBlank { "paper" }}” from the graph.",
                 style = MaterialTheme.typography.labelLarge,
@@ -1594,7 +1617,7 @@ private fun DiscardedBar(title: String, onUndo: () -> Unit, onClose: () -> Unit)
                 Text("Undo", color = MaterialTheme.colorScheme.inversePrimary)
             }
             IconButton(onClick = onClose, modifier = Modifier.size(32.dp).interactivePointer()) {
-                Icon(Icons.Default.Close, "Dismiss", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.inverseOnSurface)
+                Icon(painterResource(Res.drawable.filled_close), "Dismiss", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.inverseOnSurface)
             }
         }
     }

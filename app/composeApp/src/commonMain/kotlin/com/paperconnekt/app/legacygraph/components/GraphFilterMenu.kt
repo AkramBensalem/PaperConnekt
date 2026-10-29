@@ -1,12 +1,13 @@
 package com.paperconnekt.app.legacygraph.components
 
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.filled_close
+import com.paperconnekt.app.resources.filled_filter_list
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -30,7 +31,7 @@ internal fun GraphFilterMenu(
     val width = with(LocalDensity.current) { windowSize.width.toDp() }
     val height = with(LocalDensity.current) { windowSize.height.toDp() }
     Box {
-        GraphAction(Icons.Default.FilterList, "Graph filters", onOpen)
+        GraphAction(painterResource(Res.drawable.filled_filter_list), "Graph filters", onOpen)
         when {
             width < 600.dp -> if (expanded) {
                 ModalBottomSheet(
@@ -82,9 +83,9 @@ internal fun GraphFilterMenu(
 private fun GraphFilterHeader(onDismiss: () -> Unit) {
     Column(Modifier.padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.FilterList, null, tint = MaterialTheme.colorScheme.primary)
+            Icon(painterResource(Res.drawable.filled_filter_list), null, tint = MaterialTheme.colorScheme.primary)
             Text("Graph filters", Modifier.weight(1f).padding(start = 12.dp), style = MaterialTheme.typography.titleMedium)
-            GraphAction(Icons.Default.Close, "Close graph filters", onDismiss)
+            GraphAction(painterResource(Res.drawable.filled_close), "Close graph filters", onDismiss)
         }
         Text(
             "Changes apply to the canvas immediately",

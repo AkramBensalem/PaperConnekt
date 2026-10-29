@@ -1,5 +1,9 @@
 package com.paperconnekt.app.legacygraph.components
 
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.filled_check
+import com.paperconnekt.app.resources.filled_content_copy
+import org.jetbrains.compose.resources.painterResource
 import com.paperconnekt.app.legacygraph.interactivePointer
 
 import androidx.compose.animation.animateColorAsState
@@ -8,9 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -55,7 +56,7 @@ fun CopyIconButton(
         modifier = modifier.size(size).interactivePointer()
     ) {
         Icon(
-            imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
+            painter = if (copied) painterResource(Res.drawable.filled_check) else painterResource(Res.drawable.filled_content_copy),
             contentDescription = if (copied) "Copied!" else contentDescription,
             modifier = Modifier.size(iconSize),
             tint = iconTint
@@ -95,7 +96,7 @@ fun CopyChipButton(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
+                painter = if (copied) painterResource(Res.drawable.filled_check) else painterResource(Res.drawable.filled_content_copy),
                 contentDescription = null,
                 modifier = Modifier.size(14.dp)
             )

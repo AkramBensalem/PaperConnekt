@@ -1,5 +1,23 @@
 package com.paperconnekt.app.legacygraph.components
 
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.filled_arrow_back
+import com.paperconnekt.app.resources.filled_arrow_forward
+import com.paperconnekt.app.resources.filled_auto_awesome
+import com.paperconnekt.app.resources.filled_check
+import com.paperconnekt.app.resources.filled_check_circle
+import com.paperconnekt.app.resources.filled_close
+import com.paperconnekt.app.resources.filled_description
+import com.paperconnekt.app.resources.filled_expand_less
+import com.paperconnekt.app.resources.filled_expand_more
+import com.paperconnekt.app.resources.filled_explore
+import com.paperconnekt.app.resources.filled_info
+import com.paperconnekt.app.resources.filled_insights
+import com.paperconnekt.app.resources.filled_refresh
+import com.paperconnekt.app.resources.filled_task_alt
+import com.paperconnekt.app.resources.filled_tune
+import com.paperconnekt.app.resources.filled_undo
+import org.jetbrains.compose.resources.painterResource
 import com.paperconnekt.app.legacygraph.clipChipInteraction
 import com.paperconnekt.app.legacygraph.interactivePointer
 
@@ -11,11 +29,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -84,7 +97,7 @@ fun GuidedReviewPanel(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(Modifier.weight(1f), shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.tertiaryContainer) {
                         Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Explore, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                            Icon(painterResource(Res.drawable.filled_explore), null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onTertiaryContainer)
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 if (node.connectionType == ConnectionType.CENTRAL) "Guided review · Seed" else "Guided review",
@@ -93,9 +106,9 @@ fun GuidedReviewPanel(
                             )
                         }
                     }
-                    GraphAction(Icons.Default.Insights, "Neighborhood insights", onShowInsights)
-                    GraphAction(Icons.Default.Info, "Paper details", onShowDetails)
-                    GraphAction(Icons.Default.Close, "Close guided review", onClose)
+                    GraphAction(painterResource(Res.drawable.filled_insights), "Neighborhood insights", onShowInsights)
+                    GraphAction(painterResource(Res.drawable.filled_info), "Paper details", onShowDetails)
+                    GraphAction(painterResource(Res.drawable.filled_close), "Close guided review", onClose)
                 }
                 Text(
                     node.paper.title,
@@ -134,7 +147,7 @@ fun GuidedReviewPanel(
                                     modifier = Modifier.weight(1f).padding(vertical = 10.dp)
                                 )
                                 IconButton(onClick = onDismissError, modifier = Modifier.interactivePointer()) {
-                                    Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = MaterialTheme.colorScheme.onErrorContainer)
+                                    Icon(painterResource(Res.drawable.filled_close), contentDescription = "Dismiss", tint = MaterialTheme.colorScheme.onErrorContainer)
                                 }
                             }
                         }
@@ -188,7 +201,7 @@ fun GuidedReviewPanel(
                         enabled = canShowNext,
                         modifier = Modifier.fillMaxWidth().interactivePointer(enabled = canShowNext)
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(18.dp))
+                        Icon(painterResource(Res.drawable.filled_arrow_forward), null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(nextLabel)
                     }
@@ -204,7 +217,7 @@ fun GuidedReviewPanel(
                         onClick = onRevisitSkipped,
                         modifier = Modifier.fillMaxWidth().interactivePointer()
                     ) {
-                        Icon(Icons.Default.Refresh, null, Modifier.size(16.dp))
+                        Icon(painterResource(Res.drawable.filled_refresh), null, Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("Revisit skipped (${review.skippedIds.size})")
                     }
@@ -264,7 +277,7 @@ private fun GuidedSettings(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Tune, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                Icon(painterResource(Res.drawable.filled_tune), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
                     Text("Review settings", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
@@ -276,7 +289,7 @@ private fun GuidedSettings(
                 }
                 IconButton(onClick = onToggle, modifier = Modifier.interactivePointer()) {
                     Icon(
-                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        if (expanded) painterResource(Res.drawable.filled_expand_less) else painterResource(Res.drawable.filled_expand_more),
                         contentDescription = if (expanded) "Hide review settings" else "Show review settings"
                     )
                 }
@@ -326,7 +339,7 @@ private fun GuidedEmptyState(review: GuidedReviewState) {
         Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(52.dp)) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    if (review.isExhausted) Icons.Default.TaskAlt else Icons.Default.AutoAwesome,
+                    if (review.isExhausted) painterResource(Res.drawable.filled_task_alt) else painterResource(Res.drawable.filled_auto_awesome),
                     null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -411,7 +424,7 @@ private fun GuidedSuggestionCard(
                     modifier = Modifier.height(28.dp).interactivePointer()
                 ) {
                     Text(if (showAbstract) "Hide abstract" else "Read abstract", style = MaterialTheme.typography.labelMedium)
-                    Icon(if (showAbstract) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null, Modifier.size(16.dp))
+                    Icon(if (showAbstract) painterResource(Res.drawable.filled_expand_less) else painterResource(Res.drawable.filled_expand_more), null, Modifier.size(16.dp))
                 }
                 AnimatedVisibility(showAbstract) {
                     Text(abstract, style = MaterialTheme.typography.bodySmall)
@@ -419,26 +432,26 @@ private fun GuidedSuggestionCard(
             }
             when {
                 isKept -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CheckCircle, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                    Icon(painterResource(Res.drawable.filled_check_circle), null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(4.dp))
                     Text("Kept in graph", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = onUndo, modifier = Modifier.interactivePointer()) {
-                        Icon(Icons.AutoMirrored.Filled.Undo, null, Modifier.size(16.dp))
+                        Icon(painterResource(Res.drawable.filled_undo), null, Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("Undo")
                     }
                     FilledTonalButton(onClick = onReview, modifier = Modifier.interactivePointer()) {
                         Text("Review its links")
                         Spacer(Modifier.width(4.dp))
-                        Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(16.dp))
+                        Icon(painterResource(Res.drawable.filled_arrow_forward), null, Modifier.size(16.dp))
                     }
                 }
                 isSkipped -> Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Skipped", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = onUndo, modifier = Modifier.interactivePointer()) {
-                        Icon(Icons.AutoMirrored.Filled.Undo, null, Modifier.size(16.dp))
+                        Icon(painterResource(Res.drawable.filled_undo), null, Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("Undo")
                     }
@@ -449,26 +462,26 @@ private fun GuidedSuggestionCard(
                     val keepLabel = if (verdict == GuidedAiVerdict.KEEP) "Keep · AI" else "Keep"
                     if (verdict == GuidedAiVerdict.SKIP) {
                         FilledTonalButton(onClick = onSkip, modifier = Modifier.weight(1f).interactivePointer()) {
-                            Icon(Icons.Default.Close, null, Modifier.size(16.dp))
+                            Icon(painterResource(Res.drawable.filled_close), null, Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
                             Text(skipLabel)
                         }
                     } else {
                         OutlinedButton(onClick = onSkip, modifier = Modifier.weight(1f).interactivePointer()) {
-                            Icon(Icons.Default.Close, null, Modifier.size(16.dp))
+                            Icon(painterResource(Res.drawable.filled_close), null, Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
                             Text(skipLabel)
                         }
                     }
                     if (verdict == GuidedAiVerdict.SKIP) {
                         OutlinedButton(onClick = onKeep, modifier = Modifier.weight(1f).interactivePointer()) {
-                            Icon(Icons.Default.Check, null, Modifier.size(16.dp))
+                            Icon(painterResource(Res.drawable.filled_check), null, Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
                             Text(keepLabel)
                         }
                     } else {
                         Button(onClick = onKeep, modifier = Modifier.weight(1f).interactivePointer()) {
-                            Icon(Icons.Default.Check, null, Modifier.size(16.dp))
+                            Icon(painterResource(Res.drawable.filled_check), null, Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
                             Text(keepLabel)
                         }
@@ -488,7 +501,7 @@ private fun RelationChip(relation: GuidedRelation) {
     ) {
         Row(Modifier.padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                if (isReference) Icons.AutoMirrored.Filled.ArrowBack else Icons.AutoMirrored.Filled.ArrowForward,
+                if (isReference) painterResource(Res.drawable.filled_arrow_back) else painterResource(Res.drawable.filled_arrow_forward),
                 null,
                 Modifier.size(12.dp),
                 tint = if (isReference) Color(0xFF0F766E) else Color(0xFFB45309)
@@ -546,7 +559,7 @@ private fun AiProposal(suggestion: GuidedSuggestion, isDecided: Boolean) {
             ) {
                 Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AutoAwesome, null, Modifier.size(14.dp))
+                        Icon(painterResource(Res.drawable.filled_auto_awesome), null, Modifier.size(14.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(
                             if (keep) "AI proposes: Keep" else "AI proposes: Skip",
@@ -562,7 +575,7 @@ private fun AiProposal(suggestion: GuidedSuggestion, isDecided: Boolean) {
         }
         else -> Row(verticalAlignment = Alignment.Top) {
             Icon(
-                Icons.Default.Description,
+                painterResource(Res.drawable.filled_description),
                 null,
                 Modifier.size(14.dp).padding(top = 2.dp),
                 tint = MaterialTheme.colorScheme.tertiary
@@ -584,7 +597,7 @@ private fun KeptPapersSection(keptPapers: List<PaperNode>, onReviewPaper: (Strin
     Column(Modifier.fillMaxWidth().animateContentSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         TextButton(onClick = { expanded = !expanded }, modifier = Modifier.interactivePointer()) {
             Text("Kept from this paper (${keptPapers.size})", style = MaterialTheme.typography.labelLarge)
-            Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null, Modifier.size(18.dp))
+            Icon(if (expanded) painterResource(Res.drawable.filled_expand_less) else painterResource(Res.drawable.filled_expand_more), null, Modifier.size(18.dp))
         }
         if (expanded) {
             keptPapers.forEach { kept ->
@@ -595,7 +608,7 @@ private fun KeptPapersSection(keptPapers: List<PaperNode>, onReviewPaper: (Strin
                     modifier = Modifier.fillMaxWidth().interactivePointer()
                 ) {
                     Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CheckCircle, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                        Icon(painterResource(Res.drawable.filled_check_circle), null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(8.dp))
                         Text(
                             kept.paper.title,
@@ -604,7 +617,7 @@ private fun KeptPapersSection(keptPapers: List<PaperNode>, onReviewPaper: (Strin
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
-                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Review this paper", modifier = Modifier.size(16.dp))
+                        Icon(painterResource(Res.drawable.filled_arrow_forward), contentDescription = "Review this paper", modifier = Modifier.size(16.dp))
                     }
                 }
             }

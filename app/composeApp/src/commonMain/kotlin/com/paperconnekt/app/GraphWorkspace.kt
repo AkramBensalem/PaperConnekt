@@ -48,9 +48,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import org.jetbrains.compose.resources.painterResource
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -92,6 +89,8 @@ import com.paperconnekt.storage.GraphExpansionDirection
 import com.paperconnekt.storage.OpenAlexGraphProvider
 import com.paperconnekt.storage.OpenAlexPaperSearchProvider
 import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.filled_close
+import com.paperconnekt.app.resources.filled_stars
 import com.paperconnekt.app.resources.arrow_back
 import com.paperconnekt.app.resources.research_graph_empty
 import io.ktor.client.HttpClient
@@ -1296,7 +1295,7 @@ private fun SeedPaperPickerDialog(
             ) {
                 Column(Modifier.padding(if (compact) 12.dp else 24.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Stars, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(painterResource(Res.drawable.filled_stars), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(12.dp))
                         Text(
                             "Seed papers (${seeds.size})",
@@ -1304,7 +1303,7 @@ private fun SeedPaperPickerDialog(
                             modifier = Modifier.weight(1f),
                         )
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Close seed picker")
+                            Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close seed picker")
                         }
                     }
                     Text(
@@ -1330,7 +1329,7 @@ private fun SeedPaperPickerDialog(
                                 },
                                 trailingIcon = if (seeds.size > 1) ({
                                     IconButton(onClick = { onRemove(seed.id) }, modifier = Modifier.size(40.dp)) {
-                                        Icon(Icons.Default.Close, contentDescription = "Remove seed: ${seed.title}", modifier = Modifier.size(18.dp))
+                                        Icon(painterResource(Res.drawable.filled_close), contentDescription = "Remove seed: ${seed.title}", modifier = Modifier.size(18.dp))
                                     }
                                 }) else null,
                             )

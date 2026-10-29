@@ -11,13 +11,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
 import com.paperconnekt.app.legacygraph.interactivePointer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GraphAction(
-    icon: ImageVector,
+    icon: Painter,
     label: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
