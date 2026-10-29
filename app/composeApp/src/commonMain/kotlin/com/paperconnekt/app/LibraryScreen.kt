@@ -56,15 +56,18 @@ import kotlin.random.Random
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Unpublished
 import com.paperconnekt.app.resources.Res
@@ -75,6 +78,7 @@ private enum class LibraryView {
     ALL,
     UNFILED,
     RECENT,
+    ARCHIVE,
 }
 
 @Composable
@@ -96,13 +100,16 @@ fun LibraryScreen(
     var movePaper by remember { mutableStateOf<LibraryEntry?>(null) }
     var editPaper by remember { mutableStateOf<Paper?>(null) }
     var selectedPaper by remember { mutableStateOf<Paper?>(null) }
+    var permanentlyDeletePaper by remember { mutableStateOf<Paper?>(null) }
     var expandedFolders by remember { mutableStateOf(setOf<String>()) }
 
     val folders = entries.filter { it.kind == LibraryEntryKind.FOLDER }
     val paperEntries = entries.filter { it.kind == LibraryEntryKind.PAPER }
     val paperById = papers.associateBy(Paper::id)
+    val activePapers = papers.filterNot(Paper::archived)
+    val archivedPapers = papers.filter(Paper::archived)
     val filedPaperIds = paperEntries.mapNotNull(LibraryEntry::paperId).toSet()
-    val unfiledEntries = papers
+    val unfiledEntries = activePapers
         .filterNot { it.id in filedPaperIds }
         .map { paper ->
             LibraryEntry(
@@ -112,14 +119,25 @@ fun LibraryScreen(
                 kind = LibraryEntryKind.PAPER,
             )
         }
-    val libraryPaperEntries = paperEntries + unfiledEntries
+    val libraryPaperEntries = paperEntries.filter { it.paperId?.let(paperById::get)?.archived != true } + unfiledEntries
+    val archivedEntries = archivedPapers.map { paper ->
+        LibraryEntry("archived-${paper.id}", paper.id, null, paper.title, LibraryEntryKind.PAPER)
+    }
     val selectedFolder = folders.firstOrNull { it.id == selectedFolderId }
+    fun belongsToSelectedFolder(entry: LibraryEntry): Boolean {
+        var parentId = entry.parentId
+        while (parentId != null) {
+            if (parentId == selectedFolderId) return true
+            parentId = folders.firstOrNull { it.id == parentId }?.parentId
+        }
+        return false
+    }
     val visiblePaperEntries = libraryPaperEntries
         .filter { entry ->
             when {
                 view == LibraryView.UNFILED -> entry.parentId == null
                 view == LibraryView.RECENT -> entry in libraryPaperEntries.takeLast(8)
-                selectedFolderId != null -> entry.parentId == selectedFolderId
+                selectedFolderId != null -> entry.parentId == selectedFolderId || belongsToSelectedFolder(entry)
                 else -> true
             }
         }
@@ -142,9 +160,10 @@ fun LibraryScreen(
         Scaffold(
             topBar = {
                 LibraryHeader(
-                    paperCount = papers.size,
+                    paperCount = activePapers.size,
                     folderCount = folders.size,
                     unfiledCount = unfiledCount,
+                    archiveCount = archivedPapers.size,
                     query = query,
                     onQueryChange = { query = it },
                     onNewFolder = { showCreateFolder = true },
@@ -182,12 +201,19 @@ fun LibraryScreen(
                             }
                         },
                         onNewFolder = { showCreateFolder = true },
+                        onArchive = { view = LibraryView.ARCHIVE; selectedFolderId = null },
+                        archiveCount = archivedPapers.size,
+                        onNewSubcollection = { folder ->
+                            selectedFolderId = folder.id
+                            expandedFolders = expandedFolders + folder.id
+                            showCreateFolder = true
+                        },
                         onRename = { renameFolder = it },
                         onDelete = { deleteFolder = it },
                     )
                     LibraryPaperList(
                         modifier = Modifier.weight(1f),
-                        entries = visiblePaperEntries,
+                        entries = if (view == LibraryView.ARCHIVE) archivedEntries else visiblePaperEntries,
                         paperById = paperById,
                         emptyLabel = if (selectedFolder != null) {
                             "No papers in ${selectedFolder.label} yet."
@@ -201,8 +227,17 @@ fun LibraryScreen(
                         onToggleCompleted = { paper -> scope.launch { store.savePaper(paper.copy(completed = !paper.completed)) } },
                         onSelect = { selectedPaper = it },
                         onDelete = { entry ->
-                            scope.launch { store.removeLibraryEntry(entry.id) }
+                            entry.paperId?.let { paperById[it] }?.let { paper ->
+                                if (view == LibraryView.ARCHIVE) permanentlyDeletePaper = paper
+                                else scope.launch { store.savePaper(paper.copy(archived = true)) }
+                            }
                         },
+                        onRestore = { entry ->
+                            entry.paperId?.let { paperById[it] }?.let { paper ->
+                                scope.launch { store.savePaper(paper.copy(archived = false)) }
+                            }
+                        },
+                        archiveView = view == LibraryView.ARCHIVE,
                     )
                 }
             } else {
@@ -228,6 +263,13 @@ fun LibraryScreen(
                             }
                         },
                         onNewFolder = { showCreateFolder = true },
+                        onArchive = { view = LibraryView.ARCHIVE; selectedFolderId = null },
+                        archiveCount = archivedPapers.size,
+                        onNewSubcollection = { folder ->
+                            selectedFolderId = folder.id
+                            expandedFolders = expandedFolders + folder.id
+                            showCreateFolder = true
+                        },
                         onRename = { renameFolder = it },
                         onDelete = { deleteFolder = it },
                     )
@@ -248,7 +290,7 @@ fun LibraryScreen(
                         }
                         LibraryPaperList(
                             modifier = Modifier.weight(1f),
-                            entries = visiblePaperEntries,
+                            entries = if (view == LibraryView.ARCHIVE) archivedEntries else visiblePaperEntries,
                             paperById = paperById,
                             emptyLabel = if (selectedFolder != null) {
                                 "No papers in ${selectedFolder.label} yet."
@@ -262,8 +304,17 @@ fun LibraryScreen(
                             onToggleCompleted = { paper -> scope.launch { store.savePaper(paper.copy(completed = !paper.completed)) } },
                             onSelect = { selectedPaper = it },
                             onDelete = { entry ->
-                                scope.launch { store.removeLibraryEntry(entry.id) }
+                            entry.paperId?.let { paperById[it] }?.let { paper ->
+                                if (view == LibraryView.ARCHIVE) permanentlyDeletePaper = paper
+                                else scope.launch { store.savePaper(paper.copy(archived = true)) }
+                            }
                             },
+                            onRestore = { entry ->
+                                entry.paperId?.let { paperById[it] }?.let { paper ->
+                                    scope.launch { store.savePaper(paper.copy(archived = false)) }
+                                }
+                            },
+                            archiveView = view == LibraryView.ARCHIVE,
                         )
                     }
                     selectedPaper?.let { paper ->
@@ -295,6 +346,7 @@ fun LibraryScreen(
                             kind = LibraryEntryKind.FOLDER,
                         ),
                     )
+                    selectedFolderId?.let { expandedFolders = expandedFolders + it }
                     showCreateFolder = false
                 }
             },
@@ -360,6 +412,24 @@ fun LibraryScreen(
             },
         )
     }
+    permanentlyDeletePaper?.let { paper ->
+        AlertDialog(
+            onDismissRequest = { permanentlyDeletePaper = null },
+            title = { Text("Delete permanently?") },
+            text = { Text("${paper.title} will be removed from this workspace and cannot be restored.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            store.removePaper(paper.id)
+                            permanentlyDeletePaper = null
+                        }
+                    },
+                ) { Text("Delete permanently") }
+            },
+            dismissButton = { TextButton(onClick = { permanentlyDeletePaper = null }) { Text("Cancel") } },
+        )
+    }
 }
 
 @Composable
@@ -371,6 +441,9 @@ private fun LibraryFolderList(
     onSelectFolder: (String?) -> Unit,
     onToggleFolder: (String) -> Unit,
     onNewFolder: () -> Unit,
+    onArchive: () -> Unit,
+    archiveCount: Int,
+    onNewSubcollection: (LibraryEntry) -> Unit = {},
     onRename: (LibraryEntry) -> Unit,
     onDelete: (LibraryEntry) -> Unit,
 ) {
@@ -408,8 +481,10 @@ private fun LibraryFolderList(
                     onToggleFolder = onToggleFolder,
                     onRename = onRename,
                     onDelete = onDelete,
+                onNewChild = onNewSubcollection,
                 )
             }
+            ArchiveRow(count = archiveCount, selected = false, onClick = onArchive)
         }
     }
 }
@@ -420,6 +495,7 @@ private fun LibraryHeader(
     paperCount: Int,
     folderCount: Int,
     unfiledCount: Int,
+    archiveCount: Int,
     query: String,
     onQueryChange: (String) -> Unit,
     onNewFolder: () -> Unit,
@@ -430,7 +506,7 @@ private fun LibraryHeader(
             Column {
                 Text("Library", style = MaterialTheme.typography.headlineSmall)
                 Text(
-                    "$paperCount papers · $folderCount collections · $unfiledCount unfiled",
+                    "$paperCount papers · $folderCount collections · $unfiledCount unfiled · $archiveCount archived",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -488,6 +564,12 @@ private fun LibraryContextBar(
             onClick = { onViewChange(LibraryView.RECENT) },
             label = { Text("Recent") },
         )
+        FilterChip(
+            selected = view == LibraryView.ARCHIVE,
+            onClick = { onViewChange(LibraryView.ARCHIVE) },
+            label = { Text("Archive") },
+            leadingIcon = { Icon(Icons.Default.Archive, contentDescription = null) },
+        )
         selectedFolder?.let {
             Text(" / ${it.label}", color = MaterialTheme.colorScheme.primary)
         }
@@ -504,6 +586,9 @@ private fun LibraryFolderPane(
     onSelectFolder: (String?) -> Unit,
     onToggleFolder: (String) -> Unit,
     onNewFolder: () -> Unit,
+    onArchive: () -> Unit,
+    archiveCount: Int,
+    onNewSubcollection: (LibraryEntry) -> Unit = {},
     onRename: (LibraryEntry) -> Unit,
     onDelete: (LibraryEntry) -> Unit,
 ) {
@@ -556,8 +641,10 @@ private fun LibraryFolderPane(
                         onToggleFolder = onToggleFolder,
                         onRename = onRename,
                         onDelete = onDelete,
+                        onNewChild = onNewSubcollection,
                     )
                 }
+                item { ArchiveRow(count = archiveCount, selected = false, onClick = onArchive) }
             }
         }
     }
@@ -574,6 +661,7 @@ private fun FolderTreeRow(
     onToggleFolder: (String) -> Unit,
     onRename: (LibraryEntry) -> Unit,
     onDelete: (LibraryEntry) -> Unit,
+    onNewChild: (LibraryEntry) -> Unit = {},
     depth: Int = 0,
 ) {
     val children = allFolders.filter { it.parentId == folder.id }
@@ -621,6 +709,7 @@ private fun FolderTreeRow(
             FolderActions(
                 onRename = { onRename(folder) },
                 onDelete = { onDelete(folder) },
+                onNewChild = { onNewChild(folder) },
             )
         }
         if (folder.id in expandedFolders) {
@@ -635,6 +724,7 @@ private fun FolderTreeRow(
                     onToggleFolder = onToggleFolder,
                     onRename = onRename,
                     onDelete = onDelete,
+                    onNewChild = onNewChild,
                     depth = depth + 1,
                 )
             }
@@ -643,14 +733,45 @@ private fun FolderTreeRow(
 }
 
 @Composable
+private fun ArchiveRow(
+    count: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(Icons.Default.Archive, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Archive", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Text(count.toString(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
 private fun FolderActions(
     onRename: () -> Unit,
     onDelete: () -> Unit,
+    onNewChild: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreHoriz, contentDescription = "Collection actions") }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("New subcollection") },
+                onClick = {
+                    expanded = false
+                    onNewChild()
+                },
+            )
             DropdownMenuItem(
                 text = { Text("Rename") },
                 onClick = {
@@ -679,6 +800,8 @@ private fun LibraryPaperList(
     onOpenGraph: (Paper) -> Unit,
     onMove: (LibraryEntry) -> Unit,
     onDelete: (LibraryEntry) -> Unit,
+    onRestore: (LibraryEntry) -> Unit,
+    archiveView: Boolean,
     onEdit: (Paper) -> Unit,
     onToggleCompleted: (Paper) -> Unit,
     onSelect: (Paper) -> Unit,
@@ -702,10 +825,12 @@ private fun LibraryPaperList(
                     onOpenGraph = { onOpenGraph(paper) },
                     onMove = { onMove(entry) },
                     onRemove = { onDelete(entry) },
+                    onRestore = { onRestore(entry) },
                     onEdit = { onEdit(paper) },
                     onToggleCompleted = { onToggleCompleted(paper) },
                     onSelect = { onSelect(paper) },
                     canRemove = !entry.id.startsWith("unfiled-"),
+                    archiveView = archiveView,
                 )
             }
         }
@@ -719,10 +844,12 @@ private fun PaperLibraryCard(
     onOpenGraph: () -> Unit,
     onMove: () -> Unit,
     onRemove: () -> Unit,
+    onRestore: () -> Unit,
     onEdit: () -> Unit,
     onToggleCompleted: () -> Unit,
     onSelect: () -> Unit,
     canRemove: Boolean,
+    archiveView: Boolean,
 ) {
     Surface(
         modifier = Modifier
@@ -783,10 +910,22 @@ private fun PaperLibraryCard(
                         text = { Text(if (paper.completed) "Mark as to read" else "Mark completed") },
                         onClick = { actionsExpanded = false; onToggleCompleted() },
                     )
-                    if (canRemove) {
+                    if (archiveView) {
                         DropdownMenuItem(
-                            text = { Text("Remove from library") },
+                            text = { Text("Restore to library") },
+                            onClick = { actionsExpanded = false; onRestore() },
+                            leadingIcon = { Icon(Icons.Default.RestoreFromTrash, contentDescription = null) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete permanently") },
                             onClick = { actionsExpanded = false; onRemove() },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                        )
+                    } else if (canRemove) {
+                        DropdownMenuItem(
+                            text = { Text("Move to archive") },
+                            onClick = { actionsExpanded = false; onRemove() },
+                            leadingIcon = { Icon(Icons.Default.Archive, contentDescription = null) },
                         )
                     }
                 }

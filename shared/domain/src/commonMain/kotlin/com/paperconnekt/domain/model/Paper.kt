@@ -18,4 +18,5 @@ data class Paper(
     val citationCount: Int? = null,
     val referenceCount: Int? = null,
     val citingCount: Int? = null,
+    val archived: Boolean = false,
 )

@@ -37,6 +37,7 @@ open class InMemoryResearchStore(initialized: Boolean = true) : LocalResearchSto
 
     override open suspend fun removePaper(paperId: String) {
         papersState.update { current -> current.filterNot { it.id == paperId } }
+        libraryEntriesState.update { current -> current.filterNot { it.paperId == paperId } }
     }
 
     override open suspend fun saveGraph(graph: ResearchGraph) {
