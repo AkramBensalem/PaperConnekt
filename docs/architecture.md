@@ -70,6 +70,11 @@ configured and never repopulates a saved key into the UI; Android and desktop
 continue to own their respective secret-storage boundaries. OpenAlex discovery
 and Zotero remain explicitly optional settings, so local collection and assistant
 history remain usable without network access or an account.
+OCR and paper-agent features read their provider keys from that same secret
+boundary. Missing keys block the corresponding request; rejected keys and
+network failures are shown as actionable provider errors, while local reading,
+notes, and saved research remain available offline. A saved key is not treated
+as validated until its provider accepts a request.
 
 The contest workspace is persisted as a versioned JSON snapshot by
 `PersistentResearchStore`. Desktop stores it at

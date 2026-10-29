@@ -1,6 +1,7 @@
 package com.paperconnekt.app
 
-import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,6 +34,7 @@ import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.lock
 import com.paperconnekt.app.resources.visibility
 import com.paperconnekt.app.resources.visibility_off
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
@@ -44,21 +46,20 @@ internal fun ProviderCredentialCard(
     onDraftChange: (String) -> Unit,
     onSave: () -> Unit,
     onClear: () -> Unit,
+    onValidate: () -> Unit,
+    onOpenKeyPage: (() -> Unit)? = null,
     enabled: Boolean = true,
+    providerIcon: DrawableResource? = null,
 ) {
     var revealed by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = MaterialTheme.shapes.medium,
-            ),
+            .fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceBright,
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
@@ -68,7 +69,14 @@ internal fun ProviderCredentialCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                CredentialIcon("$providerName credential")
+                CredentialIcon(
+                    contentDescription = if (providerIcon == null) {
+                        "$providerName credential"
+                    } else {
+                        "$providerName logo"
+                    },
+                    providerIcon = providerIcon,
+                )
                 Spacer(Modifier.width(10.dp))
                 Column(
                     modifier = Modifier.weight(1f),
@@ -82,7 +90,7 @@ internal fun ProviderCredentialCard(
                     )
                 }
                 Text(
-                    text = if (configured) "Configured" else "Not configured",
+                    text = if (configured) "Key saved" else "Not configured",
                     color = if (configured) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -139,6 +147,19 @@ internal fun ProviderCredentialCard(
                     Text("Clear")
                 }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(
+                    enabled = enabled && configured,
+                    onClick = onValidate,
+                ) {
+                    Text("Check key")
+                }
+                onOpenKeyPage?.let { open ->
+                    TextButton(onClick = open) {
+                        Text("Get a key")
+                    }
+                }
+            }
 
             Text(
                 "The saved value is kept in this device's platform secret store and is never shown here.",
@@ -150,12 +171,22 @@ internal fun ProviderCredentialCard(
 }
 
 @Composable
-private fun CredentialIcon(contentDescription: String) {
-    Icon(
-        painter = painterResource(Res.drawable.lock),
-        contentDescription = contentDescription,
-        tint = MaterialTheme.colorScheme.primary,
-        modifier = Modifier
-            .size(24.dp),
-    )
+private fun CredentialIcon(
+    contentDescription: String,
+    providerIcon: DrawableResource?,
+) {
+    if (providerIcon == null) {
+        Icon(
+            painter = painterResource(Res.drawable.lock),
+            contentDescription = contentDescription,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp),
+        )
+    } else {
+        Image(
+            painter = painterResource(providerIcon),
+            contentDescription = contentDescription,
+            modifier = Modifier.size(24.dp),
+        )
+    }
 }

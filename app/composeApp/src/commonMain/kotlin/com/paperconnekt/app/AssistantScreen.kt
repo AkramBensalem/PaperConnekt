@@ -1,5 +1,7 @@
 package com.paperconnekt.app
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -50,6 +52,7 @@ import com.paperconnekt.domain.model.AssistantRole
 import com.paperconnekt.domain.model.AssistantSession
 import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.storage.LocalResearchStore
+import com.paperconnekt.secrets.SecretStore
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -64,6 +67,7 @@ fun AssistantScreen(
     paddingValues: PaddingValues,
     initialPaper: Paper? = null,
     onInitialPaperConsumed: () -> Unit = {},
+    secretStore: SecretStore? = null,
 ) {
     val sessions by store.assistantSessions.collectAsState()
     val papers by store.papers.collectAsState()
@@ -86,6 +90,7 @@ fun AssistantScreen(
             paper = openPaper!!,
             paddingValues = paddingValues,
             onBack = { openPaper = null },
+            secretStore = secretStore,
         )
         return
     }
@@ -93,7 +98,8 @@ fun AssistantScreen(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues),
+            .padding(paddingValues)
+            .background(MaterialTheme.colorScheme.surfaceContainer),
     ) {
         val compact = maxWidth < 900.dp
         Column(
@@ -242,7 +248,11 @@ private fun SessionSidebar(
     onSelect: (String) -> Unit,
     onNewConversation: () -> Unit,
 ) {
-    Card(modifier = modifier.fillMaxHeight()) {
+    Card(
+        modifier = modifier.fillMaxHeight(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -314,6 +324,7 @@ private fun SessionListItem(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         color = if (selected) {
             MaterialTheme.colorScheme.secondaryContainer
         } else {
@@ -399,7 +410,11 @@ private fun ConversationPanel(
     var renameDialog by remember { mutableStateOf(false) }
     var deleteDialog by remember { mutableStateOf(false) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier
@@ -560,7 +575,11 @@ private fun PaperShelf(
     papers: List<Paper>,
     onOpenPaper: (Paper) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -595,7 +614,8 @@ private fun PaperShelfCard(
 ) {
     Card(
         modifier = Modifier.width(230.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(14.dp),

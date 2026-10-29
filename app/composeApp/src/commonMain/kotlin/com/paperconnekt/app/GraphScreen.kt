@@ -56,6 +56,9 @@ import com.paperconnekt.app.resources.outlined_open_in_new
 import com.paperconnekt.app.resources.outlined_sort
 import com.paperconnekt.app.resources.research_graph_empty
 import com.paperconnekt.storage.LocalResearchStore
+import com.paperconnekt.secrets.SecretKey
+import com.paperconnekt.secrets.SecretStore
+import androidx.compose.runtime.LaunchedEffect
 import com.paperconnekt.app.legacygraph.components.GraphRenameDialog
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -185,6 +188,7 @@ fun GraphScreen(
 @Composable
 fun GraphCanvasScreen(
     store: LocalResearchStore,
+    secretStore: SecretStore,
     paddingValues: PaddingValues,
     graphId: String?,
     onBack: () -> Unit,
@@ -196,6 +200,10 @@ fun GraphCanvasScreen(
     var errorMessage by remember(graphId) { mutableStateOf<String?>(null) }
     var isSaving by remember(graphId) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    var openAlexKey by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(secretStore) {
+        openAlexKey = secretStore.read(SecretKey.OPENALEX)
+    }
 
     if (graph == null) {
         onBack()
@@ -236,6 +244,7 @@ fun GraphCanvasScreen(
                 errorMessage = it
                 isSaving = false
             },
+            openAlexKey = openAlexKey,
         )
     }
 

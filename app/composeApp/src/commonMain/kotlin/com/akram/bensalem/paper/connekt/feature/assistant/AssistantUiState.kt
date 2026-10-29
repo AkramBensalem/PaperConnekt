@@ -10,6 +10,7 @@ data class AssistantUiState(
     val selectedPaper: Paper? = null,
     val notes: List<Note> = emptyList(),
     val chatMessages: List<ChatMessage> = emptyList(),
+    val chatError: String? = null,
     val ideas: List<Idea> = emptyList(),
     val ideasLoading: Boolean = false,
     val ideaError: String? = null,
@@ -35,4 +36,3 @@ data class ChatMessage(
 enum class MessageSender {
     USER, AI_AGENT
 }
-

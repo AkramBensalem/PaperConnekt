@@ -36,6 +36,8 @@ import com.akram.bensalem.paper.connekt.feature.assistant.StoredLocalPdfAnnotati
 import com.akram.bensalem.paper.connekt.feature.assistant.component.Workplace
 import com.akram.bensalem.paper.connekt.models.Paper as AssistantPaper
 import com.paperconnekt.domain.model.Paper
+import com.paperconnekt.secrets.SecretKey
+import com.paperconnekt.secrets.SecretStore
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
 
@@ -55,6 +57,7 @@ fun PdfWorkspaceScreen(
     paper: Paper,
     paddingValues: PaddingValues,
     onBack: () -> Unit,
+    secretStore: SecretStore? = null,
 ) {
     val owner = remember(paper.id, paper.pdfPath) {
         object : ViewModelStoreOwner {
@@ -66,7 +69,7 @@ fun PdfWorkspaceScreen(
     }
     CompositionLocalProvider(LocalViewModelStoreOwner provides owner) {
         key(owner) {
-            LocalPaperWorkspace(paper, paddingValues, onBack)
+            LocalPaperWorkspace(paper, paddingValues, onBack, secretStore)
         }
     }
 }
@@ -76,9 +79,16 @@ private fun LocalPaperWorkspace(
     paper: Paper,
     paddingValues: PaddingValues,
     onBack: () -> Unit,
+    secretStore: SecretStore?,
 ) {
     val storage = LocalPdfAttachments.current.storage
-    val workspace = viewModel { PdfWorkspaceViewModel(localAnnotationStore = StoredLocalPdfAnnotations(storage)) }
+    val workspace = viewModel {
+        PdfWorkspaceViewModel(
+            mistralApiKey = { secretStore?.read(SecretKey.MISTRAL).orEmpty() },
+            openAiApiKey = { secretStore?.read(SecretKey.OPENAI).orEmpty() },
+            localAnnotationStore = StoredLocalPdfAnnotations(storage),
+        )
+    }
     val assistant = viewModel { AssistantViewModel(AssistantRepository()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -169,6 +179,7 @@ private fun LocalPaperWorkspace(
                     ideaError = state.ideaError,
                     ideaBoard = assistant,
                     pdfWorkspace = workspace,
+                    secretStore = secretStore,
                     onExit = { requestExit(onBack) },
                 )
             }

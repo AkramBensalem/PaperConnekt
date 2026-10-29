@@ -17,6 +17,8 @@ import kotlin.coroutines.CoroutineContext
 import com.akram.bensalem.paper.connekt.core.settings.ApiKeysStore
 import com.akram.bensalem.paper.connekt.core.settings.createApiKeysStore
 import kotlinx.coroutines.flow.first
+import com.paperconnekt.secrets.SecretKey
+import com.paperconnekt.secrets.SecretStore
 
 
 /** A passage the user explicitly asked the agent about, kept even if the PDF selection is cleared before sending. */
@@ -41,6 +43,7 @@ class PaperAgentViewModel(
     private val ideaBoard: AssistantViewModel? = null,
     private val usageRecorder: suspend (String?, AiUsageEvent) -> Unit = { _, _ -> },
     private val apiKeysStore: ApiKeysStore = createApiKeysStore(),
+    private val secretStore: SecretStore? = null,
 ) : ViewModel() {
     /** The open conversation. */
     var conversation by mutableStateOf(PaperAgentConversation())
@@ -75,6 +78,10 @@ class PaperAgentViewModel(
         private set
     var storageError by mutableStateOf<String?>(null)
         private set
+    var providerKeyMessage by mutableStateOf("Checking provider key…")
+        private set
+    var providerKeyAvailable by mutableStateOf(false)
+        private set
 
     /** Loads the saved chats of the open paper once its storage key is known, resuming the most recent one. */
     suspend fun load() {
@@ -82,6 +89,7 @@ class PaperAgentViewModel(
             selectedModel = ResearchAgentModels.fromId(apiKeysStore.apiKeys.first().researchModel)
             modelLoaded = true
         }
+        refreshProviderKey()
         val key = workspace.paperStorageKey() ?: return
         saveLock.withLock {
             if (key == loadedKey && storageReady) return
@@ -116,6 +124,26 @@ class PaperAgentViewModel(
                 val keys = apiKeysStore.apiKeys.first()
                 apiKeysStore.save(keys.copy(researchModel = model.id))
             }.onFailure { Napier.e("Could not save research agent model.", it) }
+            refreshProviderKey()
+        }
+    }
+
+    suspend fun refreshProviderKey() {
+        val provider = providerName(selectedModel)
+        try {
+            val key = secretStore?.read(providerSecretKey(selectedModel))?.trim()
+            providerKeyAvailable = !key.isNullOrEmpty()
+            providerKeyMessage = if (providerKeyAvailable) {
+                ""
+            } else {
+                "Add your $provider API key in Settings → API keys before using AI chat."
+            }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Napier.e("Could not check the $provider API key", exception)
+            providerKeyAvailable = false
+            providerKeyMessage = "Could not check the saved $provider key. Retry after checking Settings."
         }
     }
 
@@ -131,6 +159,10 @@ class PaperAgentViewModel(
     ) {
         if (annotationAiRunning || selectedText.isBlank()) return
         annotationAiError = null
+        if (!providerKeyAvailable) {
+            annotationAiError = providerKeyMessage
+            return
+        }
         annotationAiRunning = true
         viewModelScope.launch {
             try {
@@ -175,10 +207,14 @@ class PaperAgentViewModel(
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: AgentNotConfiguredException) {
-                annotationAiError = exception.message.orEmpty()
+                val message = exception.message ?: "AI responses are not available in this build."
+                blockProvider(message)
+                annotationAiError = message
             } catch (exception: Exception) {
                 Napier.e("Annotation comment generation failed", exception)
-                annotationAiError = exception.message ?: exception::class.simpleName
+                val providerError = providerFailureMessage(exception, providerName(selectedModel))
+                if (providerError != null) blockProvider(providerError)
+                annotationAiError = providerError ?: "Could not generate an AI comment. Try again."
             } finally {
                 annotationAiRunning = false
             }
@@ -193,6 +229,7 @@ class PaperAgentViewModel(
             run(it)
             return
         }
+        if (!providerKeyAvailable) return
         val quote = pinned
         val ideaPaperId = ideaBoard?.state?.selectedPaper?.id
         showHistory = false
@@ -247,11 +284,16 @@ class PaperAgentViewModel(
                 append(PaperAgentMessage(AgentRole.ASSISTANT, "Stopped.", actions = actions.toList(), isError = true))
                 throw exception
             } catch (exception: AgentNotConfiguredException) {
-                append(PaperAgentMessage(AgentRole.ASSISTANT, exception.message.orEmpty(), isError = true))
+                val message = exception.message ?: "AI responses are not available in this build."
+                blockProvider(message)
+                append(PaperAgentMessage(AgentRole.ASSISTANT, message, isError = true))
             } catch (exception: Exception) {
                 Napier.e("Research agent failed", exception)
+                val providerError = providerFailureMessage(exception, providerName(selectedModel))
+                if (providerError != null) blockProvider(providerError)
                 append(PaperAgentMessage(AgentRole.ASSISTANT,
-                    "Something went wrong: ${exception.message ?: exception::class.simpleName}", actions = actions.toList(), isError = true))
+                    providerError ?: "Something went wrong while preparing your assistant request. Try again.",
+                    actions = actions.toList(), isError = true))
             } finally {
                 running = false
                 compacting = false
@@ -269,7 +311,8 @@ class PaperAgentViewModel(
         }
     }
 
-    val canCompact: Boolean get() = !running && conversation.activeMessages.count { !it.isError } >= 2
+    val canCompact: Boolean get() = providerKeyAvailable && !running &&
+        conversation.activeMessages.count { !it.isError } >= 2
 
     /** Summarizes everything said so far; only the summary is sent to the model from now on, while messages stay visible. */
     fun compact() {
@@ -283,8 +326,10 @@ class PaperAgentViewModel(
                 throw exception
             } catch (exception: Exception) {
                 Napier.e("Compacting the agent conversation failed", exception)
+                val providerError = providerFailureMessage(exception, providerName(selectedModel))
+                if (providerError != null) blockProvider(providerError)
                 append(PaperAgentMessage(AgentRole.ASSISTANT,
-                    "Could not compact the conversation: ${exception.message ?: exception::class.simpleName}", isError = true))
+                    providerError ?: "Could not compact the conversation. Try again.", isError = true))
             } finally {
                 running = false
                 compacting = false
@@ -405,6 +450,17 @@ class PaperAgentViewModel(
         const val ANNOTATION_COMMENT_SYSTEM_PROMPT = """You write concise Markdown comments for annotations in a scientific PDF.
 Use the selected text as the central subject. Use page or paper context only when supplied and relevant.
 Return only the note/comment content, without a preamble, quotation marks, or labels. Do not invent facts. Prefer a short explanation, definition, implication, or connection that helps the researcher understand the passage."""
+    }
+
+    private fun providerSecretKey(model: ResearchAgentModel): SecretKey =
+        if (model == ResearchAgentModels.MISTRAL_MEDIUM_31) SecretKey.MISTRAL else SecretKey.OPENAI
+
+    private fun providerName(model: ResearchAgentModel): String =
+        if (model == ResearchAgentModels.MISTRAL_MEDIUM_31) "Mistral" else "OpenAI"
+
+    private fun blockProvider(message: String) {
+        providerKeyAvailable = false
+        providerKeyMessage = message
     }
 }
 

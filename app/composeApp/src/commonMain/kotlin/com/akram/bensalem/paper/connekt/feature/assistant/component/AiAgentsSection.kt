@@ -23,11 +23,18 @@ import com.paperconnekt.app.resources.filled_send
 @Composable
 fun AiAgentsSection(
     chatMessages: List<ChatMessage>,
-    onSendMessage: (String) -> Unit
+    onSendMessage: (String) -> Unit,
+    errorMessage: String? = null,
 ) {
     var textState by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        Text(
+            errorMessage ?: "AI chat is not connected in this build. Configure a provider in Settings when AI responses are available.",
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+        )
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -47,6 +54,7 @@ fun AiAgentsSection(
                 onValueChange = { textState = it },
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Ask the AI about this paper...") },
+                enabled = false,
                 shape = RoundedCornerShape(24.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -57,7 +65,7 @@ fun AiAgentsSection(
                         textState = ""
                     }
                 },
-                enabled = textState.isNotBlank(), modifier = Modifier.interactivePointer(enabled = textState.isNotBlank())
+                enabled = false, modifier = Modifier.interactivePointer(enabled = false)
             ) {
                 Icon(painterResource(Res.drawable.filled_send), contentDescription = "Send", tint = MaterialTheme.colorScheme.primary)
             }

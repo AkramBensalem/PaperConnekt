@@ -55,6 +55,7 @@ import com.paperconnekt.app.resources.filled_expand_more
 import com.paperconnekt.app.resources.filled_tune
 import com.paperconnekt.app.resources.filled_check
 import com.paperconnekt.app.resources.filled_close
+import kotlinx.coroutines.launch
 
 
 
@@ -88,6 +89,28 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
         agent.storageError?.let { error ->
             Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = agent::retryStorage) { Text("Retry chat storage") }
+        }
+        if (!agent.providerKeyAvailable) {
+            val scope = rememberCoroutineScope()
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        agent.providerKeyMessage,
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    TextButton(onClick = { scope.launch { agent.refreshProviderKey() } }) {
+                        Text("Recheck")
+                    }
+                }
+            }
         }
         if (!agent.storageReady && agent.storageError == null) {
             Text("Loading saved chats...", style = MaterialTheme.typography.bodySmall)
@@ -193,7 +216,7 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                         Spacer(Modifier.height(12.dp))
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             agentSuggestions.forEach { suggestion ->
-                                SuggestionChip(onClick = { agent.send(suggestion) }, enabled = agent.storageReady, label = { Text(suggestion) },
+                                SuggestionChip(onClick = { agent.send(suggestion) }, enabled = agent.storageReady && agent.providerKeyAvailable, label = { Text(suggestion) },
                                     modifier = Modifier.clipChipInteraction().interactivePointer())
                             }
                         }
@@ -245,6 +268,7 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                 OutlinedTextField(
                     value = agent.input,
                     onValueChange = { agent.input = it },
+                    enabled = agent.providerKeyAvailable,
                     modifier = Modifier.weight(1f).heightIn(max = 160.dp).testTag("paper-agent-input").onPreviewKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown && event.key == Key.Enter && !event.isShiftPressed) { send(); true } else false
                     },
@@ -255,8 +279,8 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                 Spacer(Modifier.width(6.dp))
                 if (agent.running) FilledTonalIconButton(onClick = agent::stop, modifier = Modifier.interactivePointer()) {
                     Icon(painterResource(Res.drawable.filled_stop), "Stop")
-                } else FilledIconButton(onClick = send, enabled = agent.input.isNotBlank() && agent.storageReady,
-                    modifier = Modifier.interactivePointer(enabled = agent.input.isNotBlank() && agent.storageReady).testTag("paper-agent-send")) {
+                } else FilledIconButton(onClick = send, enabled = agent.input.isNotBlank() && agent.storageReady && agent.providerKeyAvailable,
+                    modifier = Modifier.interactivePointer(enabled = agent.input.isNotBlank() && agent.storageReady && agent.providerKeyAvailable).testTag("paper-agent-send")) {
                     Icon(painterResource(Res.drawable.filled_send), "Send")
                 }
             }

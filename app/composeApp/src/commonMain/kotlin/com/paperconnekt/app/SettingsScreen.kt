@@ -1,6 +1,7 @@
 package com.paperconnekt.app
 
-import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -34,13 +35,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalUriHandler
 import com.paperconnekt.domain.model.ThemePreference
 import com.paperconnekt.secrets.SecretKey
 import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.LocalResearchStore
 import kotlinx.coroutines.launch
+import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.settings
+import com.paperconnekt.app.resources.zotero
 
 @Composable
 fun SettingsScreen(
@@ -59,13 +66,17 @@ fun SettingsScreen(
     var openAiDraft by remember { mutableStateOf("") }
     var mistralDraft by remember { mutableStateOf("") }
     var zoteroDraft by remember { mutableStateOf("") }
+    var openAlexDraft by remember { mutableStateOf("") }
     var openAiConfigured by remember { mutableStateOf(false) }
     var mistralConfigured by remember { mutableStateOf(false) }
     var zoteroConfigured by remember { mutableStateOf(false) }
+    var openAlexConfigured by remember { mutableStateOf(false) }
     var isLoadingSecrets by remember { mutableStateOf(true) }
     var secretLoadFailed by remember { mutableStateOf(false) }
     var reloadSecretsToken by remember { mutableStateOf(0) }
     var feedback by remember { mutableStateOf<SettingsFeedback?>(null) }
+    val uriHandler = LocalUriHandler.current
+    val httpClient = remember { HttpClient() }
 
     LaunchedEffect(secretStore, reloadSecretsToken) {
         isLoadingSecrets = true
@@ -74,6 +85,9 @@ fun SettingsScreen(
             openAiConfigured = secretStore.read(SecretKey.OPENAI)?.isNotBlank() == true
             mistralConfigured = secretStore.read(SecretKey.MISTRAL)?.isNotBlank() == true
             zoteroConfigured = secretStore.read(SecretKey.ZOTERO)?.isNotBlank() == true
+            openAlexConfigured = secretStore.read(SecretKey.OPENALEX)?.isNotBlank() == true
+        } catch (exception: kotlinx.coroutines.CancellationException) {
+            throw exception
         } catch (_: Exception) {
             secretLoadFailed = true
             feedback = SettingsFeedback.Error("Could not read local provider settings.")
@@ -85,7 +99,8 @@ fun SettingsScreen(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues),
+            .padding(paddingValues)
+            .background(MaterialTheme.colorScheme.surfaceContainer),
     ) {
         val compact = maxWidth < 760.dp
         LazyColumn(
@@ -105,6 +120,7 @@ fun SettingsScreen(
                         openAiConfigured,
                         mistralConfigured,
                         zoteroConfigured,
+                        openAlexConfigured,
                     ).count { it },
                 )
             }
@@ -192,7 +208,7 @@ fun SettingsScreen(
                 SettingsSection(title = "Assistant providers") {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            "Connect only the providers you want to use. Keys are stored locally through the Android Keystore or desktop preferences boundary; they are not synced or logged.",
+                            "Connect only the providers you want to use. Keys are stored locally through the Android Keystore or desktop preferences boundary; they are not synced or logged. A key is validated by its provider when a connected feature makes a request.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         if (isLoadingSecrets) {
@@ -215,7 +231,7 @@ fun SettingsScreen(
                         } else {
                             ProviderCredentialCard(
                                 providerName = "OpenAI",
-                                description = "Use OpenAI models for assistant conversations.",
+                                description = "Store an OpenAI API key locally for connected AI features.",
                                 configured = openAiConfigured,
                                 draft = openAiDraft,
                                 onDraftChange = { openAiDraft = it },
@@ -229,7 +245,7 @@ fun SettingsScreen(
                                         onSuccess = {
                                             openAiConfigured = true
                                             openAiDraft = ""
-                                            feedback = SettingsFeedback.Success("OpenAI is ready on this device.")
+                                            feedback = SettingsFeedback.Success("OpenAI key saved locally.")
                                         },
                                         onFailure = {
                                             feedback = SettingsFeedback.Error(it)
@@ -249,12 +265,18 @@ fun SettingsScreen(
                                         onFailure = {
                                             feedback = SettingsFeedback.Error(it)
                                         },
+                                        onValidate = {
+                                            validateSecret(scope, secretStore, SecretKey.OPENAI, "OpenAI", httpClient) {
+                                                feedback = SettingsFeedback.Success("OpenAI key is valid.")
+                                            } { feedback = SettingsFeedback.Error(it) }
+                                        },
+                                        onOpenKeyPage = { uriHandler.openUri("https://platform.openai.com/api-keys") },
                                     )
                                 },
                             )
                             ProviderCredentialCard(
                                 providerName = "Mistral",
-                                description = "Use Mistral models for assistant conversations.",
+                                description = "Store a Mistral API key locally for OCR and connected AI features.",
                                 configured = mistralConfigured,
                                 draft = mistralDraft,
                                 onDraftChange = { mistralDraft = it },
@@ -268,7 +290,7 @@ fun SettingsScreen(
                                         onSuccess = {
                                             mistralConfigured = true
                                             mistralDraft = ""
-                                            feedback = SettingsFeedback.Success("Mistral is ready on this device.")
+                                            feedback = SettingsFeedback.Success("Mistral key saved locally.")
                                         },
                                         onFailure = {
                                             feedback = SettingsFeedback.Error(it)
@@ -288,6 +310,12 @@ fun SettingsScreen(
                                         onFailure = {
                                             feedback = SettingsFeedback.Error(it)
                                         },
+                                        onValidate = {
+                                            validateSecret(scope, secretStore, SecretKey.MISTRAL, "Mistral", httpClient) {
+                                                feedback = SettingsFeedback.Success("Mistral key is valid.")
+                                            } { feedback = SettingsFeedback.Error(it) }
+                                        },
+                                        onOpenKeyPage = { uriHandler.openUri("https://console.mistral.ai/api-keys") },
                                     )
                                 },
                             )
@@ -365,6 +393,7 @@ fun SettingsScreen(
                             description = "Store the optional Zotero API key on this device.",
                             configured = zoteroConfigured,
                             draft = zoteroDraft,
+                            providerIcon = Res.drawable.zotero,
                             onDraftChange = { zoteroDraft = it },
                             onSave = {
                                 saveSecret(
@@ -376,7 +405,7 @@ fun SettingsScreen(
                                     onSuccess = {
                                         zoteroConfigured = true
                                         zoteroDraft = ""
-                                        feedback = SettingsFeedback.Success("Zotero is ready on this device.")
+                                        feedback = SettingsFeedback.Success("Zotero key saved locally.")
                                     },
                                     onFailure = {
                                         feedback = SettingsFeedback.Error(it)
@@ -396,6 +425,56 @@ fun SettingsScreen(
                                     onFailure = {
                                         feedback = SettingsFeedback.Error(it)
                                     },
+                                    onValidate = {
+                                        validateSecret(scope, secretStore, SecretKey.ZOTERO, "Zotero", httpClient) {
+                                            feedback = SettingsFeedback.Success("Zotero key is valid.")
+                                        } { feedback = SettingsFeedback.Error(it) }
+                                    },
+                                    onOpenKeyPage = { uriHandler.openUri("https://www.zotero.org/settings/keys") },
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+            item {
+                SettingsSection(title = "OpenAlex") {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            "OpenAlex works without a key at a lower rate limit. Add your personal key for higher limits; it is stored only on this device.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        ProviderCredentialCard(
+                            providerName = "OpenAlex",
+                            description = "Optional personal key for OpenAlex discovery and graph requests.",
+                            configured = openAlexConfigured,
+                            draft = openAlexDraft,
+                            onDraftChange = { openAlexDraft = it },
+                            onSave = {
+                                saveSecret(scope, secretStore, SecretKey.OPENALEX, openAlexDraft, "OpenAlex",
+                                    onSuccess = {
+                                        openAlexConfigured = true
+                                        openAlexDraft = ""
+                                        feedback = SettingsFeedback.Success("OpenAlex key saved locally.")
+                                    },
+                                    onFailure = { feedback = SettingsFeedback.Error(it) })
+                            },
+                            onClear = {
+                                deleteSecret(scope, secretStore, SecretKey.OPENALEX, "OpenAlex",
+                                    onSuccess = {
+                                        openAlexConfigured = false
+                                        feedback = SettingsFeedback.Success("OpenAlex was cleared locally.")
+                                    },
+                                    onFailure = { feedback = SettingsFeedback.Error(it) })
+                            },
+                            onValidate = {
+                                validateSecret(scope, secretStore, SecretKey.OPENALEX, "OpenAlex", httpClient) {
+                                    feedback = SettingsFeedback.Success("OpenAlex key is valid.")
+                                } { feedback = SettingsFeedback.Error(it) }
+                            },
+                            onOpenKeyPage = {
+                                uriHandler.openUri(
+                                    "https://docs.openalex.org/how-to-use-the-api/rate-limits-and-authentication",
                                 )
                             },
                         )
@@ -447,7 +526,7 @@ fun SettingsScreen(
                             Text(
                                 when {
                                     openAiConfigured || mistralConfigured ->
-                                        "A local provider is configured and ready for the next assistant request."
+                                        "A provider key is saved locally. The provider confirms whether it is valid when a connected feature makes a request."
                                     else ->
                                         "Add an OpenAI or Mistral key to make provider-backed answers available."
                                 },
@@ -457,6 +536,7 @@ fun SettingsScreen(
                                 ReadinessChip("OpenAI", openAiConfigured)
                                 ReadinessChip("Mistral", mistralConfigured)
                                 ReadinessChip("Zotero", zoteroConfigured && settings.zoteroEnabled)
+                                ReadinessChip("OpenAlex", openAlexConfigured)
                             }
                         }
                     }
@@ -482,7 +562,7 @@ private fun SettingsHeader(
         icon = Res.drawable.settings,
         summaries = listOf(
             "Local-first workspace",
-            "$configuredProviders provider${if (configuredProviders == 1) "" else "s"} connected",
+            "$configuredProviders provider key${if (configuredProviders == 1) "" else "s"} saved",
         ),
     )
 }
@@ -502,15 +582,11 @@ private fun SettingsSection(
 private fun SettingsCard(content: @Composable () -> Unit) {
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = MaterialTheme.shapes.medium,
-            ),
+            .fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceBright,
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             content()
@@ -570,7 +646,7 @@ private fun ReadinessChip(
         selected = ready,
         onClick = {},
         enabled = false,
-        label = { Text(if (ready) "$label ready" else "$label not set") },
+        label = { Text(if (ready) "$label key saved" else "$label not set") },
     )
 }
 
@@ -589,6 +665,8 @@ private fun saveSecret(
         try {
             secretStore.write(key, value)
             onSuccess()
+        } catch (exception: kotlinx.coroutines.CancellationException) {
+            throw exception
         } catch (_: Exception) {
             onFailure("Could not save the $label key locally. Try again.")
         }
@@ -607,8 +685,53 @@ private fun deleteSecret(
         try {
             secretStore.delete(key)
             onSuccess()
+        } catch (exception: kotlinx.coroutines.CancellationException) {
+            throw exception
         } catch (_: Exception) {
             onFailure("Could not clear the $label key locally. Try again.")
+        }
+
+        private fun validateSecret(
+            scope: kotlinx.coroutines.CoroutineScope,
+            secretStore: SecretStore,
+            key: SecretKey,
+            label: String,
+            client: HttpClient,
+            onSuccess: () -> Unit,
+            onFailure: (String) -> Unit,
+        ) {
+            scope.launch {
+                try {
+                    val value = secretStore.read(key)?.trim().orEmpty()
+                    if (value.isEmpty()) {
+                        onFailure("No $label key is saved locally.")
+                        return@launch
+                    }
+                    val response = when (key) {
+                        SecretKey.OPENAI -> client.get("https://api.openai.com/v1/models") {
+                            header("Authorization", "Bearer $value")
+                        }
+                        SecretKey.MISTRAL -> client.get("https://api.mistral.ai/v1/models") {
+                            header("Authorization", "Bearer $value")
+                        }
+                        SecretKey.ZOTERO -> client.get("https://api.zotero.org/keys/$value")
+                        SecretKey.OPENALEX -> client.get("https://api.openalex.org/works") {
+                            parameter("api_key", value)
+                            parameter("per-page", 1)
+                        }
+                    }
+                    if (response.status.value in 200..299) onSuccess()
+                    else if (response.status.value == 401 || response.status.value == 403) {
+                        onFailure("$label rejected the key (invalid or expired).")
+                    } else {
+                        onFailure("$label key check returned HTTP ${response.status.value}.")
+                    }
+                } catch (exception: kotlinx.coroutines.CancellationException) {
+                    throw exception
+                } catch (_: Exception) {
+                    onFailure("Could not reach $label to check the key.")
+                }
+            }
         }
     }
 }

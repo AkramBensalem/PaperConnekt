@@ -34,14 +34,18 @@ import com.paperconnekt.storage.LocalFirstPaperSearchProvider
 import com.paperconnekt.storage.LocalPaperSearchProvider
 import com.paperconnekt.storage.LocalResearchStore
 import com.paperconnekt.storage.OpenAlexPaperSearchProvider
+import com.paperconnekt.secrets.SecretKey
+import com.paperconnekt.secrets.SecretStore
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.LaunchedEffect
 import kotlin.random.Random
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DashboardScreen(
     store: LocalResearchStore,
+    secretStore: SecretStore,
     paddingValues: PaddingValues,
     onOpenAssistant: () -> Unit = {},
     onOpenLibrary: () -> Unit = {},
@@ -63,10 +67,14 @@ fun DashboardScreen(
     var notice by remember { mutableStateOf<String?>(null) }
     var showAddPaperDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val searchProvider = remember {
+    var openAlexKey by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(secretStore) {
+        openAlexKey = secretStore.read(SecretKey.OPENALEX)
+    }
+    val searchProvider = remember(openAlexKey) {
         LocalFirstPaperSearchProvider(
             localProvider = LocalPaperSearchProvider(store),
-            optionalRemoteProvider = OpenAlexPaperSearchProvider(HttpClient()),
+            optionalRemoteProvider = OpenAlexPaperSearchProvider(HttpClient(), openAlexKey),
         )
     }
 

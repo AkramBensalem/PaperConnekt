@@ -24,6 +24,7 @@ fun DestinationScreen(
     when (destination) {
         AppDestination.DASHBOARD -> DashboardScreen(
             store = store,
+            secretStore = secretStore,
             paddingValues = paddingValues,
             onOpenAssistant = { onNavigate(AppDestination.ASSISTANT) },
             onOpenLibrary = { onNavigate(AppDestination.LIBRARY) },
@@ -34,6 +35,7 @@ fun DestinationScreen(
             paddingValues = paddingValues,
             initialPaper = requestedPaper,
             onInitialPaperConsumed = onPaperRequestConsumed,
+            secretStore = secretStore,
         )
         AppDestination.GRAPH -> GraphScreen(
             store = store,
@@ -45,6 +47,7 @@ fun DestinationScreen(
         )
         AppDestination.GRAPH_CANVAS -> GraphCanvasScreen(
             store = store,
+            secretStore = secretStore,
             paddingValues = paddingValues,
             graphId = requestedGraphId,
             onBack = { onNavigate(AppDestination.GRAPH) },

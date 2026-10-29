@@ -177,7 +177,7 @@ private fun AppShellContent(
                     modifier = Modifier.border(
                         BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     ),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     header = {
                         Column(
                             modifier = Modifier.padding(vertical = 20.dp),

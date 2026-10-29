@@ -68,6 +68,7 @@ fun AssistantScreen(
         Box(modifier.fillMaxSize()) {
             Workplace(
                 paper = paper, notes = state.notes, chatMessages = state.chatMessages, ideas = state.ideas,
+                chatError = state.chatError,
                 onAddNote = viewModel::addNote, onDeleteNote = viewModel::deleteNote,
                 onSendMessage = viewModel::sendMessage, onAddIdea = viewModel::addIdea,
                 onUpdateIdea = viewModel::updateIdea,

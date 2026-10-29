@@ -33,6 +33,7 @@ import com.akram.bensalem.paper.connekt.feature.assistant.ReadAloudController
 import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageEvent
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.akram.bensalem.paper.connekt.models.Paper
+import com.paperconnekt.secrets.SecretStore
 
 @Composable
 fun Workplace(
@@ -54,7 +55,9 @@ fun Workplace(
     ideaBoard: AssistantViewModel? = null,
     usageRecorder: suspend (String?, AiUsageEvent) -> Unit = { _, _ -> },
     studyTimeToday: Long = 0L,
-    totalStudyTime: Long = 0L
+    totalStudyTime: Long = 0L,
+    secretStore: SecretStore? = null,
+    chatError: String? = null,
 ) {
     var selectedPanel by remember(paper.id) { mutableStateOf(0) }
     var focusMode by remember(paper.id) { mutableStateOf(false) }
@@ -64,7 +67,12 @@ fun Workplace(
         (pdfWorkspace.state.target != null || pdfWorkspace.state.localTitle != null)
     val paperAgent = if (pdfWorkspace != null && attachmentKey != null)
         viewModel(key = "paper-agent-${paper.id}") {
-            PaperAgentViewModel(pdfWorkspace, ideaBoard = ideaBoard, usageRecorder = usageRecorder)
+            PaperAgentViewModel(
+                pdfWorkspace,
+                ideaBoard = ideaBoard,
+                usageRecorder = usageRecorder,
+                secretStore = secretStore,
+            )
         } else null
     val panels = listOf(
         "Notes" to painterResource(Res.drawable.filled_note),
@@ -149,7 +157,8 @@ fun Workplace(
                 )
                 else AiAgentsSection(
                     chatMessages = chatMessages,
-                    onSendMessage = onSendMessage
+                    onSendMessage = onSendMessage,
+                    errorMessage = chatError,
                 )
                 2 -> Box(Modifier.fillMaxSize()) {
                     IdeaOrganizer(

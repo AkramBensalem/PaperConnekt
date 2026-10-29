@@ -87,6 +87,7 @@ import com.paperconnekt.app.legacygraph.toLegacyGraph
 import com.paperconnekt.storage.GraphExpansionDirection
 import com.paperconnekt.storage.OpenAlexGraphProvider
 import com.paperconnekt.storage.OpenAlexPaperSearchProvider
+import com.akram.bensalem.paper.connekt.feature.assistant.providerFailureMessage
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.filled_close
 import com.paperconnekt.app.resources.filled_stars
@@ -108,6 +109,7 @@ fun GraphWorkspace(
     onSave: (ResearchGraph) -> Unit,
     onSavePaper: (Paper) -> Unit,
     onError: (String) -> Unit,
+    openAlexKey: String? = null,
 ) {
     val graphPapers = (papers + graph.discoveredPapers).distinctBy(Paper::id)
         .filter { it.id in graph.paperIds }
@@ -148,8 +150,8 @@ fun GraphWorkspace(
     var showInsightsDialog by remember(graph.id) { mutableStateOf(false) }
     var persistedNodePositions by remember(graph.id) { mutableStateOf(graph.nodePositions) }
     val scope = rememberCoroutineScope()
-    val graphProvider = remember { OpenAlexGraphProvider(HttpClient()) }
-    val paperSearchProvider = remember { OpenAlexPaperSearchProvider(HttpClient()) }
+    val graphProvider = remember(openAlexKey) { OpenAlexGraphProvider(HttpClient(), openAlexKey) }
+    val paperSearchProvider = remember(openAlexKey) { OpenAlexPaperSearchProvider(HttpClient(), openAlexKey) }
 
     val selectedPaper = graphPapers.firstOrNull { it.id == selectedPaperId }
     val selectedNode = selectedPaper?.let { paper ->
@@ -289,7 +291,9 @@ fun GraphWorkspace(
                             onError("No ${direction.name.lowercase()} were found for this paper.")
                         }
                     }
-                    .onFailure { onError(it.message ?: "Could not load graph connections.") }
+                    .onFailure {
+                        onError(providerFailureMessage(it, "OpenAlex") ?: "Could not load graph connections.")
+                    }
                 isExpanding = false
             }
         }
@@ -326,7 +330,9 @@ fun GraphWorkspace(
                     }
                 }.onSuccess {
                     connectionDiscoveryComplete = true
-                }.onFailure { onError(it.message ?: "Could not discover graph connections.") }
+                }.onFailure {
+                    onError(providerFailureMessage(it, "OpenAlex") ?: "Could not discover graph connections.")
+                }
                 isDiscoveringConnections = false
                 connectionDiscoveryProgress = 1f
             }
@@ -353,7 +359,9 @@ fun GraphWorkspace(
                     seedSearchPage = requestedPage
                     seedHasNextPage = it.size >= 10
                 }
-                    .onFailure { seedPickerError = it.message ?: "Paper search failed." }
+                    .onFailure {
+                        seedPickerError = providerFailureMessage(it, "OpenAlex") ?: "Paper search failed."
+                    }
                 isSearchingSeeds = false
             }
         }
@@ -384,7 +392,9 @@ fun GraphWorkspace(
                     saveUpdated(updated)
                     selectedPaperId = paper.id
                     showSeedPicker = false
-                }.onFailure { seedPickerError = it.message ?: "Could not add this seed paper." }
+                }.onFailure {
+                    seedPickerError = providerFailureMessage(it, "OpenAlex") ?: "Could not add this seed paper."
+                }
                 isAddingSeed = false
             }
         }
@@ -444,7 +454,10 @@ fun GraphWorkspace(
                     }.onSuccess {
                         saveUpdated(expandedGraph)
                     }.onFailure {
-                        onError(it.message ?: "Could not load the paper's citation graph.")
+                        onError(
+                            providerFailureMessage(it, "OpenAlex")
+                                ?: "Could not load the paper's citation graph.",
+                        )
                     }
                     isExpanding = false
                 }

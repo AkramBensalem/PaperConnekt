@@ -25,6 +25,7 @@ data class OpenAlexGraphExpansion(
 /** Loads the citation neighborhood used by the graph canvas. */
 class OpenAlexGraphProvider(
     private val client: HttpClient,
+    private val apiKey: String? = null,
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) {
     suspend fun expand(
@@ -59,6 +60,7 @@ class OpenAlexGraphProvider(
 
     private suspend fun expandCitations(workId: String, limit: Int): OpenAlexGraphExpansion {
         val response = client.get("https://api.openalex.org/works") {
+            apiKey?.trim()?.takeIf { it.isNotEmpty() }?.let { parameter("api_key", it) }
             parameter("filter", "cites:$workId")
             parameter("per-page", limit.coerceIn(1, 100))
             parameter("select", WORK_SELECT)
@@ -75,11 +77,13 @@ class OpenAlexGraphProvider(
 
     private suspend fun getWork(workId: String): GraphOpenAlexWork =
         json.decodeFromString(client.get("https://api.openalex.org/works/$workId") {
+            apiKey?.trim()?.takeIf { it.isNotEmpty() }?.let { parameter("api_key", it) }
             parameter("select", WORK_SELECT)
         }.bodyAsText())
 
     private suspend fun getWorks(ids: List<String>): List<GraphOpenAlexWork> {
         val response = client.get("https://api.openalex.org/works") {
+            apiKey?.trim()?.takeIf { it.isNotEmpty() }?.let { parameter("api_key", it) }
             parameter("filter", "openalex_id:${ids.joinToString("|")}")
             parameter("per-page", ids.size.coerceIn(1, 100))
             parameter("select", WORK_SELECT)

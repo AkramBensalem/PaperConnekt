@@ -11,6 +11,7 @@ import kotlinx.serialization.json.Json
 
 class OpenAlexPaperSearchProvider(
     private val client: HttpClient,
+    private val apiKey: String? = null,
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) : PaperSearchProvider {
     override suspend fun search(query: String): List<Paper> {
@@ -19,6 +20,7 @@ class OpenAlexPaperSearchProvider(
 
     suspend fun search(query: String, page: Int, perPage: Int = 10): List<Paper> {
         val response = client.get("https://api.openalex.org/works") {
+            apiKey?.trim()?.takeIf { it.isNotEmpty() }?.let { parameter("api_key", it) }
             parameter("search", query)
             parameter("page", page.coerceAtLeast(0) + 1)
             parameter("per-page", perPage.coerceIn(1, 100))

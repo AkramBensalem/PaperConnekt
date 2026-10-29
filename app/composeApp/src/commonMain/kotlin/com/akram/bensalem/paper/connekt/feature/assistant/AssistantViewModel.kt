@@ -228,13 +228,8 @@ class AssistantViewModel(
             ideasLoading = true,
             ideaError = null,
             isWorkplaceActive = true,
-            chatMessages = listOf(
-                ChatMessage(
-                    id = "1",
-                    sender = MessageSender.AI_AGENT,
-                    content = "Hello! I'm your AI Research Assistant. I've analyzed '${paper.title}'. How can I help you today?"
-                )
-            )
+            chatMessages = emptyList(),
+            chatError = null,
         )
         loadIdeas(paper.id)
     }
@@ -277,22 +272,10 @@ class AssistantViewModel(
     }
 
     fun sendMessage(content: String) {
-        val userMessage = ChatMessage(
-            id = (state.chatMessages.size + 1).toString(),
-            sender = MessageSender.USER,
-            content = content
+        if (content.isBlank()) return
+        state = state.copy(
+            chatError = "AI chat is unavailable because provider responses are not connected in this build. Your local notes and reading tools remain available.",
         )
-        state = state.copy(chatMessages = state.chatMessages + userMessage)
-
-        // Mock AI response
-        viewModelScope.launch {
-            val aiMessage = ChatMessage(
-                id = (state.chatMessages.size + 1).toString(),
-                sender = MessageSender.AI_AGENT,
-                content = "That's an interesting point about '${state.selectedPaper?.title}'. According to my analysis, this relates to the transformer architecture's attention mechanism."
-            )
-            state = state.copy(chatMessages = state.chatMessages + aiMessage)
-        }
     }
 
     fun addIdea(title: String, description: String) {

@@ -140,6 +140,7 @@ class PdfWorkspaceViewModel(
     private val markdownConverter: PdfMarkdownConverter = MistralOcrConverter(),
     private val markdownStore: PdfMarkdownStore = defaultPdfMarkdownStore(),
     private val mistralApiKey: suspend () -> String = { createApiKeysStore().apiKeys.first().mistral },
+    private val openAiApiKey: suspend () -> String = { createApiKeysStore().apiKeys.first().openAi },
     private val readingAgent: () -> ResearchAgent = ::createReadingAgent,
     private val syncDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val usageRecorder: suspend (String?, AiUsageEvent) -> Unit = { _, _ -> },
@@ -381,6 +382,23 @@ class PdfWorkspaceViewModel(
             try {
                 val saved = if (force) null else markdownStore.loadReadingScript(key)?.takeIf { parseReadingScript(it).isNotEmpty() }
                 if (saved != null) return@launch update(ReadingScriptState(content = saved))
+                val openAiKey = try {
+                    openAiApiKey().trim()
+                } catch (exception: CancellationException) {
+                    throw exception
+                } catch (exception: Exception) {
+                    Napier.e("Could not read the saved OpenAI API key", exception)
+                    return@launch update(
+                        ReadingScriptState(error = "Could not read the saved OpenAI key. Check Settings and try again."),
+                    )
+                }
+                if (openAiKey.isBlank()) {
+                    return@launch update(
+                        ReadingScriptState(
+                            error = "Add your OpenAI API key in Settings → API keys to create an AI reading guide.",
+                        ),
+                    )
+                }
                 val candidates = readingCandidates(markdownStore.loadLayout(key), pages)
                 val cleaned = ReadingScriptCleaner(readingAgent()).clean(candidates)
                 val script = renderReadingScript(cleaned)
@@ -401,7 +419,12 @@ class PdfWorkspaceViewModel(
             } catch (exception: Exception) {
                 if (exception is CancellationException) throw exception
                 Napier.w("Could not prepare the reading script", exception)
-                update(ReadingScriptState(error = exception.message ?: "Could not prepare the reading script"))
+                update(
+                    ReadingScriptState(
+                        error = providerFailureMessage(exception, "OpenAI")
+                            ?: "Could not prepare the AI reading guide. Try again.",
+                    ),
+                )
             }
         }
     }
@@ -427,17 +450,40 @@ class PdfWorkspaceViewModel(
                     alignMarkdownPage()
                     return@launch
                 }
-                val apiKey = mistralApiKey().trim()
+                val apiKey = try {
+                    mistralApiKey().trim()
+                } catch (exception: CancellationException) {
+                    throw exception
+                } catch (exception: Exception) {
+                    Napier.e("Could not read the saved Mistral API key", exception)
+                    update {
+                        copy(
+                            loading = false,
+                            error = "Could not read the saved Mistral key. Check Settings and try again.",
+                        )
+                    }
+                    return@launch
+                }
                 if (apiKey.isEmpty()) {
                     update { copy(loading = false, missingApiKey = true,
                         error = "Add your Mistral API key in Settings → API keys to create a Markdown version of this PDF.") }
                     return@launch
                 }
                 update { copy(loading = false, converting = true) }
-                val bytes = pdfBytes ?: repository.download(
-                    requireNotNull(account) { "No local PDF is loaded and Zotero is not configured." },
-                    requireNotNull(target) { "No PDF is open." }.attachment,
-                ).also { if (token == session) pdfBytes = it }
+                val bytes = pdfBytes ?: try {
+                    repository.download(
+                        requireNotNull(account) { "No local PDF is loaded and Zotero is not configured." },
+                        requireNotNull(target) { "No PDF is open." }.attachment,
+                    ).also { if (token == session) pdfBytes = it }
+                } catch (exception: CancellationException) {
+                    throw exception
+                } catch (exception: Exception) {
+                    throw PdfMarkdownException(
+                        providerFailureMessage(exception, "Zotero")
+                            ?: "Could not download the PDF from Zotero. Check your connection and try again.",
+                        exception,
+                    )
+                }
                 val converted = markdownConverter.convert(bytes, target?.attachment?.data?.filename ?: "paper.pdf", apiKey)
                 ensureActive()
                 if (token != session) return@launch
@@ -461,7 +507,9 @@ class PdfWorkspaceViewModel(
                 if (exception is CancellationException) throw exception
                 Napier.e("Could not create Markdown version", exception)
                 update { copy(loading = false, converting = false,
-                    error = (exception as? PdfMarkdownException)?.message ?: "Could not create the Markdown version: ${exception.message ?: "unknown error"}") }
+                    error = (exception as? PdfMarkdownException)?.message
+                        ?: providerFailureMessage(exception, "Mistral")
+                        ?: "Could not create the Markdown version. Try again.") }
             }
 
         }
@@ -1211,7 +1259,8 @@ class PdfWorkspaceViewModel(
 
     private fun report(exception: Exception, context: String) {
         Napier.e(context, exception)
-        state = state.copy(error = "$context: ${exception.message ?: "Unknown error"}. Refresh before retrying.")
+        val providerError = providerFailureMessage(exception, "Zotero")
+        state = state.copy(error = providerError ?: "$context: ${exception.message ?: "Unknown error"}. Refresh before retrying.")
     }
 
     override fun onCleared() {

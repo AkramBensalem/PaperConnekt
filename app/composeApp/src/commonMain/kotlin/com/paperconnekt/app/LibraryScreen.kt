@@ -1098,7 +1098,7 @@ private fun LibraryPaperList(
         return
     }
     LazyColumn(
-        modifier = modifier.background(MaterialTheme.colorScheme.surfaceContainer),
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(entries, key = LibraryEntry::id) { entry ->
