@@ -20,7 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -53,6 +52,9 @@ import androidx.compose.ui.window.DialogProperties
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.filled_close
 import com.paperconnekt.app.resources.filled_description
+import com.paperconnekt.app.resources.dashboard
+import com.paperconnekt.app.resources.book
+import com.paperconnekt.app.resources.lightbulb
 import com.paperconnekt.domain.model.Paper
 import org.jetbrains.compose.resources.painterResource
 
@@ -60,35 +62,22 @@ import org.jetbrains.compose.resources.painterResource
 fun DashboardHeader(
     paperCount: Int,
     includeRemote: Boolean,
-    onRefresh: () -> Unit,
+    onLibrary: () -> Unit,
+    onAssistant: () -> Unit,
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Good to see you, researcher.", style = MaterialTheme.typography.headlineSmall)
-                Text(
-                    "Your local research workspace is ready for the next idea.",
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Text(
-                    "$paperCount saved paper${if (paperCount == 1) "" else "s"} · " +
-                        if (includeRemote) "online discovery enabled" else "local-first mode",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.width(16.dp))
-            AssistChip(onClick = onRefresh, label = { Text("Refresh local view") })
-        }
-    }
+    WorkspaceHeader(
+        title = "Room for your next idea.",
+        subtitle = "Welcome back. Pick up a paper, connect a thought, or ask a new question.",
+        icon = Res.drawable.dashboard,
+        summaries = listOf(
+            "$paperCount saved paper${if (paperCount == 1) "" else "s"}",
+            if (includeRemote) "OpenAlex discovery enabled" else "Local-first mode",
+        ),
+        actions = {
+            HeaderAction("Open library", Res.drawable.book, onLibrary)
+            HeaderAction("Ask Assistant", Res.drawable.lightbulb, onAssistant, primary = false)
+        },
+    )
 }
 
 @Composable

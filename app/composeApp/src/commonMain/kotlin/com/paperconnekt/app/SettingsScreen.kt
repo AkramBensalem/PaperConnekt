@@ -38,6 +38,8 @@ import com.paperconnekt.secrets.SecretKey
 import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.LocalResearchStore
 import kotlinx.coroutines.launch
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.settings
 
 @Composable
 fun SettingsScreen(
@@ -473,13 +475,15 @@ private fun SettingsHeader(
     workspaceName: String,
     configuredProviders: Int,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Settings", style = MaterialTheme.typography.headlineMedium)
-        Text(
-            "Tune $workspaceName without leaving your local workspace.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    WorkspaceHeader(
+        title = "Settings",
+        subtitle = "Settings for $workspaceName. Your research, your preferences, your device.",
+        icon = Res.drawable.settings,
+        summaries = listOf(
+            "Local-first workspace",
+            "$configuredProviders provider${if (configuredProviders == 1) "" else "s"} connected",
+        ),
+    )
 }
 
 @Composable

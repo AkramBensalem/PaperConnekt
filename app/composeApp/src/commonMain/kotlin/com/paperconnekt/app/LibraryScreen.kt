@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,7 +29,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -38,7 +39,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -115,6 +115,7 @@ fun LibraryScreen(
     var storageError by remember { mutableStateOf<String?>(null) }
     var showPaperSearch by remember { mutableStateOf(false) }
     var showManualPaper by remember { mutableStateOf(false) }
+    var showCollections by remember { mutableStateOf(false) }
 
     suspend fun addPaper(paper: Paper) {
         if (store.papers.value.none { it.id == paper.id }) {
@@ -208,7 +209,6 @@ fun LibraryScreen(
                     onNewFolder = { showCreateFolder = true },
                     onFindPaper = { showPaperSearch = true },
                     onAddManually = { showManualPaper = true },
-                    compact = compact,
                 )
             },
         ) { contentPadding ->
@@ -228,31 +228,66 @@ fun LibraryScreen(
                             selectedFolderId = null
                         },
                     )
-                    LibraryFolderList(
-                        folders = folders,
-                        entries = entries,
-                        selectedFolderId = selectedFolderId,
-                        expandedFolders = expandedFolders,
-                        onSelectFolder = { selectedFolderId = it },
-                        onToggleFolder = { folderId ->
-                            expandedFolders = if (folderId in expandedFolders) {
-                                expandedFolders - folderId
-                            } else {
-                                expandedFolders + folderId
+                    TextButton(onClick = { showCollections = true }) {
+                        Icon(painterResource(Res.drawable.filled_folder_open), contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(selectedFolder?.label ?: "Browse collections")
+                    }
+                    if (showCollections) {
+                        Dialog(onDismissRequest = { showCollections = false }) {
+                            Surface(shape = MaterialTheme.shapes.large) {
+                                Column {
+                                    LibraryFolderList(
+                                        folders = folders,
+                                        entries = entries,
+                                        selectedFolderId = selectedFolderId,
+                                        expandedFolders = expandedFolders,
+                                        onSelectFolder = {
+                                            selectedFolderId = it
+                                            view = LibraryView.ALL
+                                            showCollections = false
+                                        },
+                                        onToggleFolder = { folderId ->
+                                            expandedFolders = if (folderId in expandedFolders) {
+                                                expandedFolders - folderId
+                                            } else {
+                                                expandedFolders + folderId
+                                            }
+                                        },
+                                        onNewFolder = {
+                                            showCollections = false
+                                            showCreateFolder = true
+                                        },
+                                        onArchive = {
+                                            view = LibraryView.ARCHIVE
+                                            selectedFolderId = null
+                                            showCollections = false
+                                        },
+                                        archiveCount = archivedPapers.size,
+                                        archiveSelected = view == LibraryView.ARCHIVE,
+                                        onNewSubcollection = { folder ->
+                                            selectedFolderId = folder.id
+                                            expandedFolders = expandedFolders + folder.id
+                                            showCollections = false
+                                            showCreateFolder = true
+                                        },
+                                        onRename = {
+                                            showCollections = false
+                                            renameFolder = it
+                                        },
+                                        onDelete = {
+                                            showCollections = false
+                                            deleteFolder = it
+                                        },
+                                    )
+                                    TextButton(
+                                        onClick = { showCollections = false },
+                                        modifier = Modifier.align(Alignment.End).padding(8.dp),
+                                    ) { Text("Close collections") }
+                                }
                             }
-                        },
-                        onNewFolder = { showCreateFolder = true },
-                        onArchive = { view = LibraryView.ARCHIVE; selectedFolderId = null },
-                        archiveCount = archivedPapers.size,
-                        archiveSelected = view == LibraryView.ARCHIVE,
-                        onNewSubcollection = { folder ->
-                            selectedFolderId = folder.id
-                            expandedFolders = expandedFolders + folder.id
-                            showCreateFolder = true
-                        },
-                        onRename = { renameFolder = it },
-                        onDelete = { deleteFolder = it },
-                    )
+                        }
+                    }
                     LibraryPaperList(
                         modifier = Modifier.weight(1f),
                         entries = if (view == LibraryView.ARCHIVE) archivedEntries else visiblePaperEntries,
@@ -587,7 +622,6 @@ private fun LibraryFolderList(
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
 private fun LibraryHeader(
     paperCount: Int,
     folderCount: Int,
@@ -598,43 +632,26 @@ private fun LibraryHeader(
     onNewFolder: () -> Unit,
     onFindPaper: () -> Unit,
     onAddManually: () -> Unit,
-    compact: Boolean,
 ) {
     var addMenuExpanded by remember { mutableStateOf(false) }
-    TopAppBar(
-        title = {
-            Column {
-                Text("Library", style = MaterialTheme.typography.headlineSmall)
-                Text(
-                    "$paperCount papers · $folderCount collections · $unfiledCount unfiled · $archiveCount archived",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
+    WorkspaceHeader(
+        title = "Library",
+        subtitle = "A home for your papers. A starting point for your next idea.",
+        icon = Res.drawable.filled_folder_open,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+        summaries = listOf(
+            "$paperCount saved paper${if (paperCount == 1) "" else "s"}",
+            "$folderCount collection${if (folderCount == 1) "" else "s"}",
+            "$unfiledCount unfiled",
+            "$archiveCount archived",
+        ),
         actions = {
-            OutlinedTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier = Modifier.width(if (compact) 150.dp else 220.dp),
-                leadingIcon = { Icon(painterResource(Res.drawable.filled_search), contentDescription = null) },
-                placeholder = { Text("Search library") },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodySmall,
-            )
-            Spacer(Modifier.width(8.dp))
             Box {
-                if (compact) {
-                    IconButton(onClick = { addMenuExpanded = true }) {
-                        Icon(painterResource(Res.drawable.filled_add), contentDescription = "Add paper")
-                    }
-                } else {
-                    Button(onClick = { addMenuExpanded = true }) {
-                        Icon(painterResource(Res.drawable.filled_add), contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Add paper")
-                    }
-                }
+                HeaderAction(
+                    label = "Add paper",
+                    icon = Res.drawable.filled_add,
+                    onClick = { addMenuExpanded = true },
+                )
                 DropdownMenu(
                     expanded = addMenuExpanded,
                     onDismissRequest = { addMenuExpanded = false },
@@ -651,32 +668,31 @@ private fun LibraryHeader(
                     )
                 }
             }
-            if (compact) {
-                IconButton(onClick = onNewFolder) { Icon(painterResource(Res.drawable.filled_create_new_folder), contentDescription = "New collection") }
-            } else {
-                Button(onClick = onNewFolder) {
-                    Icon(painterResource(Res.drawable.filled_create_new_folder), contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("New collection")
-                }
-            }
-            Spacer(Modifier.width(8.dp))
+            HeaderAction(
+                label = "New collection",
+                icon = Res.drawable.filled_create_new_folder,
+                onClick = onNewFolder,
+                primary = false,
+            )
+        },
+        tools = {
+            HeaderSearchField(query, onQueryChange, "Search by title, author or DOI")
         },
     )
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun LibraryContextBar(
     view: LibraryView,
     selectedFolder: LibraryEntry?,
     onViewChange: (LibraryView) -> Unit,
 ) {
-    Row(
+    FlowRow(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text("Showing", style = MaterialTheme.typography.labelLarge)
         FilterChip(
             selected = view == LibraryView.ALL && selectedFolder == null,
             onClick = { onViewChange(LibraryView.ALL) },

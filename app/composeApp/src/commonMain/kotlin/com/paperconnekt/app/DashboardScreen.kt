@@ -110,10 +110,8 @@ fun DashboardScreen(
                 DashboardHeader(
                     paperCount = papers.size,
                     includeRemote = includeRemote,
-                    onRefresh = {
-                        searchResults = null
-                        notice = "Showing your latest local collection."
-                    },
+                    onLibrary = onOpenLibrary,
+                    onAssistant = onOpenAssistant,
                 )
             }
             item {

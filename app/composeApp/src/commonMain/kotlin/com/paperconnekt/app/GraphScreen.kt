@@ -53,7 +53,6 @@ import com.paperconnekt.app.resources.outlined_delete_outline
 import com.paperconnekt.app.resources.outlined_description
 import com.paperconnekt.app.resources.outlined_edit
 import com.paperconnekt.app.resources.outlined_open_in_new
-import com.paperconnekt.app.resources.outlined_search
 import com.paperconnekt.app.resources.outlined_sort
 import com.paperconnekt.app.resources.research_graph_empty
 import com.paperconnekt.storage.LocalResearchStore
@@ -286,41 +285,24 @@ private fun GraphList(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val compactHeader = maxWidth < 1100.dp
-                if (compactHeader) {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        GraphPageTitle()
-                        GraphSearchControls(
-                            query = query,
-                            onQueryChange = onQueryChange,
-                            onSortClick = { sortMenuExpanded = true },
-                            sortMenuExpanded = sortMenuExpanded,
-                            onSortMenuDismiss = { sortMenuExpanded = false },
-                            onSortOrderChange = onSortOrderChange,
-                        )
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(20.dp),
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                    ) {
-                        GraphPageTitle(
-                            modifier = Modifier.weight(1f),
-                        )
-                        GraphSearchControls(
-                            modifier = Modifier.width(560.dp),
-                            query = query,
-                            onQueryChange = onQueryChange,
-                            onSortClick = { sortMenuExpanded = true },
-                            sortMenuExpanded = sortMenuExpanded,
-                            onSortMenuDismiss = { sortMenuExpanded = false },
-                            onSortOrderChange = onSortOrderChange,
-                        )
-                    }
-                }
-            }
+            WorkspaceHeader(
+                title = "Research graphs",
+                subtitle = "Follow the connections. See where your research leads.",
+                icon = Res.drawable.outlined_account_tree,
+                actions = {
+                    HeaderAction("New graph", Res.drawable.outlined_add, onCreate)
+                },
+                tools = {
+                    GraphSearchControls(
+                        query = query,
+                        onQueryChange = onQueryChange,
+                        onSortClick = { sortMenuExpanded = true },
+                        sortMenuExpanded = sortMenuExpanded,
+                        onSortMenuDismiss = { sortMenuExpanded = false },
+                        onSortOrderChange = onSortOrderChange,
+                    )
+                },
+            )
         }
         errorMessage?.let { message ->
             item(span = { GridItemSpan(maxLineSpan) }) {
@@ -643,24 +625,6 @@ private fun OrientationMetric(
 }
 
 @Composable
-private fun GraphPageTitle(
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Research graphs", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                "Map the papers behind a question, chapter, or research direction.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
 private fun GraphSearchControls(
     modifier: Modifier = Modifier,
     query: String,
@@ -670,13 +634,12 @@ private fun GraphSearchControls(
     onSortMenuDismiss: () -> Unit,
     onSortOrderChange: (GraphSortOrder) -> Unit,
 ) {
-    OutlinedTextField(
-        modifier = modifier.fillMaxWidth(),
-        value = query,
-        onValueChange = onQueryChange,
-        leadingIcon = { Icon(painterResource(Res.drawable.outlined_search), contentDescription = null) },
-        placeholder = { Text("Search graphs") },
-        trailingIcon = {
+    HeaderSearchField(
+        modifier = modifier,
+        query = query,
+        onQueryChange = onQueryChange,
+        label = "Search graphs",
+        trailingAction = {
             Box {
                 IconButton(onClick = onSortClick) {
                     Icon(painterResource(Res.drawable.outlined_sort), contentDescription = "Sort graphs")
@@ -705,8 +668,6 @@ private fun GraphSearchControls(
                 }
             }
         },
-        shape = RoundedCornerShape(28.dp),
-        singleLine = true,
     )
 }
 

@@ -27,6 +27,17 @@ implementations such as secure secret storage. This keeps Android and desktop
 independent while allowing a future web module to consume the same shared UI
 and contracts.
 
+The Dashboard, Library, Assistant, Graph list, and Settings share
+`WorkspaceHeader`: a responsive title surface with Material icons, summary chips,
+and wrapping actions. Library and graph search use the same labelled field with
+clear-search controls. Primary actions use teal; secondary actions use neutral
+tonal surfaces in both light and dark themes. Header entrance, button hover/press,
+and search focus use finite Compose animations (no continuous decorative motion).
+Focused PDF and graph-canvas workspaces retain their task-specific toolbars.
+On compact Library layouts, **Browse collections** opens the collection picker
+in a dismissible dialog so the header and folder tree do not crowd out papers.
+View filters and header actions wrap rather than truncating on narrow windows.
+
 `shared/domain` has no UI or network dependency. `shared/storage` owns local
 repositories and can later add platform persistence without changing feature APIs.
 `shared/secrets` exposes only a secure-storage contract. Native plugin modules may

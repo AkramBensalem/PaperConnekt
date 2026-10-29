@@ -54,6 +54,9 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.random.Random
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.filled_add
+import com.paperconnekt.app.resources.lightbulb
 
 @Composable
 fun AssistantScreen(
@@ -212,22 +215,23 @@ private fun AssistantHeader(
     onNewConversation: () -> Unit,
     isCreating: Boolean,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Assistant", style = MaterialTheme.typography.headlineMedium)
-            Text(
-                "$sessionCount local conversation${if (sessionCount == 1) "" else "s"} · ready for a provider",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+    WorkspaceHeader(
+        title = "Assistant",
+        subtitle = "Explore questions, read deeply, and turn papers into understanding.",
+        icon = Res.drawable.lightbulb,
+        summaries = listOf(
+            "$sessionCount conversation${if (sessionCount == 1) "" else "s"}",
+            "History saved locally",
+        ),
+        actions = {
+            HeaderAction(
+                label = if (isCreating) "Creating…" else "New conversation",
+                icon = Res.drawable.filled_add,
+                onClick = onNewConversation,
+                enabled = !isCreating,
             )
-        }
-        Button(onClick = onNewConversation, enabled = !isCreating) {
-            Text(if (isCreating) "Creating…" else "New conversation")
-        }
-    }
+        },
+    )
 }
 
 @Composable
