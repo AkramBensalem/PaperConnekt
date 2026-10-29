@@ -2,6 +2,7 @@ package com.paperconnekt.app
 
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,11 +51,12 @@ fun AppShell(
                 id = "graph-${Random.nextLong()}",
                 name = paper.title,
                 paperIds = listOf(paper.id),
+                seedPaperIds = listOf(paper.id),
                 updatedAt = Clock.System.now(),
             )
             store.saveGraph(graph)
             requestedGraphId = graph.id
-            destination = AppDestination.GRAPH
+            destination = AppDestination.GRAPH_CANVAS
         }
     }
 
@@ -74,10 +77,32 @@ fun AppShell(
     )
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        if (maxWidth >= 840.dp) {
+        if (destination == AppDestination.GRAPH_CANVAS) {
+            // The canvas is a focused workspace. Keep it out of the application
+            // navigation rail so it owns the complete available page.
+            DestinationScreen(
+                destination = destination,
+                store = store,
+                secretStore = secretStore,
+                paddingValues = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                onNavigate = { destination = it },
+                onPaperSelected = {
+                    requestedPaper = it
+                    destination = AppDestination.ASSISTANT
+                },
+                requestedPaper = requestedPaper,
+                onPaperRequestConsumed = { requestedPaper = null },
+                onGraphSelected = { requestedGraphId = it },
+                requestedGraphId = requestedGraphId,
+                onOpenGraph = ::openPaperGraph,
+            )
+        } else if (maxWidth >= 840.dp) {
             Row(modifier = Modifier.fillMaxSize()) {
                 NavigationRail(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.border(
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    ),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
                     header = {
                         Column(
                             modifier = Modifier.padding(vertical = 20.dp),
@@ -128,6 +153,7 @@ fun AppShell(
                         },
                         requestedPaper = requestedPaper,
                         onPaperRequestConsumed = { requestedPaper = null },
+                        onGraphSelected = { requestedGraphId = it },
                         requestedGraphId = requestedGraphId,
                         onOpenGraph = ::openPaperGraph,
                     )
@@ -167,6 +193,7 @@ fun AppShell(
                     },
                     requestedPaper = requestedPaper,
                     onPaperRequestConsumed = { requestedPaper = null },
+                    onGraphSelected = { requestedGraphId = it },
                     requestedGraphId = requestedGraphId,
                     onOpenGraph = ::openPaperGraph,
                 )

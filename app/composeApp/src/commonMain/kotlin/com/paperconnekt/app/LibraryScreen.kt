@@ -8,9 +8,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -21,6 +25,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -39,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
 import com.paperconnekt.domain.model.LibraryEntry
 import com.paperconnekt.domain.model.LibraryEntryKind
@@ -46,6 +53,23 @@ import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.storage.LocalResearchStore
 import kotlinx.coroutines.launch
 import kotlin.random.Random
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Unpublished
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.research_graph_empty
+import org.jetbrains.compose.resources.painterResource
 
 private enum class LibraryView {
     ALL,
@@ -70,6 +94,8 @@ fun LibraryScreen(
     var renameFolder by remember { mutableStateOf<LibraryEntry?>(null) }
     var deleteFolder by remember { mutableStateOf<LibraryEntry?>(null) }
     var movePaper by remember { mutableStateOf<LibraryEntry?>(null) }
+    var editPaper by remember { mutableStateOf<Paper?>(null) }
+    var selectedPaper by remember { mutableStateOf<Paper?>(null) }
     var expandedFolders by remember { mutableStateOf(setOf<String>()) }
 
     val folders = entries.filter { it.kind == LibraryEntryKind.FOLDER }
@@ -171,6 +197,9 @@ fun LibraryScreen(
                         onOpenPaper = onOpenPaper,
                         onOpenGraph = onOpenGraph,
                         onMove = { movePaper = it },
+                        onEdit = { editPaper = it },
+                        onToggleCompleted = { paper -> scope.launch { store.savePaper(paper.copy(completed = !paper.completed)) } },
+                        onSelect = { selectedPaper = it },
                         onDelete = { entry ->
                             scope.launch { store.removeLibraryEntry(entry.id) }
                         },
@@ -229,9 +258,21 @@ fun LibraryScreen(
                             onOpenPaper = onOpenPaper,
                             onOpenGraph = onOpenGraph,
                             onMove = { movePaper = it },
+                            onEdit = { editPaper = it },
+                            onToggleCompleted = { paper -> scope.launch { store.savePaper(paper.copy(completed = !paper.completed)) } },
+                            onSelect = { selectedPaper = it },
                             onDelete = { entry ->
                                 scope.launch { store.removeLibraryEntry(entry.id) }
                             },
+                        )
+                    }
+                    selectedPaper?.let { paper ->
+                        PaperDetailsPane(
+                            modifier = Modifier.width(320.dp).fillMaxHeight(),
+                            paper = paper,
+                            onRead = { if (paper.pdfPath != null) onOpenPaper(paper) },
+                            onEdit = { editPaper = paper },
+                            onClose = { selectedPaper = null },
                         )
                     }
                 }
@@ -307,6 +348,18 @@ fun LibraryScreen(
             },
         )
     }
+    editPaper?.let { paper ->
+        PaperDetailsDialog(
+            paper = paper,
+            onDismiss = { editPaper = null },
+            onSave = { updated ->
+                scope.launch {
+                    store.savePaper(updated)
+                    editPaper = null
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -377,7 +430,7 @@ private fun LibraryHeader(
             Column {
                 Text("Library", style = MaterialTheme.typography.headlineSmall)
                 Text(
-                    "$paperCount papers · $folderCount folders · $unfiledCount unfiled",
+                    "$paperCount papers · $folderCount collections · $unfiledCount unfiled",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -388,15 +441,20 @@ private fun LibraryHeader(
                 value = query,
                 onValueChange = onQueryChange,
                 modifier = Modifier.width(if (compact) 150.dp else 220.dp),
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 placeholder = { Text("Search library") },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.width(8.dp))
             if (compact) {
-                IconButton(onClick = onNewFolder) { Text("+") }
+                IconButton(onClick = onNewFolder) { Icon(Icons.Default.Add, contentDescription = "New collection") }
             } else {
-                Button(onClick = onNewFolder) { Text("New folder") }
+                Button(onClick = onNewFolder) {
+                    Icon(Icons.Default.CreateNewFolder, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("New collection")
+                }
             }
             Spacer(Modifier.width(8.dp))
         },
@@ -464,8 +522,13 @@ private fun LibraryFolderPane(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text("Collections", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = onNewFolder) { Text("New") }
+                Column {
+                    Text("Collections", style = MaterialTheme.typography.titleMedium)
+                    Text("Build a calm reading space", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick = onNewFolder) {
+                    Icon(Icons.Default.CreateNewFolder, contentDescription = "Create collection")
+                }
             }
             TextButton(
                 onClick = { onSelectFolder(null) },
@@ -523,8 +586,12 @@ private fun FolderTreeRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (children.isNotEmpty()) {
-                TextButton(onClick = { onToggleFolder(folder.id) }) {
-                    Text(if (folder.id in expandedFolders) "−" else "+")
+                IconButton(onClick = { onToggleFolder(folder.id) }) {
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = if (folder.id in expandedFolders) "Collapse ${folder.label}" else "Expand ${folder.label}",
+                        modifier = Modifier.rotate(if (folder.id in expandedFolders) 90f else 0f),
+                    )
                 }
             } else {
                 Spacer(Modifier.width(48.dp))
@@ -533,8 +600,14 @@ private fun FolderTreeRow(
                 onClick = { onSelectFolder(folder.id) },
                 modifier = Modifier.weight(1f),
             ) {
+                Icon(
+                    imageVector = if (folder.id == selectedFolderId) Icons.Default.FolderOpen else Icons.Default.Folder,
+                    contentDescription = null,
+                    tint = if (folder.id == selectedFolderId) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.width(8.dp))
                 Text(
-                    "${folder.label}  $paperCount",
+                    folder.label,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = if (selectedFolderId == folder.id) {
@@ -543,6 +616,7 @@ private fun FolderTreeRow(
                         MaterialTheme.colorScheme.onSurface
                     },
                 )
+                Text(paperCount.toString(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             FolderActions(
                 onRename = { onRename(folder) },
@@ -575,7 +649,7 @@ private fun FolderActions(
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { expanded = true }) { Text("⋯") }
+        IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreHoriz, contentDescription = "Collection actions") }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
                 text = { Text("Rename") },
@@ -605,6 +679,9 @@ private fun LibraryPaperList(
     onOpenGraph: (Paper) -> Unit,
     onMove: (LibraryEntry) -> Unit,
     onDelete: (LibraryEntry) -> Unit,
+    onEdit: (Paper) -> Unit,
+    onToggleCompleted: (Paper) -> Unit,
+    onSelect: (Paper) -> Unit,
 ) {
     if (entries.isEmpty()) {
         LibraryEmptyState(modifier = modifier, label = emptyLabel)
@@ -625,6 +702,9 @@ private fun LibraryPaperList(
                     onOpenGraph = { onOpenGraph(paper) },
                     onMove = { onMove(entry) },
                     onRemove = { onDelete(entry) },
+                    onEdit = { onEdit(paper) },
+                    onToggleCompleted = { onToggleCompleted(paper) },
+                    onSelect = { onSelect(paper) },
                     canRemove = !entry.id.startsWith("unfiled-"),
                 )
             }
@@ -639,50 +719,76 @@ private fun PaperLibraryCard(
     onOpenGraph: () -> Unit,
     onMove: () -> Unit,
     onRemove: () -> Unit,
+    onEdit: () -> Unit,
+    onToggleCompleted: () -> Unit,
+    onSelect: () -> Unit,
     canRemove: Boolean,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(76.dp)
+            .clickable(onClick = onSelect),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp),
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                paper.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+            Icon(
+                imageVector = if (paper.pdfPath != null) Icons.Default.Description else Icons.Default.Unpublished,
+                contentDescription = if (paper.pdfPath != null) "PDF attached" else "No PDF attached",
+                tint = if (paper.pdfPath != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
             )
-            Text(
-                paper.authors.ifEmpty { listOf("Unknown author") }.joinToString(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                listOfNotNull(
-                    paper.year?.toString(),
-                    paper.doi?.let { "DOI $it" },
-                    paper.pdfPath?.let { "PDF available" },
-                ).ifEmpty { listOf("Metadata available locally") }.joinToString(" · "),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onOpenGraph) {
-                    Text("Open graph")
-                }
-                if (paper.pdfPath != null) {
-                    TextButton(onClick = onOpen) {
-                        Text("Open paper")
+            Column(Modifier.weight(1f)) {
+                Text(paper.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    paper.authors.ifEmpty { listOf("Unknown author") }.joinToString() +
+                        "  ·  " + (paper.year?.toString() ?: "Year unknown"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (paper.completed) {
+                Icon(Icons.Default.CheckCircle, contentDescription = "Completed", tint = MaterialTheme.colorScheme.tertiary)
+            }
+            TextButton(onClick = onSelect) { Text("View") }
+            var actionsExpanded by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { actionsExpanded = true }) { Icon(Icons.Default.MoreHoriz, contentDescription = "Item actions") }
+                DropdownMenu(expanded = actionsExpanded, onDismissRequest = { actionsExpanded = false }) {
+                    if (paper.pdfPath != null) {
+                        DropdownMenuItem(
+                            text = { Text("Read PDF") },
+                            onClick = { actionsExpanded = false; onOpen() },
+                        )
                     }
-                }
-                TextButton(onClick = onMove) { Text("Move") }
-                if (canRemove) {
-                    TextButton(onClick = onRemove) { Text("Remove") }
+                    DropdownMenuItem(
+                        text = { Text("Open graph") },
+                        onClick = { actionsExpanded = false; onOpenGraph() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Edit details") },
+                        onClick = { actionsExpanded = false; onEdit() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Move to collection") },
+                        onClick = { actionsExpanded = false; onMove() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (paper.completed) "Mark as to read" else "Mark completed") },
+                        onClick = { actionsExpanded = false; onToggleCompleted() },
+                    )
+                    if (canRemove) {
+                        DropdownMenuItem(
+                            text = { Text("Remove from library") },
+                            onClick = { actionsExpanded = false; onRemove() },
+                        )
+                    }
                 }
             }
         }
@@ -702,12 +808,79 @@ private fun LibraryEmptyState(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
+            Icon(
+                painter = painterResource(Res.drawable.research_graph_empty),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.width(150.dp).padding(bottom = 12.dp),
+            )
             Text("Nothing here yet", style = MaterialTheme.typography.titleLarge)
             Text(
                 label,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+@Composable
+private fun PaperDetailsPane(
+    modifier: Modifier,
+    paper: Paper,
+    onRead: () -> Unit,
+    onEdit: () -> Unit,
+    onClose: () -> Unit,
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Item details", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = "Close details") }
+            }
+            HorizontalDivider()
+            Icon(
+                imageVector = if (paper.pdfPath != null) Icons.Default.Description else Icons.Default.Unpublished,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            Text(paper.title, style = MaterialTheme.typography.titleLarge)
+            Text(
+                paper.authors.ifEmpty { listOf("Unknown author") }.joinToString(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (paper.pdfPath != null) {
+                    Button(onClick = onRead, modifier = Modifier.weight(1f)) { Text("Read PDF") }
+                }
+                TextButton(onClick = onEdit) { Text("Edit") }
+            }
+            HorizontalDivider()
+            DetailLine("Year", paper.year?.toString() ?: "—")
+            DetailLine("DOI", paper.doi ?: "—")
+            DetailLine("Attachment", if (paper.pdfPath != null) "PDF attached" else "No PDF")
+            DetailLine("Status", if (paper.completed) "Completed" else "To read")
+            paper.abstractText?.takeIf { it.isNotBlank() }?.let {
+                Text("Abstract", style = MaterialTheme.typography.labelLarge)
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailLine(label: String, value: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(82.dp))
+        Text(value, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -749,6 +922,79 @@ private fun FolderNameDialog(
                 enabled = name.isNotBlank(),
                 onClick = { onConfirm(name.trim()) },
             ) { Text(confirmLabel) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun PaperDetailsDialog(
+    paper: Paper,
+    onDismiss: () -> Unit,
+    onSave: (Paper) -> Unit,
+) {
+    var title by remember(paper.id) { mutableStateOf(paper.title) }
+    var authors by remember(paper.id) { mutableStateOf(paper.authors.joinToString(", ")) }
+    var year by remember(paper.id) { mutableStateOf(paper.year?.toString().orEmpty()) }
+    var doi by remember(paper.id) { mutableStateOf(paper.doi.orEmpty()) }
+    var pdfPath by remember(paper.id) { mutableStateOf(paper.pdfPath.orEmpty()) }
+    var abstractText by remember(paper.id) { mutableStateOf(paper.abstractText.orEmpty()) }
+    var completed by remember(paper.id) { mutableStateOf(paper.completed) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Item details") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(title, { title = it }, label = { Text("Title") }, singleLine = true)
+                OutlinedTextField(authors, { authors = it }, label = { Text("Authors") }, singleLine = true)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(year, { year = it }, label = { Text("Year") }, singleLine = true, modifier = Modifier.weight(0.35f))
+                    OutlinedTextField(doi, { doi = it }, label = { Text("DOI") }, singleLine = true, modifier = Modifier.weight(0.65f))
+                }
+                OutlinedTextField(
+                    value = pdfPath,
+                    onValueChange = { pdfPath = it },
+                    label = { Text("Attached PDF path") },
+                    placeholder = { Text("/Users/you/Papers/article.pdf") },
+                    leadingIcon = { Icon(Icons.Default.AttachFile, contentDescription = null) },
+                    supportingText = { Text("Local-first for now: paste the file path to attach a PDF.") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = abstractText,
+                    onValueChange = { abstractText = it },
+                    label = { Text("Abstract / notes") },
+                    minLines = 3,
+                    maxLines = 5,
+                )
+                FilterChip(
+                    selected = completed,
+                    onClick = { completed = !completed },
+                    label = { Text(if (completed) "Completed item" else "Mark as completed") },
+                    leadingIcon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
+                )
+                HorizontalDivider()
+                Text("Attach a PDF now, then use Read PDF on the item card to open the reading workspace.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = title.isNotBlank(),
+                onClick = {
+                    onSave(
+                        paper.copy(
+                            title = title.trim(),
+                            authors = authors.split(',').map(String::trim).filter(String::isNotBlank),
+                            year = year.toIntOrNull(),
+                            doi = doi.trim().ifBlank { null },
+                            pdfPath = pdfPath.trim().ifBlank { null },
+                            abstractText = abstractText.trim().ifBlank { null },
+                            completed = completed,
+                        ),
+                    )
+                },
+            ) { Text("Save changes") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
