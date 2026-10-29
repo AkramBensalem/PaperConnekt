@@ -1,205 +1,154 @@
 package com.paperconnekt.app
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.paperconnekt.app.resources.Res
-import com.paperconnekt.app.resources.arrow_back
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.CompositionLocalProvider
+import com.akram.bensalem.paper.connekt.feature.assistant.AssistantRepository
+import com.akram.bensalem.paper.connekt.feature.assistant.AssistantViewModel
+import com.akram.bensalem.paper.connekt.feature.assistant.PdfWorkspaceViewModel
+import com.akram.bensalem.paper.connekt.feature.assistant.component.Workplace
+import com.akram.bensalem.paper.connekt.models.Paper as AssistantPaper
 import com.paperconnekt.domain.model.Paper
-import org.jetbrains.compose.resources.painterResource
+import io.github.aakira.napier.Napier
+import kotlinx.coroutines.CancellationException
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
 fun PdfWorkspaceScreen(
     paper: Paper,
     paddingValues: PaddingValues,
     onBack: () -> Unit,
 ) {
-    var page by remember { mutableStateOf(1) }
-    var zoom by remember { mutableStateOf(1f) }
-    var isAnnotating by remember { mutableStateOf(false) }
-    var notes by remember { mutableStateOf("") }
-    var ideas by remember { mutableStateOf("") }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues),
-    ) {
-        TopAppBar(
-            title = {
-                Column {
-                    Text(paper.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        "PDF workspace · local reading mode",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        painter = painterResource(Res.drawable.arrow_back),
-                        contentDescription = "Back",
-                    )
-                }
-            },
-            actions = {
-                FilterChip(
-                    selected = isAnnotating,
-                    onClick = { isAnnotating = !isAnnotating },
-                    label = { Text(if (isAnnotating) "Annotating" else "Annotate") },
-                )
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = { if (page > 1) page-- }) { Text("Previous") }
-                Text("Page $page", style = MaterialTheme.typography.labelLarge)
-                TextButton(onClick = { page++ }) { Text("Next") }
-                Spacer(Modifier.weight(1f))
-                Text("Zoom", style = MaterialTheme.typography.labelMedium)
-                Slider(
-                    modifier = Modifier.width(140.dp),
-                    value = zoom,
-                    onValueChange = { zoom = it },
-                    valueRange = 0.75f..1.5f,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                PdfReaderPlaceholder(
-                    modifier = Modifier.weight(1.7f),
-                    paper = paper,
-                    page = page,
-                    zoom = zoom,
-                    isAnnotating = isAnnotating,
-                )
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    WorkspacePanel(
-                        title = "Notes",
-                        value = notes,
-                        onValueChange = { notes = it },
-                        placeholder = "Capture a quote, summary, or open question…",
-                    )
-                    WorkspacePanel(
-                        title = "Ideas",
-                        value = ideas,
-                        onValueChange = { ideas = it },
-                        placeholder = "Turn this reading into a next step…",
-                    )
-                }
-            }
+    val owner = remember(paper.id, paper.pdfPath) {
+        object : ViewModelStoreOwner {
+            override val viewModelStore = ViewModelStore()
+        }
+    }
+    DisposableEffect(owner) {
+        onDispose { owner.viewModelStore.clear() }
+    }
+    CompositionLocalProvider(LocalViewModelStoreOwner provides owner) {
+        key(owner) {
+            LocalPaperWorkspace(paper, paddingValues, onBack)
         }
     }
 }
 
 @Composable
-private fun PdfReaderPlaceholder(
-    modifier: Modifier,
+private fun LocalPaperWorkspace(
     paper: Paper,
-    page: Int,
-    zoom: Float,
-    isAnnotating: Boolean,
+    paddingValues: PaddingValues,
+    onBack: () -> Unit,
 ) {
-    Card(
-        modifier = modifier.fillMaxSize(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text("PDF reader", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                "Page $page · ${(zoom * 100).toInt()}% · ${if (isAnnotating) "annotation mode" else "reading mode"}",
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                paper.pdfPath ?: "No local PDF path configured.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.padding(8.dp))
-            Text(
-                "The shared workspace reserves the reader surface for a native PDF implementation while keeping metadata, notes, ideas, and controls available on every platform.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+    val storage = LocalPdfAttachments.current.storage
+    val workspace = viewModel { PdfWorkspaceViewModel() }
+    val assistant = viewModel { AssistantViewModel(AssistantRepository()) }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var attempt by remember { mutableStateOf(0) }
+    var confirmExit by remember { mutableStateOf(false) }
+    val assistantPaper = remember(paper) {
+        AssistantPaper(
+            id = paper.id,
+            title = paper.title,
+            authors = paper.authors,
+            abstract = paper.abstractText,
+            publicationDate = paper.year?.toString(),
+            doi = paper.doi,
+            tags = paper.tags,
+            url = paper.sourceUrl,
+            filePath = paper.pdfPath,
+            createdAt = 0L,
+            updatedAt = 0L,
+            visitedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+        )
+    }
+    LaunchedEffect(assistant, assistantPaper.id) {
+        assistant.selectPaper(assistantPaper)
+    }
+    LaunchedEffect(workspace, attempt) {
+        loading = true
+        error = null
+        try {
+            val path = requireNotNull(paper.pdfPath) { "Attach a PDF to this item before opening the viewer." }
+            val bytes = storage.readPdf(path)
+            workspace.openLocal(bytes, paper.title, storageKey = "local/${paper.id}/$path")
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (exception: Exception) {
+            Napier.e("Could not read attached PDF", exception)
+            error = exception.message ?: "Could not read the attached PDF."
+        } finally {
+            loading = false
         }
     }
-}
-
-@Composable
-private fun WorkspacePanel(
-    title: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(
-                modifier = Modifier.fillMaxWidth(),
-                value = value,
-                onValueChange = onValueChange,
-                placeholder = { Text(placeholder) },
-                minLines = 5,
-            )
+    if (confirmExit) {
+        AlertDialog(
+            onDismissRequest = { confirmExit = false },
+            title = { Text("Discard unsaved changes?") },
+            text = { Text("The current annotation draft has not been saved.") },
+            confirmButton = { TextButton(onClick = onBack) { Text("Discard and exit") } },
+            dismissButton = { TextButton(onClick = { confirmExit = false }) { Text("Keep editing") } },
+        )
+    }
+    Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        when {
+            loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+            error != null -> Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text("Unable to open PDF", style = MaterialTheme.typography.titleLarge)
+                Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
+                Button(onClick = { attempt++ }) { Text("Try again") }
+                TextButton(onClick = onBack) { Text("Back to Assistant") }
+            }
+            else -> {
+                val state = assistant.state
+                Workplace(
+                    paper = assistantPaper,
+                    notes = state.notes,
+                    chatMessages = state.chatMessages,
+                    ideas = state.ideas,
+                    onAddNote = assistant::addNote,
+                    onDeleteNote = assistant::deleteNote,
+                    onSendMessage = assistant::sendMessage,
+                    onAddIdea = assistant::addIdea,
+                    onUpdateIdea = assistant::updateIdea,
+                    ideasLoading = state.ideasLoading,
+                    ideaError = state.ideaError,
+                    ideaBoard = assistant,
+                    pdfWorkspace = workspace,
+                    onExit = {
+                        if (workspace.state.draft != null) confirmExit = true else onBack()
+                    },
+                )
+            }
         }
     }
 }

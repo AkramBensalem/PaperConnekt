@@ -59,7 +59,7 @@ fun Workplace(
     var selectedPanel by remember(paper.id) { mutableStateOf(0) }
     var focusMode by remember(paper.id) { mutableStateOf(false) }
     var ideaToOpen by remember(paper.id) { mutableStateOf<String?>(null) }
-    val attachmentKey = pdfWorkspace?.state?.target?.attachment?.key
+    val attachmentKey = pdfWorkspace?.paperStorageKey()
     val paperAgent = if (pdfWorkspace != null && attachmentKey != null)
         viewModel(key = "paper-agent-${paper.id}") {
             PaperAgentViewModel(pdfWorkspace, ideaBoard = ideaBoard, usageRecorder = usageRecorder)
@@ -164,7 +164,7 @@ fun Workplace(
             }
         }
     }
-    if (pdfWorkspace?.state?.target != null) {
+    if (pdfWorkspace != null && (pdfWorkspace.state.target != null || pdfWorkspace.state.localTitle != null)) {
         ZoteroPdfReader(pdfWorkspace, focusMode, onExit = onExit, supportingContent = supportingContent, readAloud = readAloud,
             paperAgent = paperAgent,
             studyTimeToday = studyTimeToday, totalStudyTime = totalStudyTime,

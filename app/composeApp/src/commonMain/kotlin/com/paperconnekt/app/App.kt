@@ -3,6 +3,7 @@ package com.paperconnekt.app
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -18,6 +19,7 @@ import com.paperconnekt.app.theme.PaperConnektTheme
 fun PaperConnektApp(
     secretStore: SecretStore,
     workspaceStorage: WorkspaceStorage,
+    pdfAttachments: PdfAttachmentUi,
 ) {
     val store = rememberResearchStore(workspaceStorage)
     LaunchedEffect(store) {
@@ -31,17 +33,19 @@ fun PaperConnektApp(
         AppDestination.ONBOARDING
     }
 
-    PaperConnektTheme(preference = settings.selectedTheme) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = androidx.compose.material3.MaterialTheme.colorScheme.background,
-        ) {
-            if (initialized) {
-                AppShell(
-                    store = store,
-                    secretStore = secretStore,
-                    startDestination = startDestination,
-                )
+    CompositionLocalProvider(LocalPdfAttachments provides pdfAttachments) {
+        PaperConnektTheme(preference = settings.selectedTheme) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = androidx.compose.material3.MaterialTheme.colorScheme.background,
+            ) {
+                if (initialized) {
+                    AppShell(
+                        store = store,
+                        secretStore = secretStore,
+                        startDestination = startDestination,
+                    )
+                }
             }
         }
     }

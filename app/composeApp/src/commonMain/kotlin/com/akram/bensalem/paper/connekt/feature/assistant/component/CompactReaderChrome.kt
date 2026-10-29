@@ -142,7 +142,8 @@ internal fun CompactReaderTopBar(
                     Text(if (state.annotations.size > 99) "99+" else state.annotations.size.toString())
                 }
             }) {
-                Icon(painterResource(Res.drawable.filled_notes), "Annotations (${state.annotations.size})")
+                Icon(painterResource(Res.drawable.filled_notes),
+                    if (state.localTitle != null) "Notes and ideas" else "Annotations (${state.annotations.size})")
             }
         }
         Box {
@@ -153,29 +154,31 @@ internal fun CompactReaderTopBar(
                 }) { Icon(painterResource(Res.drawable.filled_more_vert), "More reader options") }
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, shape = RoundedCornerShape(16.dp)) {
-                val syncTint = when {
-                    state.syncing -> colors.primary
-                    syncProblem -> colors.error
-                    else -> if (colors.surface.luminance() < 0.5f) Color(0xFF81C784) else Color(0xFF2E7D32)
+                if (state.localTitle == null) {
+                    val syncTint = when {
+                        state.syncing -> colors.primary
+                        syncProblem -> colors.error
+                        else -> if (colors.surface.luminance() < 0.5f) Color(0xFF81C784) else Color(0xFF2E7D32)
+                    }
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text(when {
+                                    state.syncing -> "Syncing with Zotero…"
+                                    syncProblem -> "Not synced · Retry"
+                                    else -> "Synced with Zotero"
+                                })
+                                if (!state.syncing && !syncProblem) Text("Tap to refresh annotations",
+                                    style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                            }
+                        },
+                        leadingIcon = { Icon(if (syncProblem) painterResource(Res.drawable.filled_sync_problem) else painterResource(Res.drawable.filled_sync), null, tint = syncTint) },
+                        enabled = !state.syncing && !state.loading,
+                        onClick = { menu = false; onSync() },
+                        modifier = Modifier.testTag("zotero-sync-status").interactivePointer(enabled = !state.syncing && !state.loading),
+                    )
+                    HorizontalDivider(Modifier.padding(vertical = 4.dp))
                 }
-                DropdownMenuItem(
-                    text = {
-                        Column {
-                            Text(when {
-                                state.syncing -> "Syncing with Zotero…"
-                                syncProblem -> "Not synced · Retry"
-                                else -> "Synced with Zotero"
-                            })
-                            if (!state.syncing && !syncProblem) Text("Tap to refresh annotations",
-                                style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
-                        }
-                    },
-                    leadingIcon = { Icon(if (syncProblem) painterResource(Res.drawable.filled_sync_problem) else painterResource(Res.drawable.filled_sync), null, tint = syncTint) },
-                    enabled = !state.syncing && !state.loading,
-                    onClick = { menu = false; onSync() },
-                    modifier = Modifier.testTag("zotero-sync-status").interactivePointer(enabled = !state.syncing && !state.loading),
-                )
-                HorizontalDivider(Modifier.padding(vertical = 4.dp))
                 onGoToPage?.let { go ->
                     DropdownMenuItem(text = { Text("Go to page…") }, leadingIcon = { Icon(painterResource(Res.drawable.filled_find_in_page), null) },
                         onClick = { menu = false; go() }, modifier = Modifier.interactivePointer())

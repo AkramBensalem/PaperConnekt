@@ -82,6 +82,7 @@ data class ReadingScriptState(
 data class PdfWorkspaceState(
     val target: ZoteroPdfTarget? = null,
     val localTitle: String? = null,
+    val localStorageKey: String? = null,
     val pageCount: Int = 0,
     val pageIndex: Int = 0,
     val pageNavigationId: Int = 0,
@@ -179,6 +180,7 @@ class PdfWorkspaceViewModel(
 
     /** Stable per-user, per-attachment key for data saved alongside the open paper (Markdown, agent chats). */
     fun paperStorageKey(): String? {
+        state.localStorageKey?.let { return it }
         val account = config ?: return null
         val target = state.target ?: return null
         return paperStorageKey(account, target)
@@ -228,9 +230,10 @@ class PdfWorkspaceViewModel(
     }
 
     /** Local files use the same renderer and text geometry, without Zotero annotation writes. */
-    fun openLocal(bytes: ByteArray, title: String) {
+    fun openLocal(bytes: ByteArray, title: String, storageKey: String? = null) {
         close()
-        state = PdfWorkspaceState(localTitle = title, loading = true)
+        pdfBytes = bytes
+        state = PdfWorkspaceState(localTitle = title, localStorageKey = storageKey, loading = true)
         val token = session
         loadJob = viewModelScope.launch {
             var opened: PdfDocument? = null
@@ -255,6 +258,17 @@ class PdfWorkspaceViewModel(
         }
     }
 
+    fun retryOpen() {
+        val target = state.target
+        val title = state.localTitle
+        val bytes = pdfBytes
+        when {
+            target != null -> open(target)
+            title != null && bytes != null -> openLocal(bytes, title, state.localStorageKey)
+            else -> state = state.copy(error = "The PDF is no longer loaded. Close the workspace and reopen the item.")
+        }
+    }
+
     fun close() {
         session++
         loadJob?.cancel()
@@ -275,7 +289,7 @@ class PdfWorkspaceViewModel(
 
     /** Shows the hidden Markdown version, converting with Mistral OCR only when none is saved yet. */
     fun showMarkdown() {
-        if (state.target == null || state.draft != null) return
+        if (paperStorageKey() == null || state.draft != null) return
         state = state.copy(viewMode = ReaderViewMode.Markdown, selectedKey = null, textSelection = null)
         if (state.markdown.content == null && markdownJob?.isActive != true) loadMarkdown(force = false)
     }
@@ -358,10 +372,10 @@ class PdfWorkspaceViewModel(
     }
 
     private fun loadMarkdown(force: Boolean) {
-        val target = state.target ?: return
-        val account = config ?: return
+        val target = state.target
+        val account = config
         val token = session
-        val key = paperStorageKey(account, target)
+        val key = paperStorageKey() ?: return
         state = state.copy(markdown = state.markdown.copy(loading = true, converting = false, error = null, missingApiKey = false))
         markdownJob = viewModelScope.launch {
             fun update(block: PdfMarkdownState.() -> PdfMarkdownState) {
@@ -385,8 +399,11 @@ class PdfWorkspaceViewModel(
                     return@launch
                 }
                 update { copy(loading = false, converting = true) }
-                val bytes = pdfBytes ?: repository.download(account, target.attachment).also { if (token == session) pdfBytes = it }
-                val converted = markdownConverter.convert(bytes, target.attachment.data.filename ?: "paper.pdf", apiKey)
+                val bytes = pdfBytes ?: repository.download(
+                    requireNotNull(account) { "No local PDF is loaded and Zotero is not configured." },
+                    requireNotNull(target) { "No PDF is open." }.attachment,
+                ).also { if (token == session) pdfBytes = it }
+                val converted = markdownConverter.convert(bytes, target?.attachment?.data?.filename ?: "paper.pdf", apiKey)
                 ensureActive()
                 if (token != session) return@launch
                 val markdown = markdownStore.save(key, converted)
@@ -938,7 +955,7 @@ class PdfWorkspaceViewModel(
 
     /** Loads or creates the hidden Markdown version without switching the reader; the agent only reads Markdown. */
     suspend fun awaitMarkdown(): PdfMarkdownState {
-        if (state.target == null) return state.markdown
+        if (paperStorageKey() == null) return state.markdown
         if (state.markdown.content == null && markdownJob?.isActive != true) loadMarkdown(force = false)
         markdownJob?.join()
         return state.markdown

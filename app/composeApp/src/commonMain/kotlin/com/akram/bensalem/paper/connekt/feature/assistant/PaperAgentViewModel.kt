@@ -135,7 +135,7 @@ class PaperAgentViewModel(
                     if (includePaper) {
                         appendLine()
                         appendLine("Paper context:")
-                        appendLine("Title: ${target?.item?.data?.title ?: "Untitled"}")
+                        appendLine("Title: ${workspace.state.localTitle ?: target?.item?.data?.title ?: "Untitled"}")
                         target?.item?.data?.abstractNote?.takeIf { it.isNotBlank() }?.let {
                             appendLine("Abstract:")
                             appendLine(it.take(8_000))

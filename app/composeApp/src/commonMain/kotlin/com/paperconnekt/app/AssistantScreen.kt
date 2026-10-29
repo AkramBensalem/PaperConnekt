@@ -570,7 +570,7 @@ private fun PaperShelf(
             } else {
                 if (papers.none { it.pdfPath != null }) {
                     Text(
-                        "Your saved papers do not have local PDFs yet. Add a PDF path from the dashboard to open the reading workspace.",
+                        "Your saved papers do not have PDFs yet. Open an item's details in Library to browse or drop a PDF.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -620,7 +620,7 @@ private fun PaperShelfCard(
                 },
             )
             OutlinedButton(onClick = onOpen, enabled = paper.pdfPath != null) {
-                Text(if (paper.pdfPath != null) "Open workspace" else "No PDF")
+                Text(if (paper.pdfPath != null) "Open PDF" else "No PDF")
             }
         }
     }

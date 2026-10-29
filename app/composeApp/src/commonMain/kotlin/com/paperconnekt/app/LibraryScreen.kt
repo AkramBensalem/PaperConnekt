@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -41,6 +43,7 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -54,6 +57,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.paperconnekt.domain.model.LibraryEntry
 import com.paperconnekt.domain.model.LibraryEntryKind
 import com.paperconnekt.domain.model.Paper
@@ -105,13 +109,19 @@ fun LibraryScreen(
     var deleteFolder by remember { mutableStateOf<LibraryEntry?>(null) }
     var movePaper by remember { mutableStateOf<LibraryEntry?>(null) }
     var editPaper by remember { mutableStateOf<Paper?>(null) }
-    var selectedPaper by remember { mutableStateOf<Paper?>(null) }
+    var selectedPaperId by remember { mutableStateOf<String?>(null) }
     var permanentlyDeletePaper by remember { mutableStateOf<Paper?>(null) }
     var expandedFolders by remember { mutableStateOf(setOf<String>()) }
 
     val folders = entries.filter { it.kind == LibraryEntryKind.FOLDER }
     val paperEntries = entries.filter { it.kind == LibraryEntryKind.PAPER }
     val paperById = papers.associateBy(Paper::id)
+    val selectedPaper = selectedPaperId?.let(paperById::get)
+    val attachPdf: suspend (Paper, String) -> Unit = { paper, path ->
+        val latest = store.papers.value.firstOrNull { it.id == paper.id }
+        checkNotNull(latest) { "This item is no longer in the library." }
+        store.savePaper(latest.copy(pdfPath = path))
+    }
     val activePapers = papers.filterNot(Paper::archived)
     val archivedPapers = papers.filter(Paper::archived)
     val filedPaperIds = paperEntries.mapNotNull(LibraryEntry::paperId).toSet()
@@ -232,7 +242,7 @@ fun LibraryScreen(
                         onMove = { movePaper = it },
                         onEdit = { editPaper = it },
                         onToggleCompleted = { paper -> scope.launch { store.savePaper(paper.copy(completed = !paper.completed)) } },
-                        onSelect = { selectedPaper = it },
+                        onSelect = { selectedPaperId = it.id },
                         onDelete = { entry ->
                             entry.paperId?.let { paperById[it] }?.let { paper ->
                                 if (view == LibraryView.ARCHIVE) permanentlyDeletePaper = paper
@@ -246,6 +256,18 @@ fun LibraryScreen(
                         },
                         archiveView = view == LibraryView.ARCHIVE,
                     )
+                }
+                selectedPaper?.let { paper ->
+                    Dialog(onDismissRequest = { selectedPaperId = null }) {
+                        PaperDetailsPane(
+                            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f),
+                            paper = paper,
+                            onRead = { onOpenPaper(paper) },
+                            onAttach = { path -> attachPdf(paper, path) },
+                            onEdit = { editPaper = paper },
+                            onClose = { selectedPaperId = null },
+                        )
+                    }
                 }
             } else {
                 Row(
@@ -316,7 +338,7 @@ fun LibraryScreen(
                             onMove = { movePaper = it },
                             onEdit = { editPaper = it },
                             onToggleCompleted = { paper -> scope.launch { store.savePaper(paper.copy(completed = !paper.completed)) } },
-                            onSelect = { selectedPaper = it },
+                            onSelect = { selectedPaperId = it.id },
                             onDelete = { entry ->
                             entry.paperId?.let { paperById[it] }?.let { paper ->
                                 if (view == LibraryView.ARCHIVE) permanentlyDeletePaper = paper
@@ -336,8 +358,9 @@ fun LibraryScreen(
                             modifier = Modifier.width(320.dp).fillMaxHeight(),
                             paper = paper,
                             onRead = { if (paper.pdfPath != null) onOpenPaper(paper) },
+                            onAttach = { path -> attachPdf(paper, path) },
                             onEdit = { editPaper = paper },
-                            onClose = { selectedPaper = null },
+                            onClose = { selectedPaperId = null },
                         )
                     }
                 }
@@ -420,7 +443,9 @@ fun LibraryScreen(
             onDismiss = { editPaper = null },
             onSave = { updated ->
                 scope.launch {
-                    store.savePaper(updated)
+                    val latest = store.papers.value.firstOrNull { it.id == updated.id }
+                    checkNotNull(latest) { "This item is no longer in the library." }
+                    store.savePaper(updated.copy(pdfPath = latest.pdfPath))
                     editPaper = null
                 }
             },
@@ -1054,17 +1079,24 @@ private fun PaperLibraryCard(
             if (paper.completed) {
                 Icon(painterResource(Res.drawable.filled_check_circle), contentDescription = "Completed", tint = MaterialTheme.colorScheme.tertiary)
             }
-            TextButton(onClick = onSelect) { Text("View") }
+            TextButton(onClick = if (paper.pdfPath != null) onOpen else onSelect) {
+                Text(if (paper.pdfPath != null) "Open PDF" else "View")
+            }
             var actionsExpanded by remember { mutableStateOf(false) }
             Box {
                 IconButton(onClick = { actionsExpanded = true }) { Icon(painterResource(Res.drawable.filled_more_horiz), contentDescription = "Item actions") }
                 DropdownMenu(expanded = actionsExpanded, onDismissRequest = { actionsExpanded = false }) {
                     if (paper.pdfPath != null) {
                         DropdownMenuItem(
-                            text = { Text("Read PDF") },
+                            text = { Text("Open PDF") },
                             onClick = { actionsExpanded = false; onOpen() },
                         )
                     }
+                    DropdownMenuItem(
+                        text = { Text(if (paper.pdfPath == null) "Attach PDF" else "Manage PDF") },
+                        leadingIcon = { Icon(painterResource(Res.drawable.filled_attach_file), contentDescription = null) },
+                        onClick = { actionsExpanded = false; onSelect() },
+                    )
                     DropdownMenuItem(
                         text = { Text("Open graph") },
                         onClick = { actionsExpanded = false; onOpenGraph() },
@@ -1141,6 +1173,7 @@ private fun PaperDetailsPane(
     modifier: Modifier,
     paper: Paper,
     onRead: () -> Unit,
+    onAttach: suspend (String) -> Unit,
     onEdit: () -> Unit,
     onClose: () -> Unit,
 ) {
@@ -1150,7 +1183,7 @@ private fun PaperDetailsPane(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            modifier = Modifier.padding(18.dp),
+            modifier = Modifier.verticalScroll(rememberScrollState()).padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1171,10 +1204,14 @@ private fun PaperDetailsPane(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (paper.pdfPath != null) {
-                    Button(onClick = onRead, modifier = Modifier.weight(1f)) { Text("Read PDF") }
-                }
                 TextButton(onClick = onEdit) { Text("Edit") }
+            }
+            key(paper.id) {
+                PdfAttachmentCard(
+                    pdfPath = paper.pdfPath,
+                    onAttached = onAttach,
+                    onOpen = onRead,
+                )
             }
             HorizontalDivider()
             DetailLine("Year", paper.year?.toString() ?: "—")
@@ -1250,7 +1287,6 @@ private fun PaperDetailsDialog(
     var authors by remember(paper.id) { mutableStateOf(paper.authors.joinToString(", ")) }
     var year by remember(paper.id) { mutableStateOf(paper.year?.toString().orEmpty()) }
     var doi by remember(paper.id) { mutableStateOf(paper.doi.orEmpty()) }
-    var pdfPath by remember(paper.id) { mutableStateOf(paper.pdfPath.orEmpty()) }
     var abstractText by remember(paper.id) { mutableStateOf(paper.abstractText.orEmpty()) }
     var completed by remember(paper.id) { mutableStateOf(paper.completed) }
 
@@ -1258,22 +1294,16 @@ private fun PaperDetailsDialog(
         onDismissRequest = onDismiss,
         title = { Text("Item details") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 OutlinedTextField(title, { title = it }, label = { Text("Title") }, singleLine = true)
                 OutlinedTextField(authors, { authors = it }, label = { Text("Authors") }, singleLine = true)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(year, { year = it }, label = { Text("Year") }, singleLine = true, modifier = Modifier.weight(0.35f))
                     OutlinedTextField(doi, { doi = it }, label = { Text("DOI") }, singleLine = true, modifier = Modifier.weight(0.65f))
                 }
-                OutlinedTextField(
-                    value = pdfPath,
-                    onValueChange = { pdfPath = it },
-                    label = { Text("Attached PDF path") },
-                    placeholder = { Text("/Users/you/Papers/article.pdf") },
-                    leadingIcon = { Icon(painterResource(Res.drawable.filled_attach_file), contentDescription = null) },
-                    supportingText = { Text("Local-first for now: paste the file path to attach a PDF.") },
-                    singleLine = true,
-                )
                 OutlinedTextField(
                     value = abstractText,
                     onValueChange = { abstractText = it },
@@ -1288,7 +1318,7 @@ private fun PaperDetailsDialog(
                     leadingIcon = { Icon(painterResource(Res.drawable.filled_check_circle), contentDescription = null) },
                 )
                 HorizontalDivider()
-                Text("Attach a PDF now, then use Read PDF on the item card to open the reading workspace.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Use Attach PDF in item details to browse or drop a PDF, then Open PDF to read it in Assistant.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
         confirmButton = {
@@ -1301,7 +1331,6 @@ private fun PaperDetailsDialog(
                             authors = authors.split(',').map(String::trim).filter(String::isNotBlank),
                             year = year.toIntOrNull(),
                             doi = doi.trim().ifBlank { null },
-                            pdfPath = pdfPath.trim().ifBlank { null },
                             abstractText = abstractText.trim().ifBlank { null },
                             completed = completed,
                         ),

@@ -168,19 +168,18 @@ internal fun PdfAttachmentCard(
                     busy = true
                     error = null
                     scope.launch {
-                        try {
-                            val source = platform.choosePdf()
-                            busy = false
-                            if (source != null) accept(listOf(source))
+                        val source = try {
+                            platform.choosePdf()
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (exception: Exception) {
                             Napier.e("Could not choose PDF", exception)
                             error = exception.message ?: "Could not open the file picker."
+                            return@launch
                         } finally {
-                            // Import owns the busy state after a successful selection.
-                            if (error != null) busy = false
+                            busy = false
                         }
+                        if (source != null) accept(listOf(source))
                     }
                 },
             ) { Text(if (pdfPath == null) "Browse PDF" else "Replace PDF") }

@@ -225,6 +225,8 @@ fun ZoteroPdfReader(
 ) {
     val state = viewModel.state
     val pdfMode = state.viewMode == ReaderViewMode.Pdf
+    val hasDocument = state.target != null || state.localTitle != null
+    val hasMarkdownStorage = viewModel.paperStorageKey() != null
     var tool by remember(state.target) { mutableStateOf("select") }
     var readMode by remember(state.target) { mutableStateOf(false) }
     var showAnnotations by remember(state.target) { mutableStateOf(false) }
@@ -435,8 +437,8 @@ fun ZoteroPdfReader(
             ) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = if (compact) 4.dp else 12.dp, vertical = if (compact) 2.dp else 8.dp)) {
                     if (compact) CompactReaderTopBar(
-                        title = state.target?.item?.data?.title ?: "PDF workspace",
-                        filename = state.target?.attachment?.data?.filename ?: "Zotero reader",
+                        title = state.localTitle ?: state.target?.item?.data?.title ?: "PDF workspace",
+                        filename = if (state.localTitle != null) "Local PDF" else state.target?.attachment?.data?.filename ?: "Zotero reader",
                         state = state,
                         onExit = onExit,
                         showSearchAction = pdfMode,
@@ -477,9 +479,9 @@ fun ZoteroPdfReader(
                             }
                         }
                         Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                            Text(state.target?.item?.data?.title ?: "PDF workspace",
+                            Text(state.localTitle ?: state.target?.item?.data?.title ?: "PDF workspace",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(state.target?.attachment?.data?.filename ?: "Zotero reader",
+                            Text(if (state.localTitle != null) "Local PDF" else state.target?.attachment?.data?.filename ?: "Zotero reader",
                                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
                             StudyTimeIndicator(studyTimeToday, totalStudyTime)
@@ -526,7 +528,8 @@ fun ZoteroPdfReader(
                             modifier = Modifier.padding(horizontal = 2.dp).size(36.dp).interactivePointer()
                         ) {
                             BadgedBox(badge = { if (state.annotations.isNotEmpty()) Badge { Text(state.annotations.size.toString()) } }) {
-                                Icon(painterResource(Res.drawable.filled_notes), "Annotations (${state.annotations.size})", Modifier.size(18.dp))
+                                Icon(painterResource(Res.drawable.filled_notes),
+                                    if (state.localTitle != null) "Notes and ideas" else "Annotations (${state.annotations.size})", Modifier.size(18.dp))
                             }
                         }
                         if (pdfMode) {
@@ -885,16 +888,16 @@ fun ZoteroPdfReader(
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                         SingleChoiceSegmentedButtonRow(Modifier.padding(vertical = 2.dp).testTag("reader-view-mode")) {
                             SegmentedButton(selected = pdfMode, onClick = viewModel::showPdf,
-                                shape = SegmentedButtonDefaults.itemShape(0, 2), enabled = state.target != null,
-                                modifier = Modifier.interactivePointer(enabled = state.target != null),
+                                shape = SegmentedButtonDefaults.itemShape(0, 2), enabled = hasDocument,
+                                modifier = Modifier.interactivePointer(enabled = hasDocument),
                                 icon = {
                                     SegmentedButtonDefaults.Icon(active = pdfMode) {
                                         Icon(painterResource(Res.drawable.filled_picture_as_pdf), if (labelModes) null else "Show PDF", Modifier.size(18.dp))
                                     }
                                 }) { if (labelModes) Text("PDF") }
                             SegmentedButton(selected = !pdfMode, onClick = viewModel::showMarkdown,
-                                shape = SegmentedButtonDefaults.itemShape(1, 2), enabled = state.target != null && state.draft == null,
-                                modifier = Modifier.interactivePointer(enabled = state.target != null && state.draft == null),
+                                shape = SegmentedButtonDefaults.itemShape(1, 2), enabled = hasMarkdownStorage && state.draft == null,
+                                modifier = Modifier.interactivePointer(enabled = hasMarkdownStorage && state.draft == null),
                                 icon = {
                                     SegmentedButtonDefaults.Icon(active = !pdfMode) {
                                         Icon(painterResource(Res.drawable.filled_article), if (labelModes) null else "Show Markdown", Modifier.size(18.dp))
@@ -1012,8 +1015,8 @@ fun ZoteroPdfReader(
         val zoomTo: (Float) -> Unit = { value -> zoomAnchor.capture(atPointer = false); fitPage = false; viewModel.zoom(value) }
         CompactViewOptionsSheet(
             pdfMode = pdfMode,
-            canShowPdf = state.target != null,
-            canShowMarkdown = state.target != null && state.draft == null,
+            canShowPdf = hasDocument,
+            canShowMarkdown = hasMarkdownStorage && state.draft == null,
             onShowPdf = viewModel::showPdf,
             onShowMarkdown = viewModel::showMarkdown,
             zoomLabel = if (fitPage) "Fit page" else "${(state.zoom * 100).roundToInt()}%",
@@ -1396,6 +1399,7 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ZoteroSyncIndicator(state: PdfWorkspaceState, onRetry: () -> Unit) {
+    if (state.localTitle != null) return
     val status = when {
         state.syncing -> "Synchronizing with Zotero"
         state.needsRefresh || state.pendingWrites > 0 -> "Not synchronized with Zotero. Retry sync"
@@ -1830,7 +1834,7 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    Button(onClick = { state.target?.let(viewModel::open) }, modifier = Modifier.interactivePointer()) { Text("Retry opening PDF") }
+                    Button(onClick = viewModel::retryOpen, modifier = Modifier.interactivePointer()) { Text("Retry opening PDF") }
                 }
             }
         } else {

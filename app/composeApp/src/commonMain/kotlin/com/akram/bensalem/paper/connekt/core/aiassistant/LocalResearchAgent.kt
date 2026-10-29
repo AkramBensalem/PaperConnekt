@@ -67,7 +67,9 @@ data class AgentCredentials(
 
 class LocalResearchAgent : ResearchAgent {
     override suspend fun respond(request: AgentRequest): String =
-        "The local assistant is ready. Configure an optional provider in Settings to generate an AI response."
+        throw AgentNotConfiguredException(
+            "AI provider execution is not connected in this contest build. Saved keys alone do not enable AI responses yet."
+        )
 }
 
 fun createResearchAgent(): ResearchAgent = LocalResearchAgent()

@@ -63,7 +63,10 @@ fun paperAgentSystemPrompt(
     appendLine("You are PaperConnekt's research assistant, embedded next to a PDF reader. You help the user understand, critique and annotate the open paper.")
     appendLine()
     appendLine("## Paper")
-    appendLine("Title: ${item?.title ?: state.target?.attachment?.data?.title ?: "Untitled"}")
+    appendLine("Title: ${state.localTitle ?: item?.title ?: state.target?.attachment?.data?.title ?: "Untitled"}")
+    if (state.localTitle != null) {
+        appendLine("This is a local PDF. Zotero annotation writes are unavailable; use the Idea Board for saved research notes.")
+    }
     item?.creators?.mapNotNull { it.name ?: listOfNotNull(it.firstName, it.lastName).joinToString(" ").ifBlank { null } }
         ?.takeIf { it.isNotEmpty() }?.let { appendLine("Authors: ${it.take(12).joinToString()}${if (it.size > 12) ", et al." else ""}") }
     item?.date?.takeIf { it.isNotBlank() }?.let { appendLine("Date: $it") }

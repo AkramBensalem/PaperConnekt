@@ -26,4 +26,9 @@ dependencies {
     implementation(project(":shared:storage"))
     implementation(project(":shared:secrets"))
     implementation(libs.androidx.activity.compose)
+    implementation(libs.compose.runtime)
+    implementation(libs.compose.foundation)
+    implementation(libs.compose.ui)
+    implementation(libs.kotlinx.coroutines)
+    implementation(libs.kotlinx.coroutines.android)
 }
