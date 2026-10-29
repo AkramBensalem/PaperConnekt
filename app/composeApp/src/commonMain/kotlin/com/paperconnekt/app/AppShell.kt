@@ -22,6 +22,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.paperconnekt.domain.navigation.AppDestination
@@ -30,10 +32,13 @@ import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.LocalResearchStore
 import com.paperconnekt.app.onboarding.OnboardingScreen
 import com.paperconnekt.domain.model.ResearchGraph
+import com.paperconnekt.domain.model.ThemePreference
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.paperconnekt_brand
 import org.jetbrains.compose.resources.painterResource
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import io.github.aakira.napier.Napier
 import kotlinx.datetime.Clock
 import kotlin.random.Random
 
@@ -42,10 +47,11 @@ fun AppShell(
     store: LocalResearchStore,
     secretStore: SecretStore,
     startDestination: AppDestination,
+    menuState: AppMenuState,
 ) {
     val pdfNavigation = remember { PdfNavigationGuard() }
     CompositionLocalProvider(LocalPdfNavigationGuard provides pdfNavigation) {
-        AppShellContent(store, secretStore, startDestination, pdfNavigation)
+        AppShellContent(store, secretStore, startDestination, pdfNavigation, menuState)
     }
 }
 
@@ -55,11 +61,63 @@ private fun AppShellContent(
     secretStore: SecretStore,
     startDestination: AppDestination,
     pdfNavigation: PdfNavigationGuard,
+    menuState: AppMenuState,
 ) {
     var destination by remember { mutableStateOf(startDestination) }
     var requestedPaper by remember { mutableStateOf<Paper?>(null) }
     var requestedGraphId by remember { mutableStateOf<String?>(null) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var showAddPaper by remember { mutableStateOf(false) }
+
+    SideEffect {
+        menuState.onWorkspaceAction = { action ->
+            when (action) {
+                AppMenuAction.QUIT -> pdfNavigation.navigate { menuState.exit() }
+                AppMenuAction.ADD_PAPER -> pdfNavigation.navigate { showAddPaper = true }
+                AppMenuAction.THEME_SYSTEM, AppMenuAction.THEME_LIGHT, AppMenuAction.THEME_DARK -> {
+                    val theme = when (action) {
+                        AppMenuAction.THEME_LIGHT -> ThemePreference.LIGHT
+                        AppMenuAction.THEME_DARK -> ThemePreference.DARK
+                        else -> ThemePreference.SYSTEM
+                    }
+                    scope.launch {
+                        try {
+                            store.updateSettings { it.copy(selectedTheme = theme) }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            Napier.e("Could not save appearance", error)
+                            menuState.reportError("Could not save your appearance preference. Please try again.")
+                        }
+                    }
+                }
+                else -> {
+                    val target = when (action) {
+                        AppMenuAction.DASHBOARD -> AppDestination.DASHBOARD
+                        AppMenuAction.LIBRARY -> AppDestination.LIBRARY
+                        AppMenuAction.GRAPH -> AppDestination.GRAPH
+                        AppMenuAction.ASSISTANT -> AppDestination.ASSISTANT
+                        AppMenuAction.SETTINGS -> AppDestination.SETTINGS
+                        else -> error("Unsupported workspace action: $action")
+                    }
+                    if (destination != target) pdfNavigation.navigate { destination = target }
+                }
+            }
+        }
+    }
+    DisposableEffect(menuState) {
+        onDispose { menuState.onWorkspaceAction = null }
+    }
+
+    if (showAddPaper) {
+        AddPaperDialog(
+            onDismiss = { showAddPaper = false },
+            onSave = { paper ->
+                store.savePaper(paper)
+                showAddPaper = false
+            },
+        )
+    }
 
     fun openPaperGraph(paper: Paper) {
         scope.launch {

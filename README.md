@@ -67,14 +67,22 @@ avoids rebuilding the research model for every host and demonstrates how
 Kotlin Multiplatform can share meaningful product logic across an application
 and its native integrations.
 
-## Product principles
-
 ## Platform menus
 
 Desktop has a native **File / View / Help / About** menu bar. Add a paper,
 open Settings, switch research views or themes, toggle fullscreen, and open the
 local workspace folder in the system file manager. Both Quit and window-close
 use the PDF workspace's unsaved-edit confirmation.
+
+The desktop launcher uses the experimental Compose **Window and Dialog API v2**.
+The main window starts centered at 1100 x 760 dp with a 640 x 480 dp minimum
+(subject to window-manager support). Fullscreen requests are asynchronous;
+the menu reflects the actual placement reported by the window manager and
+restores the previous placement when leaving fullscreen.
+Help/About and menu errors use resizable, parent-centered native dialog windows
+with title bars, scrollable content, and Escape/Close dismissal. These dialogs
+block only their parent window; Android retains Material dialogs with the same
+content. Other in-app editors and confirmations keep their existing presentation.
 
 Use **Command** on macOS or **Ctrl** on Windows/Linux with **N** to add a paper,
 **,** for Settings, **1-4** for Dashboard/Library/Graph/Assistant, and **Q** to

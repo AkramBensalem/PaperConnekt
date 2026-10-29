@@ -16,6 +16,8 @@ dependencies {
     implementation(project(":shared:storage"))
     implementation(project(":shared:secrets"))
     implementation(compose.desktop.currentOs)
+    implementation(libs.compose.material3)
+    implementation(libs.compose.resources)
     implementation(libs.kotlinx.datetime)
     implementation(libs.kotlinx.coroutines)
     implementation(libs.kotlinx.coroutines.swing)

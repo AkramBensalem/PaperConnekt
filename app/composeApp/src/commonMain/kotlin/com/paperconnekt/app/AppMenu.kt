@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -119,18 +120,24 @@ internal fun MobileAppMenu(state: AppMenuState) {
 }
 
 @Composable
-internal fun AppMenuDialogs(state: AppMenuState) {
+internal fun AppMenuDialogs(state: AppMenuState, dialogHost: AppMenuDialogHost) {
     val uriHandler = LocalUriHandler.current
-    state.information?.let { action ->
-        val content = informationContent(action)
-        AlertDialog(
-            onDismissRequest = { state.information = null },
-            title = { Text(action.title) },
-            text = {
-                Column(
-                    modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+    val error = state.error
+    if (error != null) {
+        dialogHost.Dialog(
+            title = "Action could not be completed",
+            onDismiss = { state.error = null },
+        ) {
+            SelectionContainer { Text(error) }
+        }
+    } else {
+        state.information?.let { action ->
+            val content = informationContent(action)
+            dialogHost.Dialog(
+                title = action.title,
+                onDismiss = { state.information = null },
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(content.text)
                     content.url?.let { url ->
                         TextButton(onClick = {
@@ -141,21 +148,33 @@ internal fun AppMenuDialogs(state: AppMenuState) {
                                 state.reportError("Could not open the link. You can copy it into your browser:\n$url")
                             }
                         }) { Text(content.linkLabel) }
-                        Text(url, style = MaterialTheme.typography.bodySmall)
+                        SelectionContainer {
+                            Text(url, style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { state.information = null }) { Text("Close") }
-            },
-        )
+            }
+        }
     }
-    state.error?.let { message ->
+}
+
+interface AppMenuDialogHost {
+    @Composable
+    fun Dialog(title: String, onDismiss: () -> Unit, content: @Composable () -> Unit)
+}
+
+object MaterialAppMenuDialogHost : AppMenuDialogHost {
+    @Composable
+    override fun Dialog(title: String, onDismiss: () -> Unit, content: @Composable () -> Unit) {
         AlertDialog(
-            onDismissRequest = { state.error = null },
-            title = { Text("Action could not be completed") },
-            text = { Text(message) },
-            confirmButton = { TextButton(onClick = { state.error = null }) { Text("Close") } },
+            onDismissRequest = onDismiss,
+            title = { Text(title) },
+            text = {
+                Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
+                    content()
+                }
+            },
+            confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
         )
     }
 }

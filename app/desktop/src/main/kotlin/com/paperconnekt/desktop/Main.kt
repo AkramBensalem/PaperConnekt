@@ -1,18 +1,30 @@
 package com.paperconnekt.desktop
 
-import androidx.compose.ui.window.Window
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.v2.Window
+import androidx.compose.ui.window.v2.WindowBoundsProvider
+import androidx.compose.ui.window.v2.WindowPositionProvider
+import androidx.compose.ui.window.v2.WindowSizeProvider
 import androidx.compose.ui.window.application
-import androidx.compose.ui.res.painterResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyShortcut
+import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.WindowPlacement
-import androidx.compose.ui.window.rememberWindowState
+import androidx.compose.ui.window.v2.rememberWindowState
 import com.paperconnekt.app.AppMenuAction
 import com.paperconnekt.app.AppMenuGroup
 import com.paperconnekt.app.AppMenuState
 import com.paperconnekt.app.PaperConnektApp
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.paperconnekt_icon
 import com.paperconnekt.storage.DesktopWorkspaceStorage
 import com.paperconnekt.storage.desktopAppDataDirectory
 import java.awt.Desktop
@@ -23,16 +35,24 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalComposeUiApi::class)
 fun main() = application {
     val menuState = remember { AppMenuState(onExit = ::exitApplication) }
-    val windowState = rememberWindowState()
+    val windowState = rememberWindowState(
+        initialBoundsProvider = WindowBoundsProvider(
+            positionProvider = WindowPositionProvider.CenteredInScreenBounds,
+            sizeProvider = WindowSizeProvider.Fixed(DpSize(1100.dp, 760.dp)),
+        ),
+    )
+    var previousPlacement by remember { mutableStateOf(WindowPlacement.Floating) }
     val scope = rememberCoroutineScope()
     val isMac = remember { System.getProperty("os.name").startsWith("Mac", ignoreCase = true) }
     Window(
         onCloseRequest = { menuState.perform(AppMenuAction.QUIT) },
         title = "PaperConnekt",
-        icon = painterResource("icons/paperconnekt.png"),
+        icon = painterResource(Res.drawable.paperconnekt_icon),
         state = windowState,
+        minSize = DpSize(640.dp, 480.dp),
     ) {
         MenuBar {
             AppMenuGroup.entries.forEach { group ->
@@ -91,13 +111,16 @@ fun main() = application {
                         Separator()
                         CheckboxItem(
                             "Fullscreen",
-                            checked = windowState.placement == WindowPlacement.Fullscreen,
+                            enabled = windowState.isInitialized,
+                            checked = windowState.isInitialized &&
+                                windowState.placement == WindowPlacement.Fullscreen,
                             shortcut = KeyShortcut(Key.F11),
                             onCheckedChange = { fullscreen ->
-                                windowState.placement = if (fullscreen) {
-                                    WindowPlacement.Fullscreen
+                                if (fullscreen) {
+                                    previousPlacement = windowState.placement
+                                    windowState.requestPlacement(WindowPlacement.Fullscreen)
                                 } else {
-                                    WindowPlacement.Floating
+                                    windowState.requestPlacement(previousPlacement)
                                 }
                             },
                         )
@@ -110,6 +133,7 @@ fun main() = application {
             workspaceStorage = remember { DesktopWorkspaceStorage() },
             pdfAttachments = remember { DesktopPdfAttachmentUi() },
             menuState = menuState,
+            menuDialogHost = DesktopMenuDialogHost,
         )
     }
 }

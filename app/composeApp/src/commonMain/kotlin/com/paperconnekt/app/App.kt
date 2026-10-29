@@ -2,6 +2,7 @@ package com.paperconnekt.app
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -35,6 +36,7 @@ fun PaperConnektApp(
     pdfAttachments: PdfAttachmentUi,
     menuState: AppMenuState = remember { AppMenuState() },
     showMobileMenu: Boolean = false,
+    menuDialogHost: AppMenuDialogHost = MaterialAppMenuDialogHost,
 ) {
     val store = rememberResearchStore(workspaceStorage)
     var initializationError by remember(store) { mutableStateOf<String?>(null) }
@@ -67,29 +69,33 @@ fun PaperConnektApp(
                 modifier = Modifier.fillMaxSize(),
                 color = androidx.compose.material3.MaterialTheme.colorScheme.background,
             ) {
-                if (initialized) {
-                    AppShell(
-                        store = store,
-                        secretStore = secretStore,
-                        startDestination = startDestination,
-                        menuState = menuState,
-                        showMobileMenu = showMobileMenu,
-                    )
-                } else {
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        if (initializationError == null) {
-                            CircularProgressIndicator()
+                Column(Modifier.fillMaxSize()) {
+                    if (showMobileMenu) MobileAppMenu(menuState)
+                    Box(Modifier.weight(1f).fillMaxSize()) {
+                        if (initialized) {
+                            AppShell(
+                                store = store,
+                                secretStore = secretStore,
+                                startDestination = startDestination,
+                                menuState = menuState,
+                            )
                         } else {
-                            Text(initializationError.orEmpty())
-                            Button(onClick = { attempt++ }) { Text("Retry") }
+                            Column(
+                                modifier = Modifier.fillMaxSize().padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                            ) {
+                                if (initializationError == null) {
+                                    CircularProgressIndicator()
+                                } else {
+                                    Text(initializationError.orEmpty())
+                                    Button(onClick = { attempt++ }) { Text("Retry") }
+                                }
+                            }
                         }
-                        AppMenuDialogs(menuState)
                     }
                 }
+                AppMenuDialogs(menuState, menuDialogHost)
             }
         }
     }
