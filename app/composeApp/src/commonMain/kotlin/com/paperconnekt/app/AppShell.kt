@@ -6,6 +6,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRail
@@ -28,6 +30,9 @@ import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.LocalResearchStore
 import com.paperconnekt.app.onboarding.OnboardingScreen
 import com.paperconnekt.domain.model.ResearchGraph
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.paperconnekt_brand
+import org.jetbrains.compose.resources.painterResource
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlin.random.Random
@@ -120,15 +125,10 @@ private fun AppShellContent(
                             modifier = Modifier.padding(vertical = 20.dp),
                             horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
                         ) {
-                            Text(
-                                text = "P",
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(
-                                text = "PaperConnekt",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            Image(
+                                painter = painterResource(Res.drawable.paperconnekt_brand),
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
                             )
                         }
                     },

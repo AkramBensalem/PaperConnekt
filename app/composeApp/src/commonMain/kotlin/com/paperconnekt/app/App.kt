@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
@@ -32,6 +33,8 @@ fun PaperConnektApp(
     secretStore: SecretStore,
     workspaceStorage: WorkspaceStorage,
     pdfAttachments: PdfAttachmentUi,
+    menuState: AppMenuState = remember { AppMenuState() },
+    showMobileMenu: Boolean = false,
 ) {
     val store = rememberResearchStore(workspaceStorage)
     var initializationError by remember(store) { mutableStateOf<String?>(null) }
@@ -49,6 +52,9 @@ fun PaperConnektApp(
     }
     val initialized by store.isInitialized.collectAsState()
     val settings by store.settings.collectAsState()
+    SideEffect {
+        menuState.workspaceReady = initialized && settings.onboardingCompleted
+    }
     val startDestination = if (settings.onboardingCompleted) {
         AppDestination.DASHBOARD
     } else {
@@ -66,6 +72,8 @@ fun PaperConnektApp(
                         store = store,
                         secretStore = secretStore,
                         startDestination = startDestination,
+                        menuState = menuState,
+                        showMobileMenu = showMobileMenu,
                     )
                 } else {
                     Column(
@@ -79,6 +87,7 @@ fun PaperConnektApp(
                             Text(initializationError.orEmpty())
                             Button(onClick = { attempt++ }) { Text("Retry") }
                         }
+                        AppMenuDialogs(menuState)
                     }
                 }
             }

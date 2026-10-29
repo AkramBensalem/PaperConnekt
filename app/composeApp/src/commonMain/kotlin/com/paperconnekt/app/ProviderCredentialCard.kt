@@ -57,7 +57,7 @@ internal fun ProviderCredentialCard(
                 shape = MaterialTheme.shapes.medium,
             ),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = MaterialTheme.colorScheme.surfaceBright,
         ),
     ) {
         Column(

@@ -509,7 +509,7 @@ private fun SettingsCard(content: @Composable () -> Unit) {
                 shape = MaterialTheme.shapes.medium,
             ),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = MaterialTheme.colorScheme.surfaceBright,
         ),
     ) {
         Column(modifier = Modifier.padding(18.dp)) {

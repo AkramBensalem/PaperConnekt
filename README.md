@@ -69,6 +69,31 @@ and its native integrations.
 
 ## Product principles
 
+## Platform menus
+
+Desktop has a native **File / View / Help / About** menu bar. Add a paper,
+open Settings, switch research views or themes, toggle fullscreen, and open the
+local workspace folder in the system file manager. Both Quit and window-close
+use the PDF workspace's unsaved-edit confirmation.
+
+Use **Command** on macOS or **Ctrl** on Windows/Linux with **N** to add a paper,
+**,** for Settings, **1-4** for Dashboard/Library/Graph/Assistant, and **Q** to
+quit. **F11** toggles fullscreen. Workspace actions become available after
+initialization and onboarding; Help and About remain available independently.
+
+Android keeps its adaptive bottom navigation/navigation rail and adds a
+Material overflow **Menu** for secondary actions. It does not expose desktop
+filesystem paths, fullscreen controls, or Quit. PDF attachments continue to
+use Android's system document picker.
+
+Getting started, About, developer/contact information, acknowledgements,
+issue reporting, and release links share the same content on both platforms.
+External links open only on request. Updates link to GitHub releases; there
+is no automatic update check or installer. Opening the desktop workspace
+folder does not change its save location or migrate data.
+
+## Product principles
+
 - **Researcher-centred:** every feature supports reading, organising,
   connecting, or writing about literature.
 - **Local-first:** the essential workspace is useful on the device and does
@@ -118,6 +143,33 @@ The dependency direction keeps product logic and UI in shared Kotlin modules.
 Each platform module owns only its launcher and native boundary, so Android and
 desktop can evolve independently while a future web module can reuse the same
 Compose application flow.
+
+## App and plugin icons
+
+The PaperConnekt mark combines a folded-paper **P** with a three-node research
+graph on a rounded blue tile. The letter represents papers; the linked nodes
+represent connections between research ideas.
+Its gradient uses `#3B82F6`, the app's primary blue `#2457A6`, and `#173D80`.
+`branding/paperconnekt.svg` is the editable master; all platform exports share
+the same glyph and palette.
+
+- Android owns adaptive launcher layers, round/legacy density exports, and an
+  Android 13 monochrome themed icon in `app/android/src/main/res`.
+- Desktop owns its window icon and Linux PNG, Windows multi-size ICO, and
+  macOS ICNS packaging assets in `app/desktop/src/main/resources/icons`.
+  Apple packaging still requires macOS validation.
+- The shared Compose navigation rail uses a PNG export, supported on both
+  Android and desktop.
+- Native plugin resources include IntelliJ plugin-list and light/dark
+  tool-window SVGs, plus VS Code listing PNG and monochrome activity-bar SVG.
+  The adapters do not yet have installable host manifests; see the native
+  plugin README for their intended wiring.
+
+To re-export after editing the master, run
+`python3 tools/generate_brand_icons.py` with Pillow and CairoSVG available.
+This only writes icon resources; it does not run Gradle.
+The mark is custom vector artwork, not a generic chain-link glyph; its design
+notes are in `branding/NOTICE.txt`.
 
 ## Technology
 

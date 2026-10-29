@@ -38,6 +38,7 @@ class MainActivity : ComponentActivity() {
                 secretStore = remember { AndroidSecretStore(applicationContext) },
                 workspaceStorage = remember { AndroidWorkspaceStorage(applicationContext) },
                 pdfAttachments = pdfAttachments,
+                showMobileMenu = true,
             )
         }
     }

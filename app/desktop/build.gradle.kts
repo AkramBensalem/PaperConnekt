@@ -24,5 +24,16 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "com.paperconnekt.desktop.MainKt"
+        nativeDistributions {
+            linux {
+                iconFile.set(project.file("src/main/resources/icons/paperconnekt.png"))
+            }
+            windows {
+                iconFile.set(project.file("src/main/resources/icons/paperconnekt.ico"))
+            }
+            macOS {
+                iconFile.set(project.file("src/main/resources/icons/paperconnekt.icns"))
+            }
+        }
     }
 }

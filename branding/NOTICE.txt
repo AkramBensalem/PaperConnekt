@@ -1,0 +1,12 @@
+PaperConnekt icon
+
+Custom vector artwork for PaperConnekt: a folded-paper P beside a separate
+three-node research graph. This replaces the initial Material chain-link
+concept and does not contain its glyph.
+
+The P represents papers, the folded corner reinforces the document metaphor,
+and the connected nodes represent relationships between research ideas.
+The blue gradient uses #3B82F6, #2457A6, and #173D80.
+
+Platform exports include Android adaptive and monochrome layers, desktop
+packaging icons, and theme-specific plugin variants.
