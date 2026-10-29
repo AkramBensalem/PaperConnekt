@@ -10,6 +10,7 @@ data class Paper(
     val abstractText: String? = null,
     val year: Int? = null,
     val pdfPath: String? = null,
+    val completed: Boolean = false,
     val doi: String? = null,
     val tags: List<String> = emptyList(),
     val source: String = "Local",

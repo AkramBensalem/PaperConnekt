@@ -44,6 +44,13 @@ organisation patterns researchers know from Zotero. It is useful with or
 without a Zotero connection, so the core workflow remains available while
 travelling, teaching, or working offline.
 
+The library workspace now presents collections as a navigable nested tree with
+folder counts, search, unfiled/recent views, and collection actions. Each item
+can be completed, moved, opened in the reading workspace when a PDF is
+attached, or edited in place. Item details support a local PDF path, metadata,
+and abstract/reading notes; the attached path is intentionally local-first and
+does not upload files or require an account.
+
 ### IDE and editor plugins
 
 Research does not stop when a researcher starts writing. PaperConnekt also
