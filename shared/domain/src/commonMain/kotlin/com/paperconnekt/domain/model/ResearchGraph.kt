@@ -8,6 +8,8 @@ data class ResearchGraph(
     val id: String,
     val name: String,
     val paperIds: List<String> = emptyList(),
+    /** Papers explicitly chosen as graph seeds. Older graphs fall back to the first paper id. */
+    val seedPaperIds: List<String> = emptyList(),
     val connections: List<GraphConnection> = emptyList(),
     val nodePositions: Map<String, GraphNodePosition> = emptyMap(),
     val updatedAt: Instant? = null,

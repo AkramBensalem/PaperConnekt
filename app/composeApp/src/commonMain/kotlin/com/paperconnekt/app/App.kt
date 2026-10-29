@@ -32,7 +32,10 @@ fun PaperConnektApp(
     }
 
     PaperConnektTheme(preference = settings.selectedTheme) {
-        Surface(modifier = Modifier.fillMaxSize()) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = androidx.compose.material3.MaterialTheme.colorScheme.background,
+        ) {
             if (initialized) {
                 AppShell(
                     store = store,

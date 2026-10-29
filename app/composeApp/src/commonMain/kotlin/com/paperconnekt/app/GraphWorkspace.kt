@@ -3,6 +3,7 @@ package com.paperconnekt.app
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,13 +14,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -31,6 +38,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -39,6 +47,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import org.jetbrains.compose.resources.painterResource
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Stars
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -77,8 +90,10 @@ import com.paperconnekt.app.legacygraph.components.GuidedInsightsDialog
 import com.paperconnekt.app.legacygraph.toLegacyGraph
 import com.paperconnekt.storage.GraphExpansionDirection
 import com.paperconnekt.storage.OpenAlexGraphProvider
+import com.paperconnekt.storage.OpenAlexPaperSearchProvider
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.arrow_back
+import com.paperconnekt.app.resources.research_graph_empty
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -102,6 +117,14 @@ fun GraphWorkspace(
     var paperQuery by remember(graph.id) { mutableStateOf("") }
     var sortByTitle by remember(graph.id) { mutableStateOf(false) }
     var showAddPaperDialog by remember(graph.id) { mutableStateOf(false) }
+    var showSeedPicker by remember(graph.id) { mutableStateOf(graph.paperIds.isEmpty()) }
+    var seedQuery by remember(graph.id) { mutableStateOf("") }
+    var seedResults by remember(graph.id) { mutableStateOf<List<Paper>>(emptyList()) }
+    var seedSearchPage by remember(graph.id) { mutableStateOf(0) }
+    var seedHasNextPage by remember(graph.id) { mutableStateOf(false) }
+    var isSearchingSeeds by remember(graph.id) { mutableStateOf(false) }
+    var seedPickerError by remember(graph.id) { mutableStateOf<String?>(null) }
+    var isAddingSeed by remember(graph.id) { mutableStateOf(false) }
     var showConnectionDialog by remember(graph.id) { mutableStateOf(false) }
     var connectionToRemove by remember { mutableStateOf<GraphConnection?>(null) }
     var isExpanding by remember(graph.id) { mutableStateOf(false) }
@@ -111,8 +134,8 @@ fun GraphWorkspace(
     var autoExpansionAttempted by remember(graph.id) { mutableStateOf(false) }
     var showReferences by remember(graph.id) { mutableStateOf(true) }
     var showCitations by remember(graph.id) { mutableStateOf(true) }
-    var showSelectedReferences by remember(graph.id, selectedPaperId) { mutableStateOf(true) }
-    var showSelectedCitations by remember(graph.id, selectedPaperId) { mutableStateOf(true) }
+    var hiddenReferencePaperIds by remember(graph.id) { mutableStateOf<Set<String>>(emptySet()) }
+    var hiddenCitationPaperIds by remember(graph.id) { mutableStateOf<Set<String>>(emptySet()) }
     var showInterconnections by remember(graph.id) { mutableStateOf(true) }
     var minimumCitations by remember(graph.id) { mutableStateOf(0) }
     var maximumCitations by remember(graph.id) { mutableStateOf(Int.MAX_VALUE) }
@@ -127,16 +150,17 @@ fun GraphWorkspace(
     var persistedNodePositions by remember(graph.id) { mutableStateOf(graph.nodePositions) }
     val scope = rememberCoroutineScope()
     val graphProvider = remember { OpenAlexGraphProvider(HttpClient()) }
+    val paperSearchProvider = remember { OpenAlexPaperSearchProvider(HttpClient()) }
 
     val selectedPaper = graphPapers.firstOrNull { it.id == selectedPaperId }
     val selectedNode = selectedPaper?.let { paper ->
-        val seed = graph.paperIds.firstOrNull()
+        val seedIds = graph.seedPaperIds.ifEmpty { graph.paperIds.firstOrNull()?.let(::listOf).orEmpty() }
         PaperNode(
             paper = paper,
             citationCount = paper.citationCount ?: 0,
             connectionType = when {
-                paper.id == seed -> LegacyConnectionType.CENTRAL
-                graph.connections.any { it.fromPaperId == seed && it.toPaperId == paper.id } -> LegacyConnectionType.CITED_BY_CENTRAL
+                paper.id in seedIds -> LegacyConnectionType.CENTRAL
+                graph.connections.any { it.fromPaperId in seedIds && it.toPaperId == paper.id } -> LegacyConnectionType.CITED_BY_CENTRAL
                 else -> LegacyConnectionType.CITES_CENTRAL
             },
             referenceCount = paper.referenceCount ?: graph.connections.count { it.fromPaperId == paper.id },
@@ -144,7 +168,12 @@ fun GraphWorkspace(
         )
     }
     val legacyReferenceNodes = graphPapers
-        .filter { paper -> graph.connections.any { it.fromPaperId == graph.paperIds.firstOrNull() && it.toPaperId == paper.id } }
+        .filter { paper ->
+            graph.connections.any {
+                it.fromPaperId in (graph.seedPaperIds.ifEmpty { graph.paperIds.firstOrNull()?.let(::listOf).orEmpty() }) &&
+                    it.toPaperId == paper.id
+            }
+        }
         .map { paper -> PaperNode(paper, paper.citationCount ?: 0, LegacyConnectionType.CITED_BY_CENTRAL) }
     val guidedReviewState = selectedPaper?.let { paper ->
         val candidates = rankGuidedCandidates(paper.id, graph.toLegacyGraph(graphPapers))
@@ -153,7 +182,10 @@ fun GraphWorkspace(
             direction = reviewDirection,
             batchSize = reviewBatchSize,
             isQueueLoaded = true,
-            batch = candidates.take(reviewBatchSize).map { candidate ->
+                batch = candidates
+                    .filter { it.node.paper.id !in guidedKeptIds && it.node.paper.id !in guidedSkippedIds }
+                    .take(reviewBatchSize)
+                    .map { candidate ->
                 GuidedSuggestion(
                     candidate = candidate,
                     reason = "Ranked from this paper's loaded references and citations.",
@@ -176,16 +208,18 @@ fun GraphWorkspace(
                 it.authors.any { author -> author.lowercase().contains(query) }
         }
         .let { current -> if (sortByTitle) current.sortedBy { it.title.lowercase() } else current }
-    val seedId = graph.paperIds.firstOrNull()
+    val seedId = graph.seedPaperIds.firstOrNull() ?: graph.paperIds.firstOrNull()
     val legacyFullGraph = graph.toLegacyGraph(graphPapers)
-    val graphInsightsReview = remember(legacyFullGraph) {
+    val graphInsightsReview = remember(legacyFullGraph, guidedKeptIds, guidedSkippedIds) {
         val candidates = seedId?.let { rankGuidedCandidates(it, legacyFullGraph) }.orEmpty()
         GuidedReviewState(
             isQueueLoaded = true,
+            keptIds = guidedKeptIds,
+            skippedIds = guidedSkippedIds,
             candidates = candidates,
             referenceCount = candidates.count { it.relation == GuidedRelation.REFERENCE },
             citationCount = candidates.count { it.relation == GuidedRelation.CITATION },
-            remainingCount = candidates.size,
+            remainingCount = candidates.count { it.node.paper.id !in guidedKeptIds && it.node.paper.id !in guidedSkippedIds },
         )
     }
     val baseFilteredLegacyGraph = filterGraph(
@@ -196,18 +230,17 @@ fun GraphWorkspace(
         maxCitations = maximumCitations,
         minimumSimilarityPercent = minimumSimilarityPercent,
         showInterconnections = showInterconnections,
-        showDisqualified = true,
-        disqualifiedPaperIds = emptySet(),
+        showDisqualified = false,
+        disqualifiedPaperIds = guidedSkippedIds,
     )
     val selectedHiddenIds = buildSet {
-        val selectedId = selectedPaperId ?: return@buildSet
-        if (!showSelectedReferences) {
-            graph.connections.filter { it.fromPaperId == selectedId }.forEach { add(it.toPaperId) }
-        }
-        if (!showSelectedCitations) {
-            graph.connections.filter { it.toPaperId == selectedId }.forEach { add(it.fromPaperId) }
-        }
-        remove(selectedId)
+        graph.connections
+            .filter { it.fromPaperId in hiddenReferencePaperIds }
+            .forEach { add(it.toPaperId) }
+        graph.connections
+            .filter { it.toPaperId in hiddenCitationPaperIds }
+            .forEach { add(it.fromPaperId) }
+        selectedPaperId?.let(::remove)
     }
     val filteredLegacyGraph = if (selectedHiddenIds.isEmpty()) {
         baseFilteredLegacyGraph
@@ -296,6 +329,93 @@ fun GraphWorkspace(
         }
     }
 
+    val searchSeeds: (Int) -> Unit = { requestedPage ->
+        val query = seedQuery.trim()
+        if (query.isNotEmpty() && !isSearchingSeeds) {
+            isSearchingSeeds = true
+            seedPickerError = null
+            scope.launch {
+                runCatching {
+                    val normalized = query.lowercase()
+                    val local = if (requestedPage == 0) papers.filter {
+                        it.title.lowercase().contains(normalized) ||
+                            it.authors.any { author -> author.lowercase().contains(normalized) } ||
+                            it.doi?.lowercase()?.contains(normalized) == true
+                    } else emptyList()
+                    val remote = paperSearchProvider.search(query, page = requestedPage, perPage = 10)
+                    local + remote.filterNot { remotePaper -> local.any { it.id == remotePaper.id } }
+                }.onSuccess {
+                    seedResults = it
+                    seedSearchPage = requestedPage
+                    seedHasNextPage = it.size >= 10
+                }
+                    .onFailure { seedPickerError = it.message ?: "Paper search failed." }
+                isSearchingSeeds = false
+            }
+        }
+    }
+
+    val addSeed: (Paper) -> Unit = { paper ->
+        if (!isAddingSeed && paper.id !in graph.seedPaperIds &&
+            !(graph.seedPaperIds.isEmpty() && graph.paperIds.firstOrNull() == paper.id)) {
+            isAddingSeed = true
+            seedPickerError = null
+            scope.launch {
+                runCatching {
+                    onSavePaper(paper)
+                    var updated = graph.copy(
+                        paperIds = (graph.paperIds + paper.id).distinct(),
+                        seedPaperIds = ((graph.seedPaperIds.ifEmpty { graph.paperIds.firstOrNull()?.let(::listOf).orEmpty() }) + paper.id).distinct(),
+                    )
+                    if (paper.id.startsWith("W")) {
+                        listOf(GraphExpansionDirection.REFERENCES, GraphExpansionDirection.CITATIONS).forEach { direction ->
+                            val expansion = graphProvider.expand(paper.id, direction)
+                            expansion.papers.forEach(onSavePaper)
+                            updated = updated.copy(
+                                paperIds = (updated.paperIds + expansion.papers.map(Paper::id)).distinct(),
+                                connections = (updated.connections + expansion.connections).distinct(),
+                            )
+                        }
+                    }
+                    saveUpdated(updated)
+                    selectedPaperId = paper.id
+                    showSeedPicker = false
+                }.onFailure { seedPickerError = it.message ?: "Could not add this seed paper." }
+                isAddingSeed = false
+            }
+        }
+    }
+
+    val removeSeed: (String) -> Unit = { paperId ->
+        val seedIds = graph.seedPaperIds.ifEmpty { graph.paperIds.firstOrNull()?.let(::listOf).orEmpty() }
+        if (seedIds.size > 1 && paperId in seedIds) {
+            val relatedPaperIds = graph.connections
+                .filter { it.fromPaperId == paperId || it.toPaperId == paperId }
+                .flatMap { listOf(it.fromPaperId, it.toPaperId) }
+                .filterNot { it == paperId }
+                .toSet()
+            val remainingConnections = graph.connections.filter {
+                it.fromPaperId != paperId && it.toPaperId != paperId
+            }
+            val orphanedRelatedPaperIds = relatedPaperIds.filter { relatedId ->
+                remainingConnections.none {
+                    it.fromPaperId == relatedId || it.toPaperId == relatedId
+                }
+            }.toSet()
+            val removedPaperIds = orphanedRelatedPaperIds + paperId
+            persistedNodePositions = persistedNodePositions.filterKeys { it !in removedPaperIds }
+            saveUpdated(
+                graph.copy(
+                    paperIds = graph.paperIds.filterNot { it in removedPaperIds },
+                    seedPaperIds = seedIds - paperId,
+                    connections = remainingConnections,
+                    nodePositions = graph.nodePositions.filterKeys { it !in removedPaperIds },
+                ),
+            )
+            if (selectedPaperId == paperId) selectedPaperId = null
+        }
+    }
+
     LaunchedEffect(graph.id) {
         if (!autoExpansionAttempted && graphPapers.size == 1 && graph.connections.isEmpty()) {
             autoExpansionAttempted = true
@@ -360,6 +480,7 @@ fun GraphWorkspace(
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { showSeedPicker = true }) { Text("Add seed") }
                 TextButton(onClick = { showInsightsDialog = true }) { Text("Insights") }
                 GraphFilterMenu(
                     expanded = showFilters,
@@ -413,6 +534,12 @@ fun GraphWorkspace(
                         }
                     },
                 )
+                if (graphPapers.isEmpty()) {
+                    EmptyGraphStateCard(
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        onClick = { showSeedPicker = true },
+                    )
+                }
                 androidx.compose.animation.AnimatedVisibility(
                     visible = selectedPaper != null,
                     enter = fadeIn() + slideInHorizontally { it / 4 },
@@ -429,11 +556,29 @@ fun GraphWorkspace(
                                 isLoadingConnections = isDiscoveringConnections,
                                 connectionProgress = connectionDiscoveryProgress,
                                 connectionDiscoveryComplete = connectionDiscoveryComplete,
-                                showReferences = showSelectedReferences,
-                                showCitations = showSelectedCitations,
-                                onToggleReferences = { showSelectedReferences = !showSelectedReferences },
-                                onToggleCitations = { showSelectedCitations = !showSelectedCitations },
+                                showReferences = selectedPaperId?.let { it !in hiddenReferencePaperIds } ?: true,
+                                showCitations = selectedPaperId?.let { it !in hiddenCitationPaperIds } ?: true,
+                                onToggleReferences = {
+                                    selectedPaperId?.let { id ->
+                                        hiddenReferencePaperIds = if (id in hiddenReferencePaperIds) {
+                                            hiddenReferencePaperIds - id
+                                        } else {
+                                            hiddenReferencePaperIds + id
+                                        }
+                                    }
+                                },
+                                onToggleCitations = {
+                                    selectedPaperId?.let { id ->
+                                        hiddenCitationPaperIds = if (id in hiddenCitationPaperIds) {
+                                            hiddenCitationPaperIds - id
+                                        } else {
+                                            hiddenCitationPaperIds + id
+                                        }
+                                    }
+                                },
                                 onOpenReview = { showReviewDialog = true },
+                                onUseAsSeed = { addSeed(node.paper) },
+                                canUseAsSeed = node.paper.id !in (graph.seedPaperIds.ifEmpty { graph.paperIds.firstOrNull()?.let(::listOf).orEmpty() }),
                                 citedPapers = legacyReferenceNodes,
                                 nodeSortOrder = GraphNodeSortOrder.DEFAULT,
                                 modifier = Modifier.fillMaxWidth(),
@@ -465,6 +610,12 @@ fun GraphWorkspace(
                         }
                     },
                 )
+                if (graphPapers.isEmpty()) {
+                    EmptyGraphStateCard(
+                        modifier = Modifier.align(Alignment.Center),
+                        onClick = { showSeedPicker = true },
+                    )
+                }
                 androidx.compose.animation.AnimatedVisibility(
                     visible = selectedPaper != null,
                     enter = fadeIn() + slideInHorizontally { it / 3 },
@@ -485,11 +636,29 @@ fun GraphWorkspace(
                             isLoadingConnections = isDiscoveringConnections,
                             connectionProgress = connectionDiscoveryProgress,
                             connectionDiscoveryComplete = connectionDiscoveryComplete,
-                            showReferences = showSelectedReferences,
-                            showCitations = showSelectedCitations,
-                            onToggleReferences = { showSelectedReferences = !showSelectedReferences },
-                            onToggleCitations = { showSelectedCitations = !showSelectedCitations },
+                            showReferences = selectedPaperId?.let { it !in hiddenReferencePaperIds } ?: true,
+                            showCitations = selectedPaperId?.let { it !in hiddenCitationPaperIds } ?: true,
+                            onToggleReferences = {
+                                selectedPaperId?.let { id ->
+                                    hiddenReferencePaperIds = if (id in hiddenReferencePaperIds) {
+                                        hiddenReferencePaperIds - id
+                                    } else {
+                                        hiddenReferencePaperIds + id
+                                    }
+                                }
+                            },
+                            onToggleCitations = {
+                                selectedPaperId?.let { id ->
+                                    hiddenCitationPaperIds = if (id in hiddenCitationPaperIds) {
+                                        hiddenCitationPaperIds - id
+                                    } else {
+                                        hiddenCitationPaperIds + id
+                                    }
+                                }
+                            },
                             onOpenReview = { showReviewDialog = true },
+                            onUseAsSeed = { addSeed(node.paper) },
+                            canUseAsSeed = node.paper.id !in (graph.seedPaperIds.ifEmpty { graph.paperIds.firstOrNull()?.let(::listOf).orEmpty() }),
                             citedPapers = legacyReferenceNodes,
                             nodeSortOrder = GraphNodeSortOrder.DEFAULT,
                         )
@@ -546,6 +715,26 @@ fun GraphWorkspace(
         )
     }
 
+    if (showSeedPicker) {
+        SeedPaperPickerDialog(
+            seeds = graphPapers.filter { it.id in (graph.seedPaperIds.ifEmpty { graph.paperIds.firstOrNull()?.let(::listOf).orEmpty() }) },
+            query = seedQuery,
+            results = seedResults,
+            isSearching = isSearchingSeeds,
+            isAdding = isAddingSeed,
+            error = seedPickerError,
+            onQueryChange = { seedQuery = it },
+            onSearch = { searchSeeds(0) },
+            page = seedSearchPage,
+            hasNextPage = seedHasNextPage,
+            onPreviousPage = { searchSeeds(seedSearchPage - 1) },
+            onNextPage = { searchSeeds(seedSearchPage + 1) },
+            onAdd = addSeed,
+            onRemove = removeSeed,
+            onDismiss = { showSeedPicker = false },
+        )
+    }
+
     if (showReviewDialog && selectedNode != null && guidedReviewState != null) {
         Dialog(
             onDismissRequest = { showReviewDialog = false },
@@ -566,7 +755,7 @@ fun GraphWorkspace(
                 onKeep = { id -> guidedKeptIds = guidedKeptIds + id; guidedSkippedIds = guidedSkippedIds - id },
                 onSkip = { id -> guidedSkippedIds = guidedSkippedIds + id; guidedKeptIds = guidedKeptIds - id },
                 onUndo = { id -> guidedKeptIds = guidedKeptIds - id; guidedSkippedIds = guidedSkippedIds - id },
-                onRevisitSkipped = {},
+                onRevisitSkipped = { guidedSkippedIds = emptySet() },
                 onReviewPaper = { selectedPaperId = it },
                 onDismissError = {},
                 researchTargetContent = {},
@@ -835,8 +1024,9 @@ private fun SelectedPaperCard(
     onExpand: (GraphExpansionDirection) -> Unit,
     isExpanding: Boolean,
 ) {
-    val isSeed = graph.paperIds.firstOrNull() == paper.id
-    val isReference = graph.connections.any { it.fromPaperId == graph.paperIds.firstOrNull() && it.toPaperId == paper.id }
+    val seedIds = graph.seedPaperIds.ifEmpty { graph.paperIds.firstOrNull()?.let(::listOf).orEmpty() }
+    val isSeed = paper.id in seedIds
+    val isReference = graph.connections.any { it.fromPaperId in seedIds && it.toPaperId == paper.id }
     val role = when {
         isSeed -> "Seed paper"
         isReference -> "Reference"
@@ -1020,6 +1210,306 @@ private fun AddGraphPapersDialog(
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
     )
+}
+
+@Composable
+private fun EmptyGraphStateCard(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = modifier
+            .widthIn(min = 280.dp, max = 420.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Image(
+                painter = painterResource(Res.drawable.research_graph_empty),
+                contentDescription = null,
+                modifier = Modifier.widthIn(max = 220.dp).fillMaxWidth(),
+            )
+            Text(
+                text = "Your graph is empty",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "Add a seed paper to start exploring its references and citations.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            Text(
+                text = "Click to add a paper",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SeedPaperPickerDialog(
+    seeds: List<Paper>,
+    query: String,
+    results: List<Paper>,
+    isSearching: Boolean,
+    isAdding: Boolean,
+    error: String?,
+    page: Int,
+    hasNextPage: Boolean,
+    onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    onPreviousPage: () -> Unit,
+    onNextPage: () -> Unit,
+    onAdd: (Paper) -> Unit,
+    onRemove: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        BoxWithConstraints(
+            Modifier.fillMaxSize().safeDrawingPadding(),
+            contentAlignment = Alignment.Center,
+        ) {
+            val compact = maxWidth < 640.dp
+            Surface(
+                modifier = Modifier
+                    .padding(if (compact) 0.dp else 24.dp)
+                    .widthIn(max = 1100.dp)
+                    .fillMaxWidth()
+                    .fillMaxHeight(if (compact) 1f else 0.94f),
+                shape = RoundedCornerShape(if (compact) 0.dp else 24.dp),
+                color = MaterialTheme.colorScheme.background,
+                tonalElevation = 6.dp,
+            ) {
+                Column(Modifier.padding(if (compact) 12.dp else 24.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Stars, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            "Seed papers (${seeds.size})",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Close seed picker")
+                        }
+                    }
+                    Text(
+                        "Add papers to explore direct citations and shared references. Removing a seed keeps its papers and connections.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(seeds, key = Paper::id) { seed ->
+                            InputChip(
+                                selected = true,
+                                onClick = {},
+                                label = {
+                                    Text(
+                                        seed.title,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.widthIn(max = 220.dp),
+                                    )
+                                },
+                                trailingIcon = if (seeds.size > 1) ({
+                                    IconButton(onClick = { onRemove(seed.id) }, modifier = Modifier.size(40.dp)) {
+                                        Icon(Icons.Default.Close, contentDescription = "Remove seed: ${seed.title}", modifier = Modifier.size(18.dp))
+                                    }
+                                }) else null,
+                            )
+                        }
+                    }
+                    if (isAdding) {
+                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                        Text(
+                            "Finding citation connections…",
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(vertical = 8.dp),
+                        )
+                    }
+                    error?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
+                    }
+                    Box(Modifier.weight(1f)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                OutlinedTextField(
+                                    modifier = Modifier.weight(1f),
+                                    value = query,
+                                    onValueChange = onQueryChange,
+                                    label = { Text("Search title, author, or DOI") },
+                                    singleLine = true,
+                                )
+                                Button(
+                                    onClick = onSearch,
+                                    enabled = query.isNotBlank() && !isSearching && !isAdding,
+                                ) { Text(if (isSearching) "Searching…" else "Search") }
+                            }
+                            if (results.isNotEmpty() || page > 0) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        if (results.isEmpty()) "No matching papers" else
+                                            "${page * 10 + 1}-${page * 10 + results.size} results",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    SeedSearchPager(
+                                        page = page,
+                                        hasNext = hasNextPage,
+                                        enabled = !isSearching && !isAdding,
+                                        onPrevious = onPreviousPage,
+                                        onNext = onNextPage,
+                                    )
+                                }
+                            }
+                            if (!isSearching && results.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.padding(16.dp),
+                                    ) {
+                                        Image(
+                                            painter = painterResource(Res.drawable.research_graph_empty),
+                                            contentDescription = "Search for research papers",
+                                            modifier = Modifier.widthIn(max = 280.dp).fillMaxWidth(),
+                                        )
+                                        Spacer(Modifier.height(12.dp))
+                                        Text(
+                                            if (query.isBlank()) "Search for a paper to add a seed"
+                                            else "No research papers found for \"$query\"",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(
+                                            if (query.isBlank()) "Search across academic literature to start building this graph."
+                                            else "Try adjusting your query, keywords, or DOI.",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    items(results, key = Paper::id) { paper ->
+                                        Card(modifier = Modifier.fillMaxWidth()) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(paper.title, fontWeight = FontWeight.SemiBold)
+                                                    Text(
+                                                        listOfNotNull(
+                                                            paper.year?.toString(),
+                                                            paper.authors.take(3).joinToString(", ").takeIf { it.isNotBlank() },
+                                                        ).joinToString(" · "),
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                    )
+                                                    Row(
+                                                        modifier = Modifier.padding(top = 8.dp),
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                    ) {
+                                                        paper.year?.let {
+                                                            Text("$it", style = MaterialTheme.typography.labelSmall,
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                        }
+                                                        paper.citationCount?.let {
+                                                            Text("⭐ $it citations", style = MaterialTheme.typography.labelSmall,
+                                                                color = MaterialTheme.colorScheme.tertiary)
+                                                        }
+                                                        paper.referenceCount?.let {
+                                                            Text("$it references", style = MaterialTheme.typography.labelSmall,
+                                                                color = MaterialTheme.colorScheme.primary)
+                                                        }
+                                                    }
+                                                }
+                                                TextButton(onClick = { onAdd(paper) }, enabled = !isAdding) {
+                                                    Text("Add seed")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                SeedSearchPager(
+                                    page = page,
+                                    hasNext = hasNextPage,
+                                    enabled = !isSearching && !isAdding,
+                                    onPrevious = onPreviousPage,
+                                    onNext = onNextPage,
+                                )
+                            }
+                        }
+                    }
+                    TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                        Text("Done")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeedSearchPager(
+    page: Int,
+    hasNext: Boolean,
+    enabled: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        OutlinedButton(
+            onClick = onPrevious,
+            enabled = enabled && page > 0,
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+        ) { Text("Previous", style = MaterialTheme.typography.labelSmall) }
+        Text(
+            "Page ${page + 1}",
+            modifier = Modifier.padding(horizontal = 10.dp),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        OutlinedButton(
+            onClick = onNext,
+            enabled = enabled && hasNext,
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+        ) { Text("Next", style = MaterialTheme.typography.labelSmall) }
+    }
 }
 
 @Composable

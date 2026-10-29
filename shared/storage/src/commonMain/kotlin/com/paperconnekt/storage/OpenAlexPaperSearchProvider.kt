@@ -14,10 +14,15 @@ class OpenAlexPaperSearchProvider(
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) : PaperSearchProvider {
     override suspend fun search(query: String): List<Paper> {
+        return search(query, page = 0)
+    }
+
+    suspend fun search(query: String, page: Int, perPage: Int = 10): List<Paper> {
         val response = client.get("https://api.openalex.org/works") {
             parameter("search", query)
-            parameter("per-page", 20)
-            parameter("select", "id,title,publication_year,authorships,doi,open_access,cited_by_count")
+            parameter("page", page.coerceAtLeast(0) + 1)
+            parameter("per-page", perPage.coerceIn(1, 100))
+            parameter("select", "id,title,publication_year,authorships,doi,open_access,cited_by_count,referenced_works")
         }
         val payload = json.decodeFromString<OpenAlexResponse>(response.bodyAsText())
         return payload.results.mapNotNull { it.toPaper() }
@@ -39,6 +44,8 @@ private data class OpenAlexWork(
     val doi: String? = null,
     @SerialName("cited_by_count")
     val citedByCount: Int? = null,
+    @SerialName("referenced_works")
+    val referencedWorks: List<String> = emptyList(),
 )
 
 @Serializable
@@ -65,5 +72,6 @@ private fun OpenAlexWork.toPaper(): Paper? {
         source = "OpenAlex",
         sourceUrl = id,
         citationCount = citedByCount,
+        referenceCount = referencedWorks.size,
     )
 }
