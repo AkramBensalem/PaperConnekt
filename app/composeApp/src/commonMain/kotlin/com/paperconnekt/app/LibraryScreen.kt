@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,6 +57,10 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.paperconnekt.domain.model.LibraryEntry
@@ -100,6 +105,7 @@ import com.paperconnekt.app.resources.filled_create_new_folder
 import com.paperconnekt.app.resources.filled_delete
 import com.paperconnekt.app.resources.filled_delete_outline
 import com.paperconnekt.app.resources.filled_description
+import com.paperconnekt.app.resources.filled_edit
 import com.paperconnekt.app.resources.filled_folder
 import com.paperconnekt.app.resources.filled_folder_open
 import com.paperconnekt.app.resources.filled_groups
@@ -263,6 +269,7 @@ fun LibraryScreen(
     var storageError by remember { mutableStateOf<String?>(null) }
     var showPaperSearch by remember { mutableStateOf(false) }
     var showManualPaper by remember { mutableStateOf(false) }
+    var newPaperParentFolderId by remember { mutableStateOf<String?>(null) }
     var showCollections by remember { mutableStateOf(savedLibraryState.showCollections) }
     var localPage by remember { mutableStateOf(0) }
     var zoteroPage by remember { mutableStateOf(0) }
@@ -568,11 +575,25 @@ fun LibraryScreen(
         }
     }
 
-    suspend fun addPaper(paper: Paper) {
+    suspend fun addPaper(paper: Paper, parentFolderId: String? = newPaperParentFolderId) {
         if (store.papers.value.none { it.id == paper.id }) {
             store.savePaper(paper)
         }
-        selectedFolderId = null
+        if (parentFolderId != null) {
+            store.saveLibraryEntry(
+                LibraryEntry(
+                    id = "paper-${paper.id}-$parentFolderId",
+                    paperId = paper.id,
+                    parentId = parentFolderId,
+                    label = paper.title,
+                    kind = LibraryEntryKind.PAPER,
+                ),
+            )
+            selectedFolderId = parentFolderId
+        } else {
+            selectedFolderId = null
+        }
+        newPaperParentFolderId = null
         view = LibraryView.ALL
         query = ""
     }
@@ -677,6 +698,7 @@ fun LibraryScreen(
                     onNewFolder = { showCreateFolder = true },
                     onFindPaper = { showPaperSearch = true },
                     onAddManually = { showManualPaper = true },
+                    onCreateZoteroItem = { showZoteroItemDialog = true },
                 )
             if (source == LibrarySource.ZOTERO) {
                 ZoteroLibraryContent(
@@ -766,20 +788,27 @@ fun LibraryScreen(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    HeaderSearchField(
-                        query = query,
-                        onQueryChange = { query = it },
-                        label = "Search saved papers",
-                        modifier = Modifier.widthIn(max = 320.dp).align(Alignment.End),
-                    )
-                    LibraryContextBar(
-                        view = view,
-                        selectedFolder = selectedFolder,
-                        onViewChange = {
-                            view = it
-                            selectedFolderId = null
-                        },
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        LibraryContextBar(
+                            modifier = Modifier.weight(1f),
+                            view = view,
+                            selectedFolder = selectedFolder,
+                            onViewChange = {
+                                view = it
+                                selectedFolderId = null
+                            },
+                        )
+                        HeaderSearchField(
+                            query = query,
+                            onQueryChange = { query = it },
+                            label = "Search saved papers",
+                            modifier = Modifier.widthIn(max = 280.dp).weight(0.7f),
+                        )
+                    }
                     TextButton(onClick = { showCollections = true }) {
                         Icon(painterResource(Res.drawable.filled_folder_open), contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -823,6 +852,18 @@ fun LibraryScreen(
                                             showCollections = false
                                             showCreateFolder = true
                                         },
+                                        onFindPaper = { folder ->
+                                            selectedFolderId = folder.id
+                                            newPaperParentFolderId = folder.id
+                                            showCollections = false
+                                            showPaperSearch = true
+                                        },
+                                        onAddManually = { folder ->
+                                            selectedFolderId = folder.id
+                                            newPaperParentFolderId = folder.id
+                                            showCollections = false
+                                            showManualPaper = true
+                                        },
                                         onRename = {
                                             showCollections = false
                                             renameFolder = it
@@ -857,6 +898,7 @@ fun LibraryScreen(
                         onEdit = { editPaper = it },
                         onToggleCompleted = { paper -> saveChange { store.updatePaper(paper.id) { it.copy(completed = !it.completed) } } },
                         onSelect = { selectedPaperId = it.id },
+                        selectedPaperId = selectedPaperId,
                         onDelete = { entry ->
                             entry.paperId?.let { paperById[it] }?.let { paper ->
                                 if (view == LibraryView.ARCHIVE) permanentlyDeletePaper = paper
@@ -913,6 +955,16 @@ fun LibraryScreen(
                             expandedFolders = expandedFolders + folder.id
                             showCreateFolder = true
                         },
+                        onFindPaper = { folder ->
+                            selectedFolderId = folder.id
+                            newPaperParentFolderId = folder.id
+                            showPaperSearch = true
+                        },
+                        onAddManually = { folder ->
+                            selectedFolderId = folder.id
+                            newPaperParentFolderId = folder.id
+                            showManualPaper = true
+                        },
                         onRename = { renameFolder = it },
                         onDelete = { deleteFolder = it },
                     )
@@ -926,20 +978,27 @@ fun LibraryScreen(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        HeaderSearchField(
-                            query = query,
-                            onQueryChange = { query = it },
-                            label = "Search saved papers",
-                            modifier = Modifier.widthIn(max = 320.dp).align(Alignment.End),
-                        )
-                        LibraryContextBar(
-                            view = view,
-                            selectedFolder = selectedFolder,
-                            onViewChange = {
-                                view = it
-                                selectedFolderId = null
-                            },
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            LibraryContextBar(
+                                modifier = Modifier.weight(1f),
+                                view = view,
+                                selectedFolder = selectedFolder,
+                                onViewChange = {
+                                    view = it
+                                    selectedFolderId = null
+                                },
+                            )
+                            HeaderSearchField(
+                                query = query,
+                                onQueryChange = { query = it },
+                                label = "Search saved papers",
+                                modifier = Modifier.widthIn(max = 280.dp).weight(0.7f),
+                            )
+                        }
                         if (orphanCount > 0) {
                             LibraryNotice("$orphanCount saved item(s) have missing paper metadata.")
                         }
@@ -960,6 +1019,7 @@ fun LibraryScreen(
                             onEdit = { editPaper = it },
                             onToggleCompleted = { paper -> saveChange { store.updatePaper(paper.id) { it.copy(completed = !it.completed) } } },
                             onSelect = { selectedPaperId = it.id },
+                            selectedPaperId = selectedPaperId,
                             onDelete = { entry ->
                             entry.paperId?.let { paperById[it] }?.let { paper ->
                                 if (view == LibraryView.ARCHIVE) permanentlyDeletePaper = paper
@@ -997,8 +1057,11 @@ fun LibraryScreen(
     if (showPaperSearch) {
         LibraryPaperSearchDialog(
             savedPapers = papers,
-            onSave = ::addPaper,
-            onDismiss = { showPaperSearch = false },
+            onSave = { paper -> addPaper(paper) },
+            onDismiss = {
+                showPaperSearch = false
+                newPaperParentFolderId = null
+            },
         )
     }
     if (showZoteroCollectionDialog) {
@@ -1077,7 +1140,10 @@ fun LibraryScreen(
     }
     if (showManualPaper) {
         AddPaperDialog(
-            onDismiss = { showManualPaper = false },
+            onDismiss = {
+                showManualPaper = false
+                newPaperParentFolderId = null
+            },
             onSave = {
                 addPaper(it)
                 showManualPaper = false
@@ -1210,6 +1276,9 @@ private fun LibraryFolderList(
     archiveCount: Int,
     archiveSelected: Boolean = false,
     onNewSubcollection: (LibraryEntry) -> Unit = {},
+    onFindPaper: ((LibraryEntry) -> Unit)? = null,
+    onAddManually: ((LibraryEntry) -> Unit)? = null,
+    onNewItem: ((LibraryEntry) -> Unit)? = null,
     onRename: (LibraryEntry) -> Unit,
     onDelete: (LibraryEntry) -> Unit,
 ) {
@@ -1248,6 +1317,9 @@ private fun LibraryFolderList(
                         onRename = onRename,
                         onDelete = onDelete,
                         onNewChild = onNewSubcollection,
+                        onFindPaper = onFindPaper,
+                        onAddManually = onAddManually,
+                        onNewItem = onNewItem,
                     )
                 }
             }
@@ -1393,6 +1465,10 @@ private fun ZoteroLibraryContent(
                         onNewSubcollection = { entry ->
                             collections.firstOrNull { it.key == entry.id }?.let { onCreateCollection(it.key) }
                         },
+                        onNewItem = { entry ->
+                            onSelectCollection(entry.id)
+                            onCreateItem()
+                        },
                         onRename = { entry ->
                             collections.firstOrNull { it.key == entry.id }?.let(onRenameCollection)
                         },
@@ -1430,6 +1506,7 @@ private fun ZoteroLibraryContent(
                         onPageChange = onPageChange,
                         onRefresh = onRefresh,
                         onSelect = onSelect,
+                        selectedPaperKey = selectedPaper?.item?.key,
                         onOpenPdf = onOpenPdf,
                         trashVisible = trashVisible,
                         trashItems = trashItems,
@@ -1469,6 +1546,10 @@ private fun ZoteroLibraryContent(
                         onNewSubcollection = { entry ->
                             collections.firstOrNull { it.key == entry.id }?.let { onCreateCollection(it.key) }
                         },
+                        onNewItem = { entry ->
+                            onSelectCollection(entry.id)
+                            onCreateItem()
+                        },
                         onRename = { entry ->
                             collections.firstOrNull { it.key == entry.id }?.let(onRenameCollection)
                         },
@@ -1506,6 +1587,7 @@ private fun ZoteroLibraryContent(
                         onPageChange = onPageChange,
                         onRefresh = onRefresh,
                         onSelect = onSelect,
+                        selectedPaperKey = selectedPaper?.item?.key,
                         onOpenPdf = onOpenPdf,
                         trashVisible = trashVisible,
                         trashItems = trashItems,
@@ -1786,6 +1868,7 @@ private fun ZoteroPaperList(
     onPageChange: (Int) -> Unit,
     onRefresh: () -> Unit,
     onSelect: (ZoteroLibraryPaper) -> Unit,
+    selectedPaperKey: String?,
     onOpenPdf: (ZoteroLibraryPaper) -> Unit,
     trashVisible: Boolean,
     trashItems: List<ZoteroItem>,
@@ -1852,7 +1935,12 @@ private fun ZoteroPaperList(
                 val currentPage = page.coerceIn(0, (pageCount - 1).coerceAtLeast(0))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     papers.drop(currentPage * LIBRARY_PAGE_SIZE).take(LIBRARY_PAGE_SIZE).forEach { paper ->
-                        ZoteroPaperCard(paper, onSelect, onOpenPdf)
+                        ZoteroPaperCard(
+                            paper = paper,
+                            onSelect = onSelect,
+                            onOpenPdf = onOpenPdf,
+                            selected = paper.item.key == selectedPaperKey,
+                        )
                     }
                     if (pageCount > 1) {
                         LibraryPager(
@@ -1872,12 +1960,22 @@ private fun ZoteroPaperCard(
     paper: ZoteroLibraryPaper,
     onSelect: (ZoteroLibraryPaper) -> Unit,
     onOpenPdf: (ZoteroLibraryPaper) -> Unit,
+    selected: Boolean,
 ) {
     Card(
         onClick = { onSelect(paper) },
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+        ),
+        border = BorderStroke(
+            if (selected) 2.dp else 1.dp,
+            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+        ),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -1888,6 +1986,11 @@ private fun ZoteroPaperCard(
                     paper.item.data.title ?: "Untitled Zotero item",
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleMedium,
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -1905,21 +2008,34 @@ private fun ZoteroPaperCard(
                 creator.name ?: listOfNotNull(creator.firstName, creator.lastName).joinToString(" ").takeIf { it.isNotBlank() }
             }
             if (authors.isNotEmpty()) {
-                Text(authors.joinToString(", "), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    authors.joinToString(", "),
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
             }
             Text(
                 listOfNotNull(paper.item.data.publicationTitle, paper.item.data.date, paper.item.data.doi)
                     .joinToString(" • ")
                     .ifBlank { "Zotero item ${paper.item.key}" },
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (selected) {
+                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
             )
             Text(
                 if (paper.attachment != null) "PDF available in Zotero"
                 else "No PDF attachment",
                 style = MaterialTheme.typography.labelMedium,
                 color = if (paper.attachment != null) {
-                    MaterialTheme.colorScheme.primary
+                    if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+                } else if (selected) {
+                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
@@ -1940,6 +2056,7 @@ private fun LibraryHeader(
     onNewFolder: () -> Unit,
     onFindPaper: () -> Unit,
     onAddManually: () -> Unit,
+    onCreateZoteroItem: (() -> Unit)? = null,
 ) {
     var addMenuExpanded by remember { mutableStateOf(false) }
     WorkspaceHeader(
@@ -1964,29 +2081,62 @@ private fun LibraryHeader(
             }
         },
         actions = {
-            if (source == LibrarySource.LOCAL) {
-                Box {
-                    HeaderAction(
-                        label = "Add paper",
-                        icon = Res.drawable.filled_add,
-                        onClick = { addMenuExpanded = true },
-                    )
-                    DropdownMenu(
-                        expanded = addMenuExpanded,
-                        onDismissRequest = { addMenuExpanded = false },
-                    ) {
+            Box {
+                HeaderAction(
+                    label = "Add paper",
+                    icon = Res.drawable.filled_add,
+                    onClick = { addMenuExpanded = true },
+                )
+                DropdownMenu(
+                    expanded = addMenuExpanded,
+                    onDismissRequest = { addMenuExpanded = false },
+                    shape = MaterialTheme.shapes.large,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    tonalElevation = 4.dp,
+                    shadowElevation = 8.dp,
+                ) {
+                    if (source == LibrarySource.LOCAL) {
                         DropdownMenuItem(
                             text = { Text("Find on OpenAlex") },
-                            leadingIcon = { Icon(painterResource(Res.drawable.filled_search), contentDescription = null) },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(Res.drawable.filled_search),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            },
                             onClick = { addMenuExpanded = false; onFindPaper() },
                         )
                         DropdownMenuItem(
                             text = { Text("Add manually") },
-                            leadingIcon = { Icon(painterResource(Res.drawable.filled_description), contentDescription = null) },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(Res.drawable.filled_description),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.secondary,
+                                )
+                            },
                             onClick = { addMenuExpanded = false; onAddManually() },
+                        )
+                    } else {
+                        DropdownMenuItem(
+                            text = { Text("Add paper to Zotero") },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(Res.drawable.filled_add),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                            onClick = {
+                                addMenuExpanded = false
+                                onCreateZoteroItem?.invoke()
+                            },
                         )
                     }
                 }
+            }
+            if (source == LibrarySource.LOCAL) {
                 HeaderAction(
                     label = "New collection",
                     icon = Res.drawable.filled_create_new_folder,
@@ -2016,7 +2166,6 @@ private fun LibraryHeader(
 }
 
 @Composable
-@OptIn(ExperimentalLayoutApi::class)
 private fun LibraryContextBar(
     view: LibraryView,
     selectedFolder: LibraryEntry?,
@@ -2024,10 +2173,10 @@ private fun LibraryContextBar(
     showArchive: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    FlowRow(
+    Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         WorkspaceFilterChip(
             selected = view == LibraryView.ALL && selectedFolder == null,
@@ -2072,6 +2221,9 @@ private fun LibraryFolderPane(
     archiveCount: Int,
     archiveSelected: Boolean = false,
     onNewSubcollection: (LibraryEntry) -> Unit = {},
+    onFindPaper: ((LibraryEntry) -> Unit)? = null,
+    onAddManually: ((LibraryEntry) -> Unit)? = null,
+    onNewItem: ((LibraryEntry) -> Unit)? = null,
     onRename: (LibraryEntry) -> Unit,
     onDelete: (LibraryEntry) -> Unit,
     showActions: Boolean = true,
@@ -2127,6 +2279,9 @@ private fun LibraryFolderPane(
                     onRename = onRename,
                     onDelete = onDelete,
                     onNewChild = onNewSubcollection,
+                    onFindPaper = onFindPaper,
+                    onAddManually = onAddManually,
+                    onNewItem = onNewItem,
                     showActions = showActions,
                 )
             }
@@ -2160,6 +2315,9 @@ private fun FolderTreeGroup(
     onRename: (LibraryEntry) -> Unit,
     onDelete: (LibraryEntry) -> Unit,
     onNewChild: (LibraryEntry) -> Unit,
+    onFindPaper: ((LibraryEntry) -> Unit)?,
+    onAddManually: ((LibraryEntry) -> Unit)?,
+    onNewItem: ((LibraryEntry) -> Unit)?,
     showActions: Boolean = true,
 ) {
     Box(modifier = Modifier.fillMaxWidth()) {
@@ -2179,6 +2337,9 @@ private fun FolderTreeGroup(
                     onRename = onRename,
                     onDelete = onDelete,
                     onNewChild = onNewChild,
+                    onFindPaper = onFindPaper,
+                    onAddManually = onAddManually,
+                    onNewItem = onNewItem,
                     showActions = showActions,
                 )
             }
@@ -2198,30 +2359,52 @@ private fun FolderTreeRow(
     onRename: (LibraryEntry) -> Unit,
     onDelete: (LibraryEntry) -> Unit,
     onNewChild: (LibraryEntry) -> Unit = {},
+    onFindPaper: ((LibraryEntry) -> Unit)? = null,
+    onAddManually: ((LibraryEntry) -> Unit)? = null,
+    onNewItem: ((LibraryEntry) -> Unit)? = null,
     depth: Int = 0,
     showActions: Boolean = true,
 ) {
     val children = allFolders.filter { it.parentId == folder.id }
     val paperCount = allEntries.count { it.kind == LibraryEntryKind.PAPER && it.parentId == folder.id }
     val siblingGuideColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.32f)
+    var contextMenuExpanded by remember(folder.id) { mutableStateOf(false) }
     Column {
-        Surface(
-            onClick = { onSelectFolder(folder.id) },
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = (depth * 12).dp),
-            color = if (folder.id == selectedFolderId) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                Color.Transparent
-            },
-            border = if (folder.id == selectedFolderId) {
-                BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.32f))
-            } else {
-                null
-            },
-            shape = MaterialTheme.shapes.small,
         ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .combinedClickable(
+                        onClick = { onSelectFolder(folder.id) },
+                        onLongClick = { contextMenuExpanded = true },
+                    )
+                    .pointerInput(folder.id) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                if (event.type == PointerEventType.Press && event.buttons.isSecondaryPressed) {
+                                    event.changes.forEach { it.consume() }
+                                    contextMenuExpanded = true
+                                }
+                            }
+                        }
+                    },
+                color = if (folder.id == selectedFolderId) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    Color.Transparent
+                },
+                border = if (folder.id == selectedFolderId) {
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.32f))
+                } else {
+                    null
+                },
+                shape = MaterialTheme.shapes.small,
+            ) {
             Row(
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -2285,11 +2468,17 @@ private fun FolderTreeRow(
                 }
                 if (showActions) {
                     FolderActions(
+                        onFindPaper = onFindPaper?.let { callback -> { callback(folder) } },
+                        onAddManually = onAddManually?.let { callback -> { callback(folder) } },
                         onRename = { onRename(folder) },
                         onDelete = { onDelete(folder) },
                         onNewChild = { onNewChild(folder) },
+                        onNewItem = onNewItem?.let { callback -> { callback(folder) } },
+                        expanded = contextMenuExpanded,
+                        onExpandedChange = { contextMenuExpanded = it },
                     )
                 }
+            }
             }
         }
         if (folder.id != selectedFolderId) {
@@ -2328,6 +2517,9 @@ private fun FolderTreeRow(
                             onRename = onRename,
                             onDelete = onDelete,
                             onNewChild = onNewChild,
+                            onFindPaper = onFindPaper,
+                            onAddManually = onAddManually,
+                            onNewItem = onNewItem,
                             depth = depth + 1,
                             showActions = showActions,
                         )
@@ -2406,32 +2598,119 @@ private fun ArchiveRow(
 
 @Composable
 private fun FolderActions(
+    onFindPaper: (() -> Unit)?,
+    onAddManually: (() -> Unit)?,
+    onNewItem: (() -> Unit)?,
     onRename: () -> Unit,
     onDelete: () -> Unit,
     onNewChild: () -> Unit,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { expanded = true }) { Icon(painterResource(Res.drawable.filled_more_horiz), contentDescription = "Collection actions") }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { onExpandedChange(false) },
+            modifier = Modifier.width(260.dp),
+            shape = MaterialTheme.shapes.large,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 4.dp,
+            shadowElevation = 8.dp,
+        ) {
+            Text(
+                "Collection actions",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            onFindPaper?.let { onFind ->
+                DropdownMenuItem(
+                    text = { Text("Add paper") },
+                    leadingIcon = {
+                        Icon(
+                            painterResource(Res.drawable.filled_search),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    onClick = {
+                        onExpandedChange(false)
+                        onFind()
+                    },
+                )
+            }
+            onAddManually?.let { onAdd ->
+                DropdownMenuItem(
+                    text = { Text("Add paper manually") },
+                    leadingIcon = {
+                        Icon(
+                            painterResource(Res.drawable.filled_description),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                        )
+                    },
+                    onClick = {
+                        onExpandedChange(false)
+                        onAdd()
+                    },
+                )
+            }
+            onNewItem?.let { onCreateItem ->
+                DropdownMenuItem(
+                    text = { Text("Add paper") },
+                    leadingIcon = {
+                        Icon(
+                            painterResource(Res.drawable.filled_add),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    onClick = {
+                        onExpandedChange(false)
+                        onCreateItem()
+                    },
+                )
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
             DropdownMenuItem(
                 text = { Text("New subcollection") },
+                leadingIcon = {
+                    Icon(
+                        painterResource(Res.drawable.filled_create_new_folder),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                    )
+                },
                 onClick = {
-                    expanded = false
+                    onExpandedChange(false)
                     onNewChild()
                 },
             )
             DropdownMenuItem(
-                text = { Text("Rename") },
+                text = { Text("Rename collection") },
+                leadingIcon = {
+                    Icon(
+                        painterResource(Res.drawable.filled_edit),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
                 onClick = {
-                    expanded = false
+                    onExpandedChange(false)
                     onRename()
                 },
             )
             DropdownMenuItem(
-                text = { Text("Delete") },
+                text = { Text("Delete collection", color = MaterialTheme.colorScheme.error) },
+                leadingIcon = {
+                    Icon(
+                        painterResource(Res.drawable.filled_delete),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                },
                 onClick = {
-                    expanded = false
+                    onExpandedChange(false)
                     onDelete()
                 },
             )
@@ -2456,6 +2735,7 @@ private fun LibraryPaperList(
     onEdit: (Paper) -> Unit,
     onToggleCompleted: (Paper) -> Unit,
     onSelect: (Paper) -> Unit,
+    selectedPaperId: String?,
 ) {
     if (entries.isEmpty()) {
         LibraryEmptyState(modifier = modifier, label = emptyLabel)
@@ -2480,6 +2760,7 @@ private fun LibraryPaperList(
                         onEdit = { onEdit(paper) },
                         onToggleCompleted = { onToggleCompleted(paper) },
                         onSelect = { onSelect(paper) },
+                        selected = paper.id == selectedPaperId,
                         canRemove = !entry.id.startsWith("unfiled-"),
                         archiveView = archiveView,
                     )
@@ -2540,6 +2821,7 @@ private fun PaperLibraryCard(
     onEdit: () -> Unit,
     onToggleCompleted: () -> Unit,
     onSelect: () -> Unit,
+    selected: Boolean,
     canRemove: Boolean,
     archiveView: Boolean,
 ) {
@@ -2549,8 +2831,11 @@ private fun PaperLibraryCard(
             .fillMaxWidth()
             .height(76.dp),
         shape = MaterialTheme.shapes.small,
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            if (selected) 2.dp else 1.dp,
+            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+        ),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -2563,12 +2848,26 @@ private fun PaperLibraryCard(
                 tint = if (paper.pdfPath != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
             )
             Column(Modifier.weight(1f)) {
-                Text(paper.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    paper.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(
                     paper.authors.ifEmpty { listOf("Unknown author") }.joinToString() +
                         "  ·  " + (paper.year?.toString() ?: "Year unknown"),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -2577,7 +2876,14 @@ private fun PaperLibraryCard(
                 Icon(painterResource(Res.drawable.filled_check_circle), contentDescription = "Completed", tint = MaterialTheme.colorScheme.tertiary)
             }
             TextButton(onClick = if (paper.pdfPath != null) onOpen else onSelect) {
-                Text(if (paper.pdfPath != null) "Open PDF" else "View")
+                Text(
+                    if (paper.pdfPath != null) "Open PDF" else "View",
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                )
             }
             var actionsExpanded by remember { mutableStateOf(false) }
             Box {
