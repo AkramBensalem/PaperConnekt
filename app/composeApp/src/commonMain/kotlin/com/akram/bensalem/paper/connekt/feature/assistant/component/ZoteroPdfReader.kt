@@ -452,7 +452,6 @@ fun ZoteroPdfReader(
                 Column(Modifier.fillMaxWidth().padding(horizontal = if (compact) 4.dp else 12.dp, vertical = if (compact) 2.dp else 8.dp)) {
                     if (compact) CompactReaderTopBar(
                         title = state.localTitle ?: state.target?.item?.data?.title ?: "PDF workspace",
-                        filename = if (state.localTitle != null) "Local PDF" else state.target?.attachment?.data?.filename ?: "Zotero reader",
                         state = state,
                         onExit = onExit,
                         showSearchAction = pdfMode,
@@ -495,9 +494,6 @@ fun ZoteroPdfReader(
                         Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                             Text(state.localTitle ?: state.target?.item?.data?.title ?: "PDF workspace",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(if (state.localTitle != null) "Local PDF" else state.target?.attachment?.data?.filename ?: "Zotero reader",
-                                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis)
                             StudyTimeIndicator(studyTimeToday, totalStudyTime)
                         }
                         if (pdfMode) {

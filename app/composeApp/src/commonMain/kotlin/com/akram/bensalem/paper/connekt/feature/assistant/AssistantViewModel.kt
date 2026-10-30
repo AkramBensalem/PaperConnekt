@@ -85,30 +85,30 @@ class AssistantViewModel(
         }
     }
 
-    private fun recordWorkspaceOpen(target: ZoteroPdfTarget) {
-        val userId = historyUserId ?: return
+    private suspend fun recordWorkspaceOpen(target: ZoteroPdfTarget): Boolean {
+        val userId = historyUserId ?: return false
         val generation = historyGeneration
         val timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
-        viewModelScope.launch {
-            historyMutex.withLock {
-                if (historyGeneration != generation) return@withLock
-                try {
-                    // Read before writing so an unreadable history file is never silently replaced.
-                    val history = if (historyLoaded) state.history else repository.loadHistory(userId)
-                    if (historyGeneration != generation) return@withLock
-                    val updated = history.record(target, timestamp)
-                    repository.saveHistory(userId, updated)
-                    if (historyGeneration == generation) {
-                        historyLoaded = true
-                        state = state.copy(history = updated, historyLoading = false, historyError = null)
-                    }
-                } catch (exception: Exception) {
-                    if (exception is CancellationException) throw exception
-                    Napier.e("Could not save research history", exception)
-                    if (historyGeneration == generation) {
-                        state = state.copy(historyLoading = false, historyError = "Could not save this workspace visit. ${exception.message.orEmpty()}")
-                    }
+        return historyMutex.withLock {
+            if (historyGeneration != generation) return@withLock false
+            try {
+                // Read before writing so an unreadable history file is never silently replaced.
+                val history = if (historyLoaded) state.history else repository.loadHistory(userId)
+                if (historyGeneration != generation) return@withLock false
+                val updated = history.record(target, timestamp)
+                repository.saveHistory(userId, updated)
+                if (historyGeneration == generation) {
+                    historyLoaded = true
+                    state = state.copy(history = updated, historyLoading = false, historyError = null)
                 }
+                true
+            } catch (exception: Exception) {
+                if (exception is CancellationException) throw exception
+                Napier.e("Could not save research history", exception)
+                if (historyGeneration == generation) {
+                    state = state.copy(historyLoading = false, historyError = "Could not save this workspace visit. ${exception.message.orEmpty()}")
+                }
+                false
             }
         }
     }
@@ -255,8 +255,12 @@ class AssistantViewModel(
             createdAt = now, updatedAt = now, visitedAt = now
         ))
         state = state.copy(chatMessages = emptyList())
-        recordWorkspaceOpen(target)
-        startStudyTimer(target)
+        val selectedId = selectedPaperId
+        viewModelScope.launch {
+            if (recordWorkspaceOpen(target) && selectedPaperId == selectedId) {
+                startStudyTimer(target)
+            }
+        }
     }
 
     fun exitWorkplace() {

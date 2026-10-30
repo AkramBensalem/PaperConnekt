@@ -90,7 +90,6 @@ internal val readerAnnotationTools = listOf(
 @Composable
 internal fun CompactReaderTopBar(
     title: String,
-    filename: String,
     state: PdfWorkspaceState,
     onExit: (() -> Unit)?,
     showSearchAction: Boolean,
@@ -120,12 +119,7 @@ internal fun CompactReaderTopBar(
         Column(Modifier.weight(1f).padding(start = if (onExit == null) 8.dp else 0.dp, end = 4.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(filename, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelSmall,
-                    color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (studyTimeToday > 0L) Text(" · ${studyDurationLabel(studyTimeToday)} today",
-                    style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant, maxLines = 1)
-            }
+            StudyTimeIndicator(studyTimeToday, totalStudyTime)
         }
         if (showSearchAction) {
             IconButton(onClick = onSearch, modifier = Modifier.interactivePointer(),

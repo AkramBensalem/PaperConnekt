@@ -428,11 +428,22 @@ fun formatUsd(value: Double): String {
 
 @Composable
 fun StudyTimeIndicator(todayMillis: Long, totalMillis: Long) {
-    Text(
-        "Today ${studyDurationLabel(todayMillis)} · Total ${studyDurationLabel(totalMillis)}",
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            painterResource(Res.drawable.filled_schedule),
+            contentDescription = "Study time",
+            modifier = Modifier.size(14.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            "Total ${studyDurationLabel(totalMillis)} · Today ${studyDurationLabel(todayMillis)}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 fun studyDurationLabel(millis: Long): String {
