@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalUriHandler
+import com.akram.bensalem.paper.connekt.feature.mcp.LocalMcpHost
 import com.paperconnekt.domain.model.ThemePreference
 import com.paperconnekt.secrets.SecretKey
 import com.paperconnekt.secrets.SecretStore
@@ -66,6 +67,7 @@ fun SettingsScreen(
     var zoteroUserId by remember { mutableStateOf(settings.zoteroUserId) }
     var zoteroLibraryId by remember { mutableStateOf(settings.zoteroLibraryId) }
     var openAlexDiscoveryEnabled by remember { mutableStateOf(settings.openAlexDiscoveryEnabled) }
+    var semanticSearchEnabled by remember { mutableStateOf(settings.semanticSearchEnabled) }
     var openAiDraft by remember { mutableStateOf("") }
     var mistralDraft by remember { mutableStateOf("") }
     var zoteroDraft by remember { mutableStateOf("") }
@@ -81,6 +83,7 @@ fun SettingsScreen(
     var providerFeedback by remember { mutableStateOf<ProviderFeedback?>(null) }
     val uriHandler = LocalUriHandler.current
     val httpClient = remember { HttpClient() }
+    val mcpHost = LocalMcpHost.current
 
     LaunchedEffect(secretStore, reloadSecretsToken) {
         isLoadingSecrets = true
@@ -542,6 +545,44 @@ fun SettingsScreen(
                 }
             }
             item {
+                SettingsSection(title = "Paper search") {
+                    SettingsCard {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Search papers by meaning", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "With a Mistral or OpenAI key, the AI agent also finds passages that say the same thing in other words. " +
+                                        "Each paper's text is sent once to that provider to compute embeddings, which are cached on this device " +
+                                        "and cost a fraction of a cent per paper. When off, the agent searches by keywords only.",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = semanticSearchEnabled,
+                                onCheckedChange = { enabled ->
+                                    semanticSearchEnabled = enabled
+                                    scope.launch {
+                                        store.updateSettings {
+                                            it.copy(semanticSearchEnabled = enabled)
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.semantics {
+                                    contentDescription = "Search papers by meaning"
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            mcpHost?.let { host ->
+                item { McpSettingsSection(host, store, secretStore, settings) }
+            }
+            item {
                 SettingsSection(title = "Readiness") {
                     SettingsCard {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -601,7 +642,7 @@ private fun SettingsHeader(
 }
 
 @Composable
-private fun SettingsSection(
+internal fun SettingsSection(
     title: String,
     content: @Composable () -> Unit,
 ) {
@@ -612,7 +653,7 @@ private fun SettingsSection(
 }
 
 @Composable
-private fun SettingsCard(content: @Composable () -> Unit) {
+internal fun SettingsCard(content: @Composable () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth(),
@@ -808,6 +849,7 @@ private suspend fun requestKeyValidation(
         parameter("api_key", value)
         parameter("per-page", 1)
     }
+    SecretKey.MCP_TOKEN -> error("The MCP access token is local and has no provider to validate against.")
 }
 
 private val ThemePreference.label: String

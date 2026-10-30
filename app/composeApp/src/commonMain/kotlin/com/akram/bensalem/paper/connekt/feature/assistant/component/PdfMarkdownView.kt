@@ -3,7 +3,6 @@ package com.akram.bensalem.paper.connekt.feature.assistant.component
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.filled_article
 import com.paperconnekt.app.resources.filled_error_outline
-import com.paperconnekt.app.resources.filled_headphones
 import com.paperconnekt.app.resources.filled_key
 import com.paperconnekt.app.resources.filled_refresh
 import org.jetbrains.compose.resources.painterResource
@@ -15,8 +14,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.ui.input.pointer.PointerEventType
-import com.akram.bensalem.bistosh.core.designsystem.component.observePointerEvent
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -47,8 +44,6 @@ internal fun PdfMarkdownView(
     continuous: Boolean = false,
     spread: Boolean = false,
     fitPage: Boolean = false,
-    readingActive: Boolean = false,
-    readAloud: ReadAloudController? = null,
 ) {
     val markdown = viewModel.state.markdown
     Surface(modifier.testTag("pdf-markdown-view"), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
@@ -72,7 +67,7 @@ internal fun PdfMarkdownView(
                     modifier = Modifier.fillMaxWidth().padding(12.dp))
             }
             when {
-                content != null -> MarkdownPages(viewModel, continuous, spread, fitPage, readingActive, readAloud)
+                content != null -> MarkdownPages(viewModel, continuous, spread, fitPage)
                 markdown.busy -> MarkdownStatus(
                     title = if (markdown.converting) "Creating Markdown with $MISTRAL_OCR_MODEL_NAME…" else "Opening saved Markdown…",
                     body = if (markdown.converting) "Long papers can take a minute. The result is saved, so this only happens once." else null,
@@ -104,8 +99,6 @@ private fun MarkdownPages(
     continuous: Boolean,
     spread: Boolean,
     fitPage: Boolean,
-    readingActive: Boolean,
-    readAloud: ReadAloudController?,
 ) {
     val state = viewModel.state
     val pages = state.markdown.pages
@@ -165,8 +158,6 @@ private fun MarkdownPages(
                             for (index in row * columns until minOf((row + 1) * columns, pages.size)) {
                                 MarkdownPage(
                                     pages[index], index, baseWidth, state.zoom, aspect(state, index),
-                                    readingActive = readingActive, readAloud = readAloud,
-                                    rootId = state.target?.attachment?.key ?: "pdf",
                                 )
                             }
                         }
@@ -199,8 +190,6 @@ private fun MarkdownPages(
                         MarkdownPage(
                             pages[index], index, baseWidth, state.zoom, aspect(state, index),
                             fitHeightPixels = if (fitPage && !spread) viewportHeight else null,
-                            readingActive = readingActive, readAloud = readAloud,
-                            rootId = state.target?.attachment?.key ?: "pdf",
                         )
                     }
                 }
@@ -217,15 +206,7 @@ private fun aspect(state: PdfWorkspaceState, index: Int): Float =
 private fun MarkdownPage(
     content: String, index: Int, width: androidx.compose.ui.unit.Dp, zoom: Float, aspect: Float,
     fitHeightPixels: Int? = null,
-    readingActive: Boolean = false,
-    readAloud: ReadAloudController? = null,
-    rootId: String = "pdf",
 ) {
-    val blocks = remember(content) {
-        content.split(Regex("""\n\s*\n"""))
-            .map(String::trim)
-            .filter(String::isNotBlank)
-    }
     Layout(
         modifier = Modifier.testTag("markdown-page-$index"),
         content = {
@@ -234,49 +215,12 @@ private fun MarkdownPage(
             ) {
                 Surface(Modifier.fillMaxSize(), shadowElevation = 1.dp) {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 40.dp, vertical = 32.dp)) {
-                        blocks.forEachIndexed { blockIndex, block ->
-                            var hovered by remember(blockIndex, block) { mutableStateOf(false) }
-                            val plan = remember(block) { createSpeechPlan(block) }
-                            Box(
-                                Modifier.fillMaxWidth()
-                                    .observePointerEvent(PointerEventType.Enter) { hovered = true }
-                                    .observePointerEvent(PointerEventType.Exit) { hovered = false },
-                            ) {
-                                if (readingActive) {
-                                    Markdown(
-                                        rememberMarkdownState(block),
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                        imageTransformer = Coil3ImageTransformerImpl,
-                                    )
-                                } else {
-                                    SelectionContainer {
-                                        Markdown(
-                                            rememberMarkdownState(block),
-                                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                            imageTransformer = Coil3ImageTransformerImpl,
-                                        )
-                                    }
-                                }
-                                if (hovered && readAloud != null && !readingActive && plan.segments.any { !it.skipped }) {
-                                    IconButton(
-                                        onClick = {
-                                            readAloud.start(
-                                                plan = plan,
-                                                rootId = rootId,
-                                                exampleId = "markdown-page-$index-block-$blockIndex",
-                                            )
-                                        },
-                                        modifier = Modifier.align(Alignment.TopStart).size(28.dp)
-                                            .interactivePointer(),
-                                    ) {
-                                        Icon(
-                                            painterResource(Res.drawable.filled_headphones),
-                                            "Read this paragraph aloud",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                        )
-                                    }
-                                }
-                            }
+                        SelectionContainer {
+                            Markdown(
+                                rememberMarkdownState(content),
+                                modifier = Modifier.fillMaxWidth(),
+                                imageTransformer = Coil3ImageTransformerImpl,
+                            )
                         }
                     }
                 }

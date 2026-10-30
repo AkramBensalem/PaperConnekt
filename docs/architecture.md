@@ -18,8 +18,15 @@
 app/android ───────┐
 app/desktop ───────┼──> app/composeApp ──> shared/storage ──> shared/domain
 future app/web ────┘             │                  └───────> shared/secrets
+                                 ├──────────────> shared/knowledge
+                                 ├──────────────> shared/mcp
                                  └──────────────> plugin/native-api
 ```
+
+`shared/knowledge` has no app or provider dependencies; it turns a paper's OCR
+Markdown into a cited retrieval index (see [AI agent architecture](ai-agent-architecture.md)).
+`shared/mcp` is a dependency-free MCP (JSON-RPC) server core with desktop stdio
+and Streamable HTTP transports; the app supplies its tools.
 
 `app/composeApp` contains the shared Compose UI and application flow. Platform
 modules own their launchers, manifests, window configuration, and native
@@ -195,6 +202,56 @@ The platform launchers explicitly provide `Dispatchers.Main` for the reader's
 `viewModelScope`: desktop uses `kotlinx-coroutines-swing` (the AWT event dispatch
 thread), and Android uses `kotlinx-coroutines-android`. Both use the same catalog
 version as `kotlinx-coroutines-core`.
+
+## Paper knowledge and agent retrieval
+
+The OCR Markdown remains the canonical text of a paper. `shared/knowledge`
+derives an in-memory `PaperIndex` from its pages: `MarkdownChunker` splits it
+into structure-aware chunks (headings, tables, display equations, captions,
+references) that keep their 1-based pages and heading trail, and a BM25 index
+ranks them. The index itself is never persisted; `PaperKnowledgeCache` rebuilds it off
+the UI thread whenever the Markdown changes and keeps the last few papers.
+
+The PDF agent sends a short paper whole. For a longer paper it sends only a
+compact map (outline and abstract) plus the current page, then retrieves
+evidence with `search_paper` (ranked, cited chunks or exact occurrences),
+`read_chunks`, and `get_outline`. Results show chunk IDs, pages, sections, and
+matched terms so answers can cite "(p. 4, §3.2)". Annotation AI actions send the
+passages related to the selection instead of the first 40,000 characters.
+
+The agent runtime is a Koog graph (`paper_research`) whose model calls stream
+and whose independent tool calls run in parallel. It emits an `AgentEvent`
+flow that the panel renders live (text, steps, retrieved passages). Replies
+cite chunks with hidden `[c12]` markers; `Citations` in `shared/knowledge`
+strips and verifies them, and each reply keeps a Sources list that opens the
+cited page.
+
+Semantic search is on by default when a Mistral or OpenAI key exists and can be
+turned off in Settings → Paper search. `PaperKnowledgeCache` then embeds each
+paper's chunks in the background (`mistral-embed`, else
+`text-embedding-3-small`, through Koog clients wrapped in the module's
+`EmbeddingProvider` interface) and stores the vectors in the private data
+directory (`knowledge/<paper>/<model>.vec`, outside synced folders), keyed by
+chunk-text hash so an edited paper only re-embeds what changed.
+`HybridPaperRetriever` fuses BM25 and cosine rankings with reciprocal-rank
+fusion; every result keeps its keyword and meaning ranks, which the tool output
+and the Sources list show. Retrieval waits at most a few seconds for vectors and
+otherwise uses keywords alone. Embedding cost is recorded as "Paper embeddings"
+usage.
+
+## PaperConnekt as an MCP server
+
+On desktop, Settings → AI tools (MCP) lets MCP clients such as Claude Desktop,
+VS Code Copilot and Cursor use the library. It is off by default. When enabled,
+`DesktopMcpHost` serves Streamable HTTP on `127.0.0.1` (port 7337 by default)
+and requires a bearer token stored in the platform secret store;
+`PaperConnekt --mcp` serves the same tools over stdio for clients that launch
+servers themselves. The tools (`list_papers`, `search_library`, `search_paper`,
+`read_chunks`, …) are ordinary `AgentTool`s built on `PaperLibrary`, which
+reuses the reader's knowledge cache, so clients retrieve cited passages instead
+of whole papers. They are read-only unless the user allows adding idea notes,
+and Settings lists every request. Android does not host a server.
+[AI agent architecture](ai-agent-architecture.md) describes the planned phases.
 
 ## Contest feature slices
 

@@ -44,12 +44,14 @@ import com.paperconnekt.domain.model.SavedPdfReadingPosition
 import com.paperconnekt.secrets.SecretKey
 import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.LocalResearchStore
-import com.akram.bensalem.paper.connekt.core.aiassistant.createReadingAgent
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 internal class PdfNavigationGuard {
     var beforeNavigate: ((() -> Unit) -> Unit)? = null
@@ -100,8 +102,6 @@ private fun LocalPaperWorkspace(
     val workspace = viewModel {
         PdfWorkspaceViewModel(
             mistralApiKey = { secretStore?.read(SecretKey.MISTRAL).orEmpty() },
-            openAiApiKey = { secretStore?.read(SecretKey.OPENAI).orEmpty() },
-            readingAgent = { createReadingAgent(secretStore) },
             localAnnotationStore = StoredLocalPdfAnnotations(storage),
         )
     }
@@ -229,6 +229,7 @@ private fun LocalPaperWorkspace(
                     ideaBoard = assistant,
                     pdfWorkspace = workspace,
                     secretStore = secretStore,
+                    semanticSearchEnabled = settings.semanticSearchEnabled,
                     onReadingPositionChanged = { position, zoom ->
                         pendingPosition = SavedPdfReadingPosition(position.pageIndex, position.fraction, zoom)
                     },
@@ -289,8 +290,6 @@ private fun ZoteroPaperWorkspace(
     val workspace = viewModel {
         PdfWorkspaceViewModel(
             mistralApiKey = { secretStore?.read(SecretKey.MISTRAL).orEmpty() },
-            openAiApiKey = { secretStore?.read(SecretKey.OPENAI).orEmpty() },
-            readingAgent = { createReadingAgent(secretStore) },
             pdfCache = storage,
         )
     }
@@ -342,6 +341,7 @@ private fun ZoteroPaperWorkspace(
             workspace.updateConfig(
                 ZoteroConfig(apiKey = apiKey, userId = zoteroUserId, groupId = target.groupId),
             )
+            assistant.updateHistoryAccount(zoteroUserId.trim())
             assistant.selectZoteroPaper(target)
             workspace.open(
                 target,
@@ -389,6 +389,12 @@ private fun ZoteroPaperWorkspace(
             }
             else -> {
                 val state = assistant.state
+                val activeStudy = state.history.papers.firstOrNull {
+                    it.target.attachment.key == target.attachment.key &&
+                        it.target.groupId == target.groupId
+                }
+                val today = Clock.System.now()
+                    .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
                 state.selectedPaper?.let { paper ->
                     Workplace(
                         paper = paper,
@@ -404,7 +410,10 @@ private fun ZoteroPaperWorkspace(
                         ideaError = state.ideaError,
                         ideaBoard = assistant,
                         pdfWorkspace = workspace,
+                        studyTimeToday = activeStudy?.dailyStudyMillis?.get(today) ?: 0L,
+                        totalStudyTime = activeStudy?.totalStudyMillis ?: 0L,
                         secretStore = secretStore,
+                        semanticSearchEnabled = settings.semanticSearchEnabled,
                         onReadingPositionChanged = { position, zoom ->
                             pendingPosition = SavedPdfReadingPosition(position.pageIndex, position.fraction, zoom)
                         },

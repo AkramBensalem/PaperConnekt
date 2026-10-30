@@ -31,10 +31,10 @@ data class StudiedPaper(
 enum class AiUsageService(val label: String) {
     OCR("OCR"),
     CHAT("Chat"),
-    READING_AI("Reading AI"),
-    TTS("Speech"),
     LITERATURE_TRIAGE("Literature triage"),
-    RELEVANCE_SCORING("Relevance scoring")
+    RELEVANCE_SCORING("Relevance scoring"),
+    /** Paper passages embedded for semantic search; inputUnits are estimated tokens. */
+    EMBEDDINGS("Paper embeddings"),
 }
 
 /** Conservative public-list-price estimates in USD; replace with provider-specific rates when configured. */
@@ -47,7 +47,8 @@ object AiUsagePricing {
     const val GPT5_MINI_OUTPUT_PER_MILLION_TOKENS = 2.0
     const val MISTRAL_MEDIUM_31_INPUT_PER_MILLION_TOKENS = 0.50
     const val MISTRAL_MEDIUM_31_OUTPUT_PER_MILLION_TOKENS = 1.50
-    const val GOOGLE_STANDARD_TTS_PER_MILLION_CHARACTERS = 4.0
+    const val MISTRAL_EMBED_PER_MILLION_TOKENS = 0.10
+    const val OPENAI_EMBEDDING_3_SMALL_PER_MILLION_TOKENS = 0.02
 }
 
 private fun textAiCostUsd(model: String, inputUnits: Long, outputUnits: Long): Double {
@@ -74,10 +75,11 @@ data class AiUsageEvent(
         get() = when (service) {
             AiUsageService.OCR -> inputUnits.coerceAtLeast(0L) *
                 if (cached) AiUsagePricing.MISTRAL_OCR_CACHED_PER_PAGE else AiUsagePricing.MISTRAL_OCR_PER_PAGE
-            AiUsageService.CHAT, AiUsageService.READING_AI, AiUsageService.LITERATURE_TRIAGE, AiUsageService.RELEVANCE_SCORING ->
+            AiUsageService.CHAT, AiUsageService.LITERATURE_TRIAGE, AiUsageService.RELEVANCE_SCORING ->
                 textAiCostUsd(model, inputUnits, outputUnits)
-            AiUsageService.TTS -> inputUnits.coerceAtLeast(0L) *
-                AiUsagePricing.GOOGLE_STANDARD_TTS_PER_MILLION_CHARACTERS / 1_000_000.0
+            AiUsageService.EMBEDDINGS -> inputUnits.coerceAtLeast(0L) / 1_000_000.0 *
+                if (model.startsWith("openai/")) AiUsagePricing.OPENAI_EMBEDDING_3_SMALL_PER_MILLION_TOKENS
+                else AiUsagePricing.MISTRAL_EMBED_PER_MILLION_TOKENS
         }
 }
 

@@ -27,7 +27,6 @@ class FilePdfMarkdownStore(
         createPrivateDirectories(figures)
         document.images.forEach { (id, bytes) -> writePrivateFileAtomically(figures.resolve(safePathSegment(id)), bytes) }
         writeAtomically(dir, PENDING, "pending")
-        Files.deleteIfExists(dir.resolve(READING))
         if (document.layout != null) {
             writeAtomically(dir, LAYOUT, json.encodeToString(OcrLayout.serializer(), document.layout))
         } else {
@@ -69,17 +68,6 @@ class FilePdfMarkdownStore(
         runCatching { json.decodeFromString(OcrLayout.serializer(), Files.readString(file)) }.getOrNull()
     }
 
-    override suspend fun loadReadingScript(key: String): String? = withContext(Dispatchers.IO) {
-        val file = directory(key).resolve(READING)
-        if (Files.isRegularFile(file)) Files.readString(file) else null
-    }
-
-    override suspend fun saveReadingScript(key: String, script: String) = withContext(Dispatchers.IO) {
-        val dir = directory(key)
-        createPrivateDirectories(dir)
-        writeAtomically(dir, READING, script)
-    }
-
     private fun writeAtomically(dir: Path, name: String, content: String) {
         writePrivateFileAtomically(dir.resolve(name), content.toByteArray(Charsets.UTF_8))
     }
@@ -91,7 +79,6 @@ class FilePdfMarkdownStore(
         const val DOCUMENT = "document.md"
         const val FIGURES = "figures"
         const val LAYOUT = "blocks.json"
-        const val READING = "reading.md"
         const val PENDING = "sync-pending"
         val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     }

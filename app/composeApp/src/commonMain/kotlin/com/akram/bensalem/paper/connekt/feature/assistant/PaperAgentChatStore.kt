@@ -12,8 +12,34 @@ data class PaperAgentMessage(
     val quote: String? = null,
     val actions: List<PaperAgentAction> = emptyList(),
     val isError: Boolean = false,
-    val id: Long = Random.nextLong()
+    val id: Long = Random.nextLong(),
+    /** Passages the agent retrieved for this reply; [PaperAgentSource.cited] marks the ones the reply relies on. */
+    val sources: List<PaperAgentSource> = emptyList(),
+    /** Tools the agent ran for this reply, in order, e.g. `search_paper · "contrastive loss"`. */
+    val steps: List<String> = emptyList(),
+    /** Chunk IDs the reply cited that do not exist in the paper; non-empty means the answer needs a careful read. */
+    val unverifiedCitations: List<String> = emptyList(),
 )
+
+/** A paper passage the agent read; links the reply to its evidence by page and section. */
+@Serializable
+data class PaperAgentSource(
+    val chunkId: String,
+    val firstPage: Int,
+    val lastPage: Int = firstPage,
+    val section: String,
+    val kind: String,
+    val excerpt: String,
+    /** How the agent found it: keyword, meaning, keyword + meaning, exact, read or cited (older chats: relevant). */
+    val via: String,
+    /** BM25 keyword score, when found by keyword search alone. */
+    val score: Double? = null,
+    /** 0–1 fused keyword and meaning relevance, when found by hybrid search (1 = top of both rankings). */
+    val relevance: Double? = null,
+    val cited: Boolean = false,
+) {
+    val pageLabel: String get() = if (firstPage == lastPage) "p. $firstPage" else "pp. $firstPage–$lastPage"
+}
 
 /** Something the agent changed in the workspace; rendered as a clickable chip under its reply. */
 @kotlinx.serialization.Serializable

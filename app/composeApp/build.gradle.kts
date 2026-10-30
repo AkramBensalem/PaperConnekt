@@ -16,6 +16,8 @@ kotlin {
             implementation(project(":shared:domain"))
             implementation(project(":shared:storage"))
             implementation(project(":shared:secrets"))
+            implementation(project(":shared:knowledge"))
+            implementation(project(":shared:mcp"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.animation)
@@ -30,19 +32,17 @@ kotlin {
             implementation(libs.kotlinx.datetime)
             implementation(libs.androidx.lifecycle.viewmodel.compose)
             implementation(libs.napier)
+            implementation(libs.markdown.renderer.core)
             implementation(libs.markdown.renderer.m3)
             implementation(libs.markdown.renderer.coil3)
             implementation(libs.androidx.datastore)
             api(libs.koog.agents)
             api(libs.koog.agents.additions)
             implementation(libs.koog.http.client.ktor)
-        }
-        androidMain.dependencies {
-            implementation(libs.pdfbox.android)
+            implementation(libs.nucleus.pdfium)
         }
         val desktopMain by getting {
             dependencies {
-                implementation(libs.pdfbox)
                 implementation(libs.jlatexmath)
             }
         }

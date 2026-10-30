@@ -10,6 +10,13 @@ data class AppSettings(
     val zoteroUserId: String = "",
     val zoteroLibraryId: String = "",
     val openAlexDiscoveryEnabled: Boolean = false,
+    /** Paper search also ranks passages by meaning (embeddings) when a Mistral or OpenAI key is configured. */
+    val semanticSearchEnabled: Boolean = true,
+    /** Desktop only: serves the library to local MCP clients (Claude Desktop, Copilot, Cursor) on 127.0.0.1. */
+    val mcpServerEnabled: Boolean = false,
+    val mcpServerPort: Int = 7337,
+    /** MCP clients may also add notes to a paper's Idea Board; otherwise the server is read-only. */
+    val mcpAllowIdeaWrites: Boolean = false,
     val selectedTheme: ThemePreference = ThemePreference.SYSTEM,
     val libraryUiState: LibraryUiState = LibraryUiState(),
     val zoteroLibraryCache: ZoteroLibraryCache = ZoteroLibraryCache(),
@@ -46,6 +53,10 @@ data class LibraryUiState(
     val view: String = "ALL",
     val query: String = "",
     val showCollections: Boolean = false,
+    val localPage: Int = 0,
+    val zoteroPage: Int = 0,
+    val selectedPaperId: String? = null,
+    val selectedZoteroPaperKey: String? = null,
 )
 
 @Serializable

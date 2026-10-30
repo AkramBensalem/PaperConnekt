@@ -36,6 +36,7 @@ import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageService
 import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageSummary
 import com.akram.bensalem.paper.connekt.feature.assistant.StudiedPaper
 import com.akram.bensalem.paper.connekt.feature.assistant.ZoteroPdfTarget
+import com.paperconnekt.app.resources.filled_schedule
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -305,7 +306,7 @@ fun ResearchDashboard(
                 }
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
-                        "History is saved on this device for your Zotero account. AI costs are estimates: Mistral OCR \$4/1,000 pages (\$0.40/1,000 cached pages), GPT-6 Luna \$0.10/\$0.50 per million input/output tokens, GPT-5 Mini \$0.25/\$2.00, Mistral Medium \$0.50/\$1.50, and Google Standard speech \$4/million characters. Study time measures how long each PDF workspace stays open; it does not indicate attention or completion.",
+                        "History is saved on this device for your Zotero account. AI costs are estimates: Mistral OCR \$4/1,000 pages (\$0.40/1,000 cached pages), GPT-6 Luna \$0.10/\$0.50 per million input/output tokens, GPT-5 Mini \$0.25/\$2.00, and Mistral Medium \$0.50/\$1.50. Study time measures how long each PDF workspace stays open; it does not indicate attention or completion.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -390,9 +391,9 @@ private fun PaperCostDialog(paper: StudiedPaper, onDismiss: () -> Unit) {
                         Text(
                             if (events.isEmpty()) "No recorded usage" else when (service) {
                                 AiUsageService.OCR -> "$input pages processed"
-                                AiUsageService.CHAT, AiUsageService.READING_AI, AiUsageService.LITERATURE_TRIAGE, AiUsageService.RELEVANCE_SCORING ->
+                                AiUsageService.CHAT, AiUsageService.LITERATURE_TRIAGE, AiUsageService.RELEVANCE_SCORING ->
                                     "$input input / $output output tokens"
-                                AiUsageService.TTS -> "$input characters synthesized"
+                                AiUsageService.EMBEDDINGS -> "$input tokens embedded"
                             },
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -428,19 +429,36 @@ fun formatUsd(value: Double): String {
 
 @Composable
 fun StudyTimeIndicator(todayMillis: Long, totalMillis: Long) {
-    Text(
-        "Today ${studyDurationLabel(todayMillis)} · Total ${studyDurationLabel(totalMillis)}",
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            painterResource(Res.drawable.filled_schedule),
+            contentDescription = "Study time",
+            modifier = Modifier.size(14.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            "Total ${studyDurationLabel(totalMillis)} · Today ${studyDurationLabel(todayMillis)}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 fun studyDurationLabel(millis: Long): String {
-    val minutes = millis.coerceAtLeast(0L) / 60_000L
-    if (minutes == 0L) return if (millis > 0L) "<1m" else "0m"
-    val hours = minutes / 60L
-    val remainingMinutes = minutes % 60L
-    return if (hours == 0L) "${minutes}m" else "${hours}h ${remainingMinutes.toString().padStart(2, '0')}m"
+    val totalSeconds = millis.coerceAtLeast(0L) / 1_000L
+    val hours = totalSeconds / 3_600L
+    val minutes = (totalSeconds % 3_600L) / 60L
+    val seconds = totalSeconds % 60L
+    return if (hours > 0L) {
+        "${hours}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s"
+    } else if (minutes > 0L) {
+        "${minutes}m ${seconds.toString().padStart(2, '0')}s"
+    } else {
+        "${seconds}s"
+    }
 }
 
 @Composable
@@ -591,10 +609,9 @@ private fun AiCostChart(events: List<AiUsageEvent>, today: LocalDate, modifier: 
 private fun serviceColor(service: AiUsageService) = when (service) {
     AiUsageService.OCR -> MaterialTheme.colorScheme.primary
     AiUsageService.CHAT -> MaterialTheme.colorScheme.tertiary
-    AiUsageService.READING_AI -> MaterialTheme.colorScheme.secondary
-    AiUsageService.TTS -> MaterialTheme.colorScheme.error
     AiUsageService.LITERATURE_TRIAGE -> MaterialTheme.colorScheme.inversePrimary
     AiUsageService.RELEVANCE_SCORING -> MaterialTheme.colorScheme.secondaryContainer
+    AiUsageService.EMBEDDINGS -> MaterialTheme.colorScheme.outline
 }
 
 @Composable

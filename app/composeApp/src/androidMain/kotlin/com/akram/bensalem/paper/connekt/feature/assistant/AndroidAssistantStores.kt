@@ -74,7 +74,6 @@ private class AndroidPdfMarkdownStore : PdfMarkdownStore {
         check(figures.isDirectory || figures.mkdirs()) { "Could not create PDF figure storage." }
         document.images.forEach { (id, bytes) -> File(figures, safePathSegment(id)).writeBytes(bytes) }
         File(directory, "sync-pending").writeText("pending")
-        File(directory, "reading.md").delete()
         val layoutFile = File(directory, "blocks.json")
         if (document.layout == null) {
             layoutFile.delete()
@@ -114,16 +113,6 @@ private class AndroidPdfMarkdownStore : PdfMarkdownStore {
     override suspend fun loadLayout(key: String): OcrLayout? = withContext(Dispatchers.IO) {
         val file = File(directory(key), "blocks.json")
         if (!file.isFile) null else assistantStoreJson.decodeFromString<OcrLayout>(file.readText())
-    }
-
-    override suspend fun loadReadingScript(key: String): String? = withContext(Dispatchers.IO) {
-        File(directory(key), "reading.md").takeIf(File::isFile)?.readText()
-    }
-
-    override suspend fun saveReadingScript(key: String, script: String) = withContext(Dispatchers.IO) {
-        val directory = directory(key)
-        check(directory.isDirectory || directory.mkdirs()) { "Could not create PDF Markdown storage." }
-        File(directory, "reading.md").writeText(script)
     }
 
     private fun resolveFigures(directory: File, markdown: String): String =

@@ -36,6 +36,8 @@ import com.paperconnekt.storage.LocalResearchStore
 import com.paperconnekt.storage.OpenAlexPaperSearchProvider
 import com.paperconnekt.secrets.SecretKey
 import com.paperconnekt.secrets.SecretStore
+import com.akram.bensalem.paper.connekt.feature.assistant.AssistantRepository
+import com.akram.bensalem.paper.connekt.feature.assistant.ResearchHistory
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
@@ -66,10 +68,27 @@ fun DashboardScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
     var showAddPaperDialog by remember { mutableStateOf(false) }
+    var researchHistory by remember { mutableStateOf(ResearchHistory()) }
+    var historyLoading by remember { mutableStateOf(false) }
+    var historyError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     var openAlexKey by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(secretStore) {
         openAlexKey = secretStore.read(SecretKey.OPENALEX)
+    }
+    LaunchedEffect(settings.zoteroUserId) {
+        historyLoading = true
+        historyError = null
+        try {
+            researchHistory = AssistantRepository().loadUsageHistory(settings.zoteroUserId.trim().ifEmpty { null })
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (exception: Exception) {
+            io.github.aakira.napier.Napier.e("Could not load dashboard analytics", exception)
+            historyError = "AI analytics are unavailable right now."
+        } finally {
+            historyLoading = false
+        }
     }
     val searchProvider = remember(openAlexKey) {
         LocalFirstPaperSearchProvider(
@@ -142,6 +161,18 @@ fun DashboardScreen(
                     graphCount = graphs.size,
                     libraryCount = libraryEntries.size,
                     authorCount = papers.flatMap { it.authors }.distinct().size,
+                    aiEventCount = researchHistory.usage.size,
+                    aiCostUsd = researchHistory.usageSummary.totalCostUsd,
+                    compact = compact,
+                )
+            }
+            item {
+                DashboardAnalytics(
+                    history = researchHistory,
+                    papers = papers,
+                    graphs = graphs,
+                    historyLoading = historyLoading,
+                    historyError = historyError,
                     compact = compact,
                 )
             }

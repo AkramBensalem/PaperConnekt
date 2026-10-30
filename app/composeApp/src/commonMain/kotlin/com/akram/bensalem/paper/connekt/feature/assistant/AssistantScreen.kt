@@ -8,8 +8,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.akram.bensalem.paper.connekt.feature.assistant.component.ResearchDashboard
 import com.akram.bensalem.paper.connekt.feature.assistant.component.Workplace
-import com.akram.bensalem.paper.connekt.core.remote.functions.TextToSpeechRemoteDataSource
-import androidx.compose.runtime.DisposableEffect
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -19,7 +17,6 @@ fun AssistantScreen(
     modifier: Modifier = Modifier,
     viewModel: AssistantViewModel,
     pdfWorkspace: PdfWorkspaceViewModel? = null,
-    textToSpeech: TextToSpeechRemoteDataSource? = null,
     onOpenZotero: () -> Unit = {},
     onOpenPaper: (ZoteroPdfTarget) -> Unit = {},
     onExitWorkspace: (() -> Unit)? = null
@@ -53,18 +50,6 @@ fun AssistantScreen(
         }
         val today = kotlinx.datetime.Clock.System.now()
             .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
-        val readAloud = textToSpeech?.let { remote ->
-            remember(remote, paper.id, pdfWorkspace?.state?.target?.attachment?.key) {
-                ReadAloudController(remote) { event ->
-                    viewModel.recordUsage(usagePaperId, event)
-                }
-            }
-        }
-        readAloud?.let { controller ->
-            DisposableEffect(controller) {
-                onDispose { controller.close() }
-            }
-        }
         Box(modifier.fillMaxSize()) {
             Workplace(
                 paper = paper, notes = state.notes, chatMessages = state.chatMessages, ideas = state.ideas,
@@ -77,7 +62,6 @@ fun AssistantScreen(
                 ideaBoard = viewModel,
                 usageRecorder = viewModel::recordUsage,
                 pdfWorkspace = pdfWorkspace,
-                readAloud = readAloud,
                 studyTimeToday = activeStudy?.dailyStudyMillis?.get(today) ?: 0L,
                 totalStudyTime = activeStudy?.totalStudyMillis ?: 0L,
                 onExit = onExitWorkspace ?: {

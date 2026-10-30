@@ -35,7 +35,6 @@ import com.paperconnekt.app.resources.filled_format_underlined
 import com.paperconnekt.app.resources.filled_fullscreen
 import com.paperconnekt.app.resources.filled_fullscreen_exit
 import com.paperconnekt.app.resources.filled_gesture
-import com.paperconnekt.app.resources.filled_headphones
 import com.paperconnekt.app.resources.filled_highlight
 import com.paperconnekt.app.resources.filled_keyboard_arrow_down
 import com.paperconnekt.app.resources.filled_keyboard_arrow_up
@@ -132,6 +131,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalDensity
@@ -144,15 +144,16 @@ import com.akram.bensalem.paper.connekt.feature.assistant.*
 import com.akram.bensalem.bistosh.core.designsystem.component.clipChipInteraction
 import com.akram.bensalem.bistosh.core.designsystem.component.interactivePointer
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroAnnotation
-import kotlinx.coroutines.delay
+import dev.nucleusframework.pdfium.PdfPage as NucleusPdfPage
+import dev.nucleusframework.pdfium.PdfReaderState
+import dev.nucleusframework.pdfium.rememberPdfReaderState
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 internal val annotationColors = listOf("#ffd400", "#ff6666", "#5fb236", "#2ea8e5", "#a28ae5")
 internal val annotationColorNames = listOf("Yellow", "Red", "Green", "Blue", "Purple")
 
-/** Starts read-aloud at the part covered by the current text selection; null when read mode is off. */
-internal val LocalReadFromSelection = compositionLocalOf<(() -> Unit)?> { null }
+private val LocalNucleusPdfReaderState = compositionLocalOf<PdfReaderState?> { null }
 internal fun annotationColor(hex: String): Color = Color(0xff000000L or hex.removePrefix("#").toLong(16))
 private fun TextFieldValue.wrapSelection(prefix: String, suffix: String): TextFieldValue {
     val start = selection.min
@@ -214,7 +215,6 @@ private fun annotationMarkerColor(hex: String): Color {
 fun ZoteroPdfReader(
     viewModel: PdfWorkspaceViewModel,
     focusMode: Boolean = false,
-    readAloud: ReadAloudController? = null,
     onExit: (() -> Unit)? = null,
     onReadingPositionChanged: ((PdfReadingPosition, Float) -> Unit)? = null,
     supportingContent: (@Composable (allowEditing: Boolean) -> Unit)? = null,
@@ -226,6 +226,16 @@ fun ZoteroPdfReader(
     totalStudyTime: Long = 0L
 ) {
     val state = viewModel.state
+    val nucleusPdfState = rememberPdfReaderState()
+    val loadedPdfBytes = viewModel.loadedPdfBytes()
+    LaunchedEffect(loadedPdfBytes) {
+        loadedPdfBytes?.let {
+            nucleusPdfState.open(it)
+            viewModel.attachPageProvider(nucleusPdfState.pageCount) { index ->
+                nucleusPdfState.loadPaperConnektPage(index)
+            }
+        }
+    }
     LaunchedEffect(state.target, state.localTitle, state.readingPosition, state.zoom) {
         onReadingPositionChanged?.invoke(state.readingPosition, state.zoom)
     }
@@ -233,7 +243,6 @@ fun ZoteroPdfReader(
     val hasDocument = state.target != null || state.localTitle != null
     val hasMarkdownStorage = viewModel.paperStorageKey() != null
     var tool by remember(state.target) { mutableStateOf("select") }
-    var readMode by remember(state.target) { mutableStateOf(false) }
     var showAnnotations by remember(state.target) { mutableStateOf(false) }
     var sidebarVisible by remember { mutableStateOf(true) }
     var sidebarWidth by remember(state.target) { mutableStateOf(340.dp) }
@@ -301,96 +310,22 @@ fun ZoteroPdfReader(
     val searchFocusRequester = remember { FocusRequester() }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    var readAloudOffset by remember(state.target) { mutableStateOf(IntOffset.Zero) }
-    var readAloudSize by remember(state.target) { mutableStateOf(IntSize.Zero) }
     val closeSearch: () -> Unit = {
         search = ""
         showSearch = false
         focusRequester.requestFocus()
     }
-    val readingActive = readAloud?.state?.isActive == true
-    val readingMode = readMode
-    val readingLocked = readAloud?.state?.status == ReadAloudStatus.Preparing ||
-        readAloud?.state?.status == ReadAloudStatus.Playing
-    val pageText = if (pdfMode) {
-        state.page?.glyphs?.textSelection()?.text.orEmpty()
-    } else {
-        state.markdown.pages.getOrNull(state.pageIndex).orEmpty()
-    }
-    val selectedText = state.textSelection?.text?.takeIf { it.isNotBlank() }
-    val markdownRunningLines = remember(state.markdown.content) { markdownRunningSignatures(state.markdown.pages) }
-    var pdfRunningLines by remember(state.target) { mutableStateOf(emptySet<String>()) }
-    LaunchedEffect(readingMode, state.markdown.content) {
-        if (readingMode && state.markdown.content != null) viewModel.ensureReadingScript()
-    }
-    LaunchedEffect(state.target, state.pageCount, state.pageIndex, readingMode, pdfMode) {
-        if (!readingMode) return@LaunchedEffect
-        viewModel.ensureMarkdown()
-        if (!pdfMode || state.pageCount < 2) return@LaunchedEffect
-        val sample = ((0..3) + (state.pageIndex - 2..state.pageIndex + 2))
-            .filter { it in 0 until state.pageCount }
-            .distinct()
-        pdfRunningLines = runningSignatures(sample.mapNotNull { viewModel.pageText(it) })
-    }
-    val ocrPage = state.markdown.pages.getOrNull(state.pageIndex)
-        ?.takeIf { state.markdown.hasPageBoundaries && it.isNotBlank() }
-    val readingPage = state.readingScript.pages[state.pageIndex]?.takeIf { blocks -> blocks.any { it.read } }
-    val pageSpeechPlan = remember(pdfMode, state.page, state.pageIndex, pageText, ocrPage, pdfRunningLines, markdownRunningLines, readingPage) {
-        if (readingPage != null && (!pdfMode || state.page != null)) {
-            val plan = createReadingSpeechPlan(readingPage)
-            if (pdfMode) plan.withPdfPositions(state.page!!, state.pageIndex) else plan.copy(source = "markdown-page-ai")
-        } else if (pdfMode && state.page != null) {
-            createPdfSpeechPlan(
-                page = state.page,
-                pageIndex = state.pageIndex,
-                ocrMarkdown = ocrPage,
-                runningLines = pdfRunningLines + markdownRunningLines,
-            )
-        } else {
-            val plan = createSpeechPlan(pageText, runningLines = markdownRunningLines)
-            if (pdfMode && state.page != null) plan.withPdfPositions(state.page, state.pageIndex)
-            else plan.copy(source = "markdown-page")
-        }
-    }
-    val speechPlan = remember(pageSpeechPlan, pdfMode, state.page, state.pageIndex, selectedText) {
-        if (selectedText == null) pageSpeechPlan
-        else {
-            val plan = createSpeechPlan(selectedText)
-            (if (pdfMode && state.page != null) plan.withPdfPositions(state.page, state.pageIndex) else plan)
-                .copy(source = "selection")
-        }
-    }
-    val readFromSelection: (() -> Unit)? = readAloud?.takeIf { readingMode || readingActive }?.let { controller ->
-        {
-            val selection = viewModel.state.textSelection
-            if (selection != null && selection.text.isNotBlank()) {
-                val rootId = state.target?.attachment?.key ?: "pdf"
-                val position = pageSpeechPlan.readablePositionFor(selection.text, if (pdfMode) selection.rects else emptyList())
-                if (position != null) {
-                    controller.start(pageSpeechPlan, rootId, "page-${state.pageIndex}", startChunk = position)
-                } else {
-                    controller.start(speechPlan, rootId, "selection-${state.pageIndex}")
-                }
-                viewModel.clearTextSelection()
-            }
-        }
-    }
+    val editingLocked = false
     val copySelection: () -> Unit = {
         state.textSelection?.let {
             clipboard.setText(AnnotatedString(it.text))
             scope.launch { snackbar.showSnackbar("Selected text copied") }
         }
     }
-    LaunchedEffect(state.target) {
-        while (state.target != null) {
-            delay(60_000)
-            if (!viewModel.state.syncing && viewModel.state.draft == null && !viewModel.state.needsRefresh) viewModel.refreshAnnotations()
-        }
-    }
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); viewModel.dismissMessage() }
     }
-    BoxWithConstraints(Modifier.fillMaxSize().focusRequester(focusRequester).onPreviewKeyEvent { event ->
+    BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding().focusRequester(focusRequester).onPreviewKeyEvent { event ->
         if (event.type != KeyEventType.KeyDown || state.draft != null) false
         else when {
             !showSearch && (event.isCtrlPressed || event.isMetaPressed) && event.key == Key.C && state.textSelection != null -> { copySelection(); true }
@@ -411,29 +346,11 @@ fun ZoteroPdfReader(
             else -> false
         }
     }.focusable()) {
-        val wide = maxWidth >= 900.dp
+        val wide = maxWidth >= 840.dp && maxHeight >= 480.dp
         val compact = maxWidth < CompactReaderMaxWidth
         val density = LocalDensity.current
         val readerWidth = maxWidth
-        val readAloudDragModifier = Modifier
-            .offset { readAloudOffset }
-            .onSizeChanged { readAloudSize = it }
-            .pointerInput(maxWidth, maxHeight, readAloudSize) {
-                detectDragGestures { change, dragAmount ->
-                    change.consume()
-                    val containerWidth = with(density) { maxWidth.toPx() }
-                    val containerHeight = with(density) { maxHeight.toPx() }
-                    val bottomPadding = with(density) { 84.dp.toPx() }
-                    val maxHorizontalOffset = ((containerWidth - readAloudSize.width) / 2f).coerceAtLeast(0f)
-                    val baseTop = containerHeight - bottomPadding - readAloudSize.height
-                    val minVerticalOffset = -baseTop
-                    val maxVerticalOffset = (containerHeight - readAloudSize.height - baseTop).coerceAtLeast(minVerticalOffset)
-                    readAloudOffset = IntOffset(
-                        x = (readAloudOffset.x + dragAmount.x).coerceIn(-maxHorizontalOffset, maxHorizontalOffset).roundToInt(),
-                        y = (readAloudOffset.y + dragAmount.y).coerceIn(minVerticalOffset, maxVerticalOffset).roundToInt(),
-                    )
-                }
-            }
+        CompositionLocalProvider(LocalNucleusPdfReaderState provides nucleusPdfState) {
         Row(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).fillMaxHeight()) {
             if (!focusMode) Surface(
@@ -444,7 +361,6 @@ fun ZoteroPdfReader(
                 Column(Modifier.fillMaxWidth().padding(horizontal = if (compact) 4.dp else 12.dp, vertical = if (compact) 2.dp else 8.dp)) {
                     if (compact) CompactReaderTopBar(
                         title = state.localTitle ?: state.target?.item?.data?.title ?: "PDF workspace",
-                        filename = if (state.localTitle != null) "Local PDF" else state.target?.attachment?.data?.filename ?: "Zotero reader",
                         state = state,
                         onExit = onExit,
                         showSearchAction = pdfMode,
@@ -487,9 +403,6 @@ fun ZoteroPdfReader(
                         Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                             Text(state.localTitle ?: state.target?.item?.data?.title ?: "PDF workspace",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(if (state.localTitle != null) "Local PDF" else state.target?.attachment?.data?.filename ?: "Zotero reader",
-                                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis)
                             StudyTimeIndicator(studyTimeToday, totalStudyTime)
                         }
                         if (pdfMode) {
@@ -572,13 +485,11 @@ fun ZoteroPdfReader(
                             if (compact) CompactReaderToolRow(
                                 tool = tool,
                                 onToolChange = { id -> tool = id; if (id != "select") viewModel.clearTextSelection() },
-                                readMode = readMode,
-                                onReadModeChange = { readMode = !readMode },
                                 hasDraft = state.draft != null,
                                 inkDraft = state.draft?.type == "ink",
                                 canSaveDrawing = state.canWrite && state.draft?.paths?.isNotEmpty() == true,
-                                annotateEnabled = state.canWrite && !readingLocked && (state.draft == null || state.draft.type == "ink"),
-                                readingLocked = readingLocked,
+                                annotateEnabled = state.canWrite && !editingLocked && (state.draft == null || state.draft.type == "ink"),
+                                editingLocked = editingLocked,
                                 colorHex = inkColor,
                                 onOpenAnnotate = { showAnnotateSheet = true },
                                 onSaveDrawing = viewModel::saveDraft,
@@ -603,24 +514,27 @@ fun ZoteroPdfReader(
                                     }
                                 }) { Text("Pan") }
                         }
-                        ReaderToolChip(readMode, { readMode = !readMode }, enabled = state.draft == null,
-                            label = { Text("Read") },
-                            leadingIcon = { Icon(painterResource(Res.drawable.filled_headphones), null, Modifier.size(18.dp)) })
-                        ReaderToolChip(tool == "note", { tool = if (tool == "note") "select" else "note"; viewModel.clearTextSelection() }, enabled = state.canWrite && state.draft == null && !readingLocked, label = { Text("Note") },
+                        ReaderToolChip(tool == "highlight", { tool = if (tool == "highlight") "select" else "highlight"; viewModel.clearTextSelection() },
+                            enabled = state.canWrite && state.draft == null && !editingLocked, label = { Text("Highlight") },
+                            leadingIcon = if (wide) { { Icon(painterResource(Res.drawable.filled_highlight), null, Modifier.size(18.dp)) } } else null)
+                        ReaderToolChip(tool == "underline", { tool = if (tool == "underline") "select" else "underline"; viewModel.clearTextSelection() },
+                            enabled = state.canWrite && state.draft == null && !editingLocked, label = { Text("Underline") },
+                            leadingIcon = if (wide) { { Icon(painterResource(Res.drawable.filled_format_underlined), null, Modifier.size(18.dp)) } } else null)
+                        ReaderToolChip(tool == "note", { tool = if (tool == "note") "select" else "note"; viewModel.clearTextSelection() }, enabled = state.canWrite && state.draft == null && !editingLocked, label = { Text("Note") },
                             leadingIcon = if (wide) { { Icon(painterResource(Res.drawable.filled_note_add), null, Modifier.size(18.dp)) } } else null)
-                        ReaderToolChip(tool == "idea", { tool = if (tool == "idea") "select" else "idea"; viewModel.clearTextSelection() }, enabled = state.canWrite && state.draft == null && !readingLocked,
+                        ReaderToolChip(tool == "idea", { tool = if (tool == "idea") "select" else "idea"; viewModel.clearTextSelection() }, enabled = state.canWrite && state.draft == null && !editingLocked,
                             label = { Text("Idea") }, leadingIcon = if (wide) { { Icon(painterResource(Res.drawable.filled_lightbulb), null, Modifier.size(18.dp)) } } else null)
                         ReaderToolChip(tool == "ink", { tool = if (tool == "ink") "select" else "ink"; viewModel.clearTextSelection() },
-                            enabled = state.canWrite && (state.draft == null || state.draft.type == "ink") && !readingLocked, label = { Text("Pen") },
+                            enabled = state.canWrite && (state.draft == null || state.draft.type == "ink") && !editingLocked, label = { Text("Pen") },
                             leadingIcon = if (wide) { { Icon(painterResource(Res.drawable.filled_edit), null, Modifier.size(18.dp), tint = annotationColor(inkColor)) } } else null)
-                        ReaderToolChip(tool == "text", { tool = if (tool == "text") "select" else "text"; viewModel.clearTextSelection() }, enabled = state.canWrite && state.draft == null && !readingLocked,
+                        ReaderToolChip(tool == "text", { tool = if (tool == "text") "select" else "text"; viewModel.clearTextSelection() }, enabled = state.canWrite && state.draft == null && !editingLocked,
                             label = { Text("Text") }, leadingIcon = if (wide) { { Icon(painterResource(Res.drawable.filled_title), null, Modifier.size(18.dp)) } } else null)
-                        ReaderToolChip(tool == "rect", { tool = if (tool == "rect") "select" else "rect"; viewModel.clearTextSelection() }, enabled = state.canWrite && state.draft == null && !readingLocked,
+                        ReaderToolChip(tool == "rect", { tool = if (tool == "rect") "select" else "rect"; viewModel.clearTextSelection() }, enabled = state.canWrite && state.draft == null && !editingLocked,
                             label = { Text("Rectangle") }, leadingIcon = if (wide) { { Icon(painterResource(Res.drawable.filled_crop_square), null, Modifier.size(18.dp)) } } else null)
                         if (tool == "ink" || tool == "text") Box {
                             val sizes = if (tool == "ink") inkWidthPresets else textSizePresets
                             val current = if (tool == "ink") state.inkWidth else state.textSize
-                            TextButton(enabled = !readingLocked, onClick = { showSizes = true }, modifier = Modifier.interactivePointer(enabled = !readingLocked)) {
+                            TextButton(enabled = !editingLocked, onClick = { showSizes = true }, modifier = Modifier.interactivePointer(enabled = !editingLocked)) {
                                 Icon(if (tool == "ink") painterResource(Res.drawable.filled_line_weight) else painterResource(Res.drawable.filled_format_size),
                                     if (tool == "ink") "Pen line width" else "Text size", Modifier.size(18.dp))
                                 Spacer(Modifier.width(6.dp)); Text(formatSize(current))
@@ -639,13 +553,13 @@ fun ZoteroPdfReader(
                                         onClick = {
                                             if (tool == "ink") viewModel.setInkWidth(size) else viewModel.setTextSize(size)
                                             showSizes = false
-                                        }, enabled = !readingLocked, modifier = Modifier.interactivePointer(enabled = !readingLocked))
+                                        }, enabled = !editingLocked, modifier = Modifier.interactivePointer(enabled = !editingLocked))
                                 }
                             }
                         }
                         Box {
-                            IconButton(enabled = state.canWrite && !readingLocked && (state.draft == null || state.draft.type == "ink"),
-                                onClick = { showPenColors = true }, modifier = Modifier.interactivePointer(enabled = state.canWrite && !readingLocked && (state.draft == null || state.draft.type == "ink"))) {
+                            IconButton(enabled = state.canWrite && !editingLocked && (state.draft == null || state.draft.type == "ink"),
+                                onClick = { showPenColors = true }, modifier = Modifier.interactivePointer(enabled = state.canWrite && !editingLocked && (state.draft == null || state.draft.type == "ink"))) {
                                 Icon(painterResource(Res.drawable.filled_circle), "Annotation color", tint = annotationColor(inkColor))
                             }
                             DropdownMenu(expanded = showPenColors, onDismissRequest = { showPenColors = false }) {
@@ -656,16 +570,16 @@ fun ZoteroPdfReader(
                                         onClick = {
                                             viewModel.setAnnotationColor(color)
                                             showPenColors = false
-                                        }, enabled = !readingLocked, modifier = Modifier.interactivePointer(enabled = !readingLocked)
+                                        }, enabled = !editingLocked, modifier = Modifier.interactivePointer(enabled = !editingLocked)
                                     )
                                 }
                             }
                         }
                         if (state.draft?.type == "ink") {
-                            TextButton(enabled = state.canWrite && !readingLocked && state.draft.paths.isNotEmpty(), onClick = viewModel::saveDraft, modifier = Modifier.interactivePointer(enabled = state.canWrite && !readingLocked && state.draft.paths.isNotEmpty())) {
+                            TextButton(enabled = state.canWrite && !editingLocked && state.draft.paths.isNotEmpty(), onClick = viewModel::saveDraft, modifier = Modifier.interactivePointer(enabled = state.canWrite && !editingLocked && state.draft.paths.isNotEmpty())) {
                                 Icon(painterResource(Res.drawable.filled_check), null, Modifier.size(18.dp)); Text("Save drawing")
                             }
-                            IconButton(enabled = !readingLocked, onClick = viewModel::cancelDraft, modifier = Modifier.interactivePointer(enabled = !readingLocked)) {
+                            IconButton(enabled = !editingLocked, onClick = viewModel::cancelDraft, modifier = Modifier.interactivePointer(enabled = !editingLocked)) {
                                 Icon(painterResource(Res.drawable.filled_close), "Discard drawing")
                             }
                         }
@@ -691,7 +605,7 @@ fun ZoteroPdfReader(
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("Earlier pen drawings use an incompatible Zotero position format. Repair them to restore annotations in Zotero's PDF reader.",
                             Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                        TextButton(enabled = state.canWrite && state.draft == null && !readingLocked, onClick = viewModel::repairInkAnnotations, modifier = Modifier.interactivePointer(enabled = state.canWrite && state.draft == null && !readingLocked)) {
+                        TextButton(enabled = state.canWrite && state.draft == null && !editingLocked, onClick = viewModel::repairInkAnnotations, modifier = Modifier.interactivePointer(enabled = state.canWrite && state.draft == null && !editingLocked)) {
                             Text("Repair Zotero drawings")
                         }
                     }
@@ -716,36 +630,14 @@ fun ZoteroPdfReader(
                 onClose = closeSearch,
             )
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                CompositionLocalProvider(LocalReaderZoomAnchor provides zoomAnchor, LocalReadFromSelection provides readFromSelection) {
+                CompositionLocalProvider(LocalReaderZoomAnchor provides zoomAnchor) {
                 Row(Modifier.fillMaxSize().nestedScroll(headerScrollConnection).testTag("reader-viewport").readerTouchpadGestures(zoomAnchor, state.zoom) { factor ->
                     fitPage = false
                     viewModel.zoom(viewModel.state.zoom * factor)
                 }) {
                     if (!pdfMode) Box(Modifier.weight(1f).fillMaxHeight()) {
                         PdfMarkdownView(viewModel, Modifier.fillMaxSize(),
-                            continuous = continuous, spread = spread, fitPage = fitPage,
-                            readingActive = readingLocked, readAloud = readAloud)
-                        if (readingMode || readingActive) {
-                            readAloud?.let { controller ->
-                                ReadAloudControls(
-                                    controller = controller,
-                                    text = selectedText ?: pageText,
-                                    plan = speechPlan,
-                                    rootId = state.target?.attachment?.key ?: "pdf",
-                                    exampleId = if (selectedText != null) "selection-${state.pageIndex}" else "page-${state.pageIndex}",
-                                    label = if (selectedText != null) "selection" else "current page",
-                                    readingScript = state.readingScript.content,
-                                    preparingScript = state.readingScript.preparing,
-                                    compact = compact,
-                                    modifier = Modifier.align(Alignment.BottomCenter)
-                                        .padding(bottom = 84.dp)
-                                    .then(readAloudDragModifier)
-                                    .widthIn(max = 720.dp)
-                                        .wrapContentWidth()
-                                        .zIndex(2f),
-                                )
-                            }
-                        }
+                            continuous = continuous, spread = spread, fitPage = fitPage)
                     }
                     else Box(Modifier.weight(1f).fillMaxHeight()) {
                         val inspect = {
@@ -757,41 +649,20 @@ fun ZoteroPdfReader(
                             ContinuousPdfPages(viewModel, tool, search, inkColor,
                                 onFocus = { focusRequester.requestFocus() }, onInspect = inspect, columns = if (spread) 2 else 1,
                                 matchCase = matchCase, wholeWord = wholeWord, activeSearchMatch = activeSearchMatch,
-                                searchPageNavigationId = searchPageNavigationId, readAloudState = readAloud?.state,
+                                searchPageNavigationId = searchPageNavigationId,
                                 onCopySelection = copySelection, onAskAi = onAskAi)
                         } else if (spread && state.pageCount > 0) {
                             PagedSpread(viewModel, tool, search, inkColor, onFocus = { focusRequester.requestFocus() }, onInspect = inspect,
                                 matchCase = matchCase, wholeWord = wholeWord, activeSearchMatch = activeSearchMatch,
-                                searchPageNavigationId = searchPageNavigationId, readAloudState = readAloud?.state,
+                                searchPageNavigationId = searchPageNavigationId,
                                 onCopySelection = copySelection, onAskAi = onAskAi)
                         } else PdfPageCanvas(Modifier.fillMaxSize(), viewModel, tool, search, fitPage, inkColor,
                             onFocus = { focusRequester.requestFocus() }, onInspect = inspect,
                             matchCase = matchCase, wholeWord = wholeWord, activeSearchMatch = activeSearchMatch,
-                            searchPageNavigationId = searchPageNavigationId, readAloudState = readAloud?.state,
+                            searchPageNavigationId = searchPageNavigationId,
                             onCopySelection = copySelection, onAskAi = onAskAi)
-                        if (readingMode || readingActive) {
-                            readAloud?.let { controller ->
-                                ReadAloudControls(
-                                    controller = controller,
-                                    text = selectedText ?: pageText,
-                                    plan = speechPlan,
-                                    rootId = state.target?.attachment?.key ?: "pdf",
-                                    exampleId = if (selectedText != null) "selection-${state.pageIndex}" else "page-${state.pageIndex}",
-                                    label = if (selectedText != null) "selection" else "current page",
-                                    readingScript = state.readingScript.content,
-                                    preparingScript = state.readingScript.preparing,
-                                    compact = compact,
-                                    modifier = Modifier.align(Alignment.BottomCenter)
-                                        .padding(bottom = 84.dp)
-                                        .then(readAloudDragModifier)
-                                        .widthIn(max = 720.dp)
-                                        .wrapContentWidth()
-                                        .zIndex(2f)
-                                )
-                            }
-                        }
                         val selectedAnnotation = state.annotations.find { it.key == state.selectedKey }
-                        if (selectedAnnotation != null && state.textSelection == null && state.draft == null && !readingLocked) {
+                        if (selectedAnnotation != null && state.textSelection == null && state.draft == null && !editingLocked) {
                             Surface(Modifier.align(Alignment.BottomCenter).padding(bottom = 76.dp).testTag("pdf-annotation-actions"),
                                 shape = RoundedCornerShape(20.dp), shadowElevation = 8.dp, tonalElevation = 6.dp) {
                                 Row(Modifier.padding(horizontal = 8.dp).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
@@ -993,9 +864,9 @@ fun ZoteroPdfReader(
                     Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.surfaceContainerLow
                 ) {
-                    Box(Modifier.fillMaxSize().padding(16.dp)) {
-                        if (supportingContent != null) supportingContent(!readingLocked)
-                        else ReaderAnnotationPane(viewModel, allowEditing = !readingLocked)
+                    Box(Modifier.fillMaxSize().padding(start = 24.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)) {
+                        if (supportingContent != null) supportingContent(!editingLocked)
+                        else ReaderAnnotationPane(viewModel, allowEditing = !editingLocked)
                     }
                 }
                 Box(
@@ -1003,6 +874,8 @@ fun ZoteroPdfReader(
                         .align(Alignment.CenterStart)
                         .width(12.dp)
                         .fillMaxHeight()
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         .pointerHoverIcon(PointerIcon.Hand)
                         .pointerInput(readerWidth) {
                             detectDragGestures { change, dragAmount ->
@@ -1014,8 +887,18 @@ fun ZoteroPdfReader(
                         }
                         .semantics { contentDescription = "Resize sidebar" }
                         .testTag("reader-sidebar-resize-handle")
-                )
+                ) {
+                    Box(
+                        Modifier
+                            .align(Alignment.Center)
+                            .width(3.dp)
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.outline)
+                    )
+                }
             }
+        }
         }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (state.textSelection != null || state.selectedKey != null) 128.dp else 64.dp))
@@ -1033,9 +916,16 @@ fun ZoteroPdfReader(
     if (showAnnotations) {
         ModalBottomSheet(onDismissRequest = { showAnnotations = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-            Box(Modifier.fillMaxWidth().fillMaxHeight(0.85f).padding(16.dp)) {
-                if (supportingContent != null) supportingContent(!readingLocked)
-                else ReaderAnnotationPane(viewModel, onSelected = { showAnnotations = false }, allowEditing = !readingLocked)
+            Box(
+                Modifier.fillMaxWidth()
+                    .fillMaxHeight(0.9f)
+                    .widthIn(max = 840.dp)
+                    .align(Alignment.CenterHorizontally)
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                    .imePadding()
+            ) {
+                if (supportingContent != null) supportingContent(!editingLocked)
+                else ReaderAnnotationPane(viewModel, onSelected = { showAnnotations = false }, allowEditing = !editingLocked)
             }
         }
     }
@@ -1050,7 +940,7 @@ fun ZoteroPdfReader(
             onInkWidthChange = viewModel::setInkWidth,
             onTextSizeChange = viewModel::setTextSize,
             inkOnly = state.draft?.type == "ink",
-            enabled = state.canWrite && !readingLocked,
+            enabled = state.canWrite && !editingLocked,
             onDismiss = { showAnnotateSheet = false },
         )
     }
@@ -1074,7 +964,7 @@ fun ZoteroPdfReader(
             onDismiss = { showViewSheet = false },
         )
     }
-    if (!readingLocked && !state.adjustingTextRange && (state.draft?.type != "ink" || state.draft.editing != null)) {
+    if (!editingLocked && !state.adjustingTextRange && (state.draft?.type != "ink" || state.draft.editing != null)) {
         AnnotationEditor(viewModel, paperAgent)
     }
 }
@@ -1143,13 +1033,31 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
     val state = viewModel.state
     state.draft?.let { draft ->
         var editMarkdown by remember(draft.key) { mutableStateOf(draft.comment.isBlank()) }
-        var includePageContent by remember(draft.key) { mutableStateOf(false) }
-        var includePaperContent by remember(draft.key) { mutableStateOf(false) }
         var annotationAiAction by remember(draft.key) { mutableStateOf(AnnotationAiAction.Describe) }
         var annotationAiBrief by remember(draft.key) { mutableStateOf(true) }
+        var annotationAiExpanded by remember(draft.key) { mutableStateOf(false) }
         var markdownValue by remember(draft.key) { mutableStateOf(TextFieldValue(draft.comment)) }
         val noteTint = annotationColor(draft.color)
-        val noteBackground = noteTint.copy(alpha = 0.12f)
+        val noteBackground = noteTint.copy(alpha = 0.08f)
+        val annotationTitle = when {
+            draft.editing != null && draft.type == "text" -> "Edit text"
+            draft.editing != null -> "Edit annotation"
+            draft.isIdea -> "Page idea"
+            draft.type == "note" -> "Page note"
+            draft.type == "text" -> "Text box"
+            draft.type == "image" -> "Rectangle"
+            draft.type == "underline" -> "Text underline"
+            else -> "Text highlight"
+        }
+        val annotationIcon = when {
+            draft.isIdea -> Res.drawable.filled_lightbulb
+            draft.type == "note" -> Res.drawable.filled_note_add
+            draft.type == "text" -> Res.drawable.filled_text_fields
+            draft.type == "image" -> Res.drawable.filled_crop_square
+            draft.type == "underline" -> Res.drawable.filled_format_underlined
+            draft.type == "ink" -> Res.drawable.filled_gesture
+            else -> Res.drawable.filled_highlight
+        }
         LaunchedEffect(draft.comment) {
             if (markdownValue.text != draft.comment) markdownValue = TextFieldValue(draft.comment)
         }
@@ -1158,8 +1066,8 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                 selectedText = draft.text,
                 existingComment = draft.comment,
                 pageIndex = draft.pageIndex,
-                includePage = includePageContent,
-                includePaper = includePaperContent,
+                includePage = paperAgent?.includePageContext == true,
+                includePaper = paperAgent?.includePaperContext == true,
                 action = action,
                 brief = annotationAiBrief,
             ) { generated ->
@@ -1167,32 +1075,92 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                 editMarkdown = true
             }
         }
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+        val compact = maxWidth < 520.dp
         AlertDialog(
             onDismissRequest = viewModel::cancelDraft,
-            title = { Text(when {
-                draft.editing != null && draft.type == "text" -> "Edit text"
-                draft.editing != null -> "Edit annotation"
-                draft.isIdea -> "Page idea"
-                draft.type == "note" -> "Page note"
-                draft.type == "text" -> "Text box"
-                draft.type == "image" -> "Rectangle"
-                draft.type == "underline" -> "Text underline"
-                else -> "Text highlight"
-            }) },
+            modifier = Modifier.widthIn(max = 620.dp),
+            shape = RoundedCornerShape(28.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            tonalElevation = 6.dp,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = noteTint.copy(alpha = 0.16f),
+                        contentColor = noteTint,
+                    ) {
+                        Icon(
+                            painterResource(annotationIcon),
+                            contentDescription = null,
+                            modifier = Modifier.padding(10.dp).size(22.dp),
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(annotationTitle, style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall)
+                        Text(
+                            "Page ${draft.pageIndex + 1} · ${if (draft.editing == null) "New annotation" else "Saved annotation"}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
             text = {
-                Column(Modifier.heightIn(max = 560.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Page ${draft.pageIndex + 1} - ${if (draft.editing == null) "unsaved draft"
-                        else if (state.localTitle != null) "local annotation" else "Zotero annotation"}")
+                Column(
+                    Modifier.heightIn(max = if (compact) 420.dp else 560.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 14.dp),
+                ) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = if (compact) 10.dp else 14.dp, vertical = if (compact) 8.dp else 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                painterResource(Res.drawable.filled_picture_as_pdf),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                if (state.localTitle != null) "Saved on this device" else "Synced with Zotero",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Spacer(Modifier.weight(1f))
+                            Text("Page ${draft.pageIndex + 1}", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
                     if (draft.editing == null && draft.text.isNotBlank()) {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            modifier = Modifier.fillMaxWidth()
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.18f)),
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("Selected text", style = MaterialTheme.typography.labelMedium)
-                                Text(draft.text, maxLines = 8, overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.bodySmall)
+                            Column(Modifier.padding(if (compact) 10.dp else 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Selected text", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                                    Text("From page ${draft.pageIndex + 1}", style = MaterialTheme.typography.labelSmall)
+                                }
+                                Text(
+                                    draft.text,
+                                    maxLines = if (compact) 4 else 6,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
                             }
                         }
                     }
@@ -1283,7 +1251,7 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                                 label = { Text(if (draft.type == "text") "Text" else "Note / comment") },
                                 placeholder = { Text("Write a Markdown note or comment…") },
                                 modifier = Modifier.fillMaxWidth(),
-                                minLines = 6,
+                                minLines = if (compact) 4 else 6,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     unfocusedContainerColor = Color.Transparent,
                                     focusedContainerColor = Color.Transparent,
@@ -1315,84 +1283,113 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.tertiaryContainer
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
                         ) {
-                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.padding(if (compact) 8.dp else 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
                                     Icon(painterResource(Res.drawable.filled_auto_awesome), null, Modifier.size(18.dp))
                                     Spacer(Modifier.width(6.dp))
-                                    Text("AI note assistant", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-                                    Button(
-                                        enabled = !paperAgent.annotationAiRunning,
-                                        onClick = { runAnnotationAi(annotationAiAction) },
-                                        modifier = Modifier.interactivePointer(enabled = !paperAgent.annotationAiRunning)
+                                    Column(Modifier.weight(1f)) {
+                                        Text("AI note assistant", style = MaterialTheme.typography.labelLarge)
+                                        Text(
+                                            if (annotationAiExpanded) "Choose how to draft a note from the selected text"
+                                            else "Optional: generate a note from the selected text",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { annotationAiExpanded = !annotationAiExpanded },
+                                        modifier = Modifier.size(36.dp).interactivePointer(),
                                     ) {
-                                        Text(if (paperAgent.annotationAiRunning) "Working…" else "Apply")
-                                    }
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("AI action", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Checkbox(
-                                            checked = annotationAiBrief,
-                                            onCheckedChange = { annotationAiBrief = it },
-                                            modifier = Modifier.size(28.dp).interactivePointer()
-                                        )
-                                        Text("Brief", style = MaterialTheme.typography.labelSmall)
-                                    }
-                                }
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    AnnotationAiAction.entries.filterNot {
-                                        it == AnnotationAiAction.Rephrase || it == AnnotationAiAction.Correct
-                                    }.forEach { option ->
-                                        FilterChip(
-                                            selected = annotationAiAction == option,
-                                            onClick = { annotationAiAction = option },
-                                            label = { Text(option.label, style = MaterialTheme.typography.labelMedium) },
-                                            leadingIcon = if (annotationAiAction == option) {
-                                                { Icon(painterResource(Res.drawable.filled_check), null, Modifier.size(15.dp)) }
-                                            } else null,
-                                            colors = FilterChipDefaults.filterChipColors(
-                                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                selectedLeadingIconColor = MaterialTheme.colorScheme.primary
+                                        Icon(
+                                            painterResource(
+                                                if (annotationAiExpanded) Res.drawable.filled_keyboard_arrow_up
+                                                else Res.drawable.filled_keyboard_arrow_down,
                                             ),
-                                            modifier = Modifier.clipChipInteraction().interactivePointer()
+                                            if (annotationAiExpanded) "Collapse AI note assistant" else "Expand AI note assistant",
+                                            Modifier.size(20.dp),
                                         )
                                     }
                                 }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    FilterChip(
-                                        selected = includePageContent,
-                                        onClick = { includePageContent = !includePageContent },
-                                        label = { Text("Page content") },
-                                        leadingIcon = { Icon(painterResource(Res.drawable.filled_description), null, Modifier.size(16.dp)) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            selectedLeadingIconColor = MaterialTheme.colorScheme.secondary
-                                        ),
-                                        modifier = Modifier.clipChipInteraction().interactivePointer()
-                                    )
-                                    FilterChip(
-                                        selected = includePaperContent,
-                                        onClick = { includePaperContent = !includePaperContent },
-                                        label = { Text("Paper context") },
-                                        leadingIcon = { Icon(painterResource(Res.drawable.filled_menu_book), null, Modifier.size(16.dp)) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            selectedLeadingIconColor = MaterialTheme.colorScheme.secondary
-                                        ),
-                                        modifier = Modifier.clipChipInteraction().interactivePointer()
-                                    )
+                                if (annotationAiExpanded) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("AI action", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = annotationAiBrief,
+                                                onCheckedChange = { annotationAiBrief = it },
+                                                modifier = Modifier.size(28.dp).interactivePointer()
+                                            )
+                                            Text("Brief", style = MaterialTheme.typography.labelSmall)
+                                        }
+                                    }
+                                    FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        AnnotationAiAction.entries.filterNot {
+                                            it == AnnotationAiAction.Rephrase || it == AnnotationAiAction.Correct
+                                        }.forEach { option ->
+                                            FilterChip(
+                                                selected = annotationAiAction == option,
+                                                onClick = { annotationAiAction = option },
+                                                label = { Text(option.label, style = MaterialTheme.typography.labelMedium) },
+                                                leadingIcon = if (annotationAiAction == option) {
+                                                    { Icon(painterResource(Res.drawable.filled_check), null, Modifier.size(15.dp)) }
+                                                } else null,
+                                                colors = FilterChipDefaults.filterChipColors(
+                                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    selectedLeadingIconColor = MaterialTheme.colorScheme.primary
+                                                ),
+                                                modifier = Modifier.clipChipInteraction().interactivePointer()
+                                            )
+                                        }
+                                    }
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Text(
+                                            "Context range",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        PageRangeSelector(
+                                            agent = paperAgent,
+                                            pageCount = state.readerPageCount.coerceAtLeast(1),
+                                            currentPage = draft.pageIndex,
+                                            targetLabel = "AI note",
+                                        )
+                                    }
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    ) {
+                                        Text(
+                                            "Only updates the note draft; it does not save or close this dialog.",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        FilledTonalButton(
+                                            enabled = !paperAgent.annotationAiRunning,
+                                            onClick = { runAnnotationAi(annotationAiAction) },
+                                            modifier = Modifier.interactivePointer(enabled = !paperAgent.annotationAiRunning),
+                                        ) {
+                                            Text(if (paperAgent.annotationAiRunning) "Generating…" else "Generate & insert")
+                                        }
+                                    }
                                 }
                                 paperAgent.annotationAiError?.let {
                                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -1400,18 +1397,43 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                             }
                         }
                     }
-                    if (draft.editing == null && draft.type == "text") FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (draft.type == "text") FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         textSizePresets.forEach { size ->
                             ReaderToolChip(selected = draft.fontSize == size, onClick = { viewModel.setTextSize(size) },
                                 modifier = Modifier.interactivePointer(),
                                 label = { Text(formatSize(size)) })
                         }
                     }
-                    if (draft.editing == null) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        annotationColors.forEachIndexed { index, hex ->
-                            ReaderToolChip(selected = draft.color == hex, onClick = { viewModel.changeDraft(draft.comment, hex) },
-                                modifier = Modifier.semantics { contentDescription = "${annotationColorNames[index]} annotation" }.interactivePointer(),
-                                label = { Box(Modifier.size(22.dp).background(annotationColor(hex), RoundedCornerShape(6.dp))) })
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                    ) {
+                        Column(
+                            Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Text("Annotation color", style = MaterialTheme.typography.titleSmall)
+                            if (!compact) {
+                                Text(
+                                    "Choose a color that is easy to scan in your PDF.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Row(
+                                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                annotationColors.forEachIndexed { index, hex ->
+                                    AnnotationColorChoice(
+                                        selected = draft.color.equals(hex, ignoreCase = true),
+                                        color = annotationColor(hex),
+                                        label = annotationColorNames[index],
+                                        onClick = { viewModel.changeDraft(draft.comment, hex) },
+                                    )
+                                }
+                            }
                         }
                     }
                     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -1422,12 +1444,70 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
             },
             confirmButton = {
                 val canSave = state.canWrite && (draft.type !in listOf("note", "text") || draft.comment.isNotBlank())
-                TextButton(enabled = canSave, onClick = viewModel::saveDraft, modifier = Modifier.interactivePointer(enabled = canSave)) {
-                    Text(if (state.localTitle != null) "Save locally" else "Save to Zotero")
+                Button(
+                    enabled = canSave,
+                    onClick = viewModel::saveDraft,
+                    modifier = Modifier.interactivePointer(enabled = canSave),
+                ) {
+                    Text(
+                        if (compact) "Save & close"
+                        else if (state.localTitle != null) "Save locally & close"
+                        else "Save to Zotero & close"
+                    )
                 }
             },
             dismissButton = { TextButton(onClick = viewModel::cancelDraft, modifier = Modifier.interactivePointer()) { Text("Cancel") } }
         )
+        }
+    }
+}
+
+@Composable
+private fun AnnotationColorChoice(
+    selected: Boolean,
+    color: Color,
+    label: String,
+    onClick: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.semantics {
+            this.selected = selected
+            contentDescription = "$label annotation color"
+        }.interactivePointer(),
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) color.copy(alpha = 0.16f) else colors.surfaceContainerHigh,
+        border = BorderStroke(
+            if (selected) 2.dp else 1.dp,
+            if (selected) color else colors.outlineVariant,
+        ),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            Box(
+                Modifier.size(18.dp)
+                    .clip(CircleShape)
+                    .background(color)
+                    .border(1.dp, colors.onSurface.copy(alpha = 0.14f), CircleShape),
+            )
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (selected) colors.onSurface else colors.onSurfaceVariant,
+            )
+            if (selected) {
+                Icon(
+                    painterResource(Res.drawable.filled_check),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = colors.onSurface,
+                )
+            }
+        }
     }
 }
 
@@ -1638,7 +1718,7 @@ private fun ContinuousPdfPages(viewModel: PdfWorkspaceViewModel, tool: String, q
     color: String, onFocus: () -> Unit, onInspect: () -> Unit, columns: Int = 1,
     matchCase: Boolean = false, wholeWord: Boolean = false, activeSearchMatch: PdfTextMatch? = null,
     searchPageNavigationId: Int = -1,
-    readAloudState: ReadAloudState? = null, onCopySelection: () -> Unit = {}, onAskAi: (() -> Unit)? = null) {
+    onCopySelection: () -> Unit = {}, onAskAi: (() -> Unit)? = null) {
     val state = viewModel.state
     val listState = remember(columns) { LazyListState(firstVisibleItemIndex = state.pageIndex / columns) }
     val density = LocalDensity.current
@@ -1704,7 +1784,7 @@ private fun ContinuousPdfPages(viewModel: PdfWorkspaceViewModel, tool: String, q
                     for (index in row * columns until minOf((row + 1) * columns, state.pageCount)) {
                         SpreadPage(viewModel, index, spreadPageWidth, tool, query, color, onFocus, onInspect,
                             matchCase = matchCase, wholeWord = wholeWord, activeSearchMatch = activeSearchMatch,
-                            searchPageNavigationId = searchPageNavigationId, readAloudState = readAloudState,
+                            searchPageNavigationId = searchPageNavigationId,
                             onCopySelection = onCopySelection, onAskAi = onAskAi) {
                             listState.dispatchRawDelta(-it.y)
                             horizontal.dispatchRawDelta(-it.x)
@@ -1727,7 +1807,7 @@ private fun ContinuousPdfPages(viewModel: PdfWorkspaceViewModel, tool: String, q
                     fixedPageWidth = width, matchCase = matchCase, wholeWord = wholeWord,
                     activeSearchMatch = activeSearchMatch,
                     searchPageNavigationId = searchPageNavigationId,
-                    readAloudState = readAloudState, onCopySelection = onCopySelection, onAskAi = onAskAi,
+                    onCopySelection = onCopySelection, onAskAi = onAskAi,
                     onPan = {
                         listState.dispatchRawDelta(-it.y)
                         horizontal.dispatchRawDelta(-it.x)
@@ -1751,7 +1831,6 @@ private fun SpreadPage(viewModel: PdfWorkspaceViewModel, index: Int, width: Dp, 
     color: String, onFocus: () -> Unit, onInspect: () -> Unit,
     matchCase: Boolean = false, wholeWord: Boolean = false, activeSearchMatch: PdfTextMatch? = null,
     searchPageNavigationId: Int = -1,
-    readAloudState: ReadAloudState? = null,
     onCopySelection: () -> Unit = {}, onAskAi: (() -> Unit)? = null,
     onPan: (Offset) -> Unit) {
     val state = viewModel.state
@@ -1769,7 +1848,7 @@ private fun SpreadPage(viewModel: PdfWorkspaceViewModel, index: Int, width: Dp, 
         onInspect = onInspect, suppliedPage = page, pageIndex = index, continuous = true,
         fixedPageWidth = width, matchCase = matchCase, wholeWord = wholeWord, activeSearchMatch = activeSearchMatch,
         searchPageNavigationId = searchPageNavigationId,
-        readAloudState = readAloudState, onCopySelection = onCopySelection, onAskAi = onAskAi, onPan = onPan)
+        onCopySelection = onCopySelection, onAskAi = onAskAi, onPan = onPan)
     else Box(Modifier.size(width, height), contentAlignment = Alignment.Center) {
         if (state.error == null) CircularProgressIndicator()
         else TextButton(onClick = { attempt++ }, modifier = Modifier.interactivePointer()) { Text("Retry page ${index + 1}") }
@@ -1781,7 +1860,7 @@ private fun PagedSpread(viewModel: PdfWorkspaceViewModel, tool: String, query: S
     color: String, onFocus: () -> Unit, onInspect: () -> Unit,
     matchCase: Boolean = false, wholeWord: Boolean = false, activeSearchMatch: PdfTextMatch? = null,
     searchPageNavigationId: Int = -1,
-    readAloudState: ReadAloudState? = null, onCopySelection: () -> Unit = {}, onAskAi: (() -> Unit)? = null) {
+    onCopySelection: () -> Unit = {}, onAskAi: (() -> Unit)? = null) {
     val state = viewModel.state
     val first = state.pageIndex / 2 * 2
     val density = LocalDensity.current
@@ -1827,7 +1906,7 @@ private fun PagedSpread(viewModel: PdfWorkspaceViewModel, tool: String, query: S
                 for (index in first until minOf(first + 2, state.pageCount)) {
                     SpreadPage(viewModel, index, pageWidth, tool, query, color, onFocus, onInspect,
                         matchCase = matchCase, wholeWord = wholeWord, activeSearchMatch = activeSearchMatch,
-                        searchPageNavigationId = searchPageNavigationId, readAloudState = readAloudState,
+                        searchPageNavigationId = searchPageNavigationId,
                         onCopySelection = onCopySelection, onAskAi = onAskAi) {
                         vertical.dispatchRawDelta(-it.y)
                         horizontal.dispatchRawDelta(-it.x)
@@ -1847,12 +1926,10 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
     matchCase: Boolean = false, wholeWord: Boolean = false,
     activeSearchMatch: PdfTextMatch? = null,
     searchPageNavigationId: Int = -1,
-    readAloudState: ReadAloudState? = null,
     onCopySelection: () -> Unit = {}, onAskAi: (() -> Unit)? = null,
     onPan: ((Offset) -> Unit)? = null) {
     val state = viewModel.state
-    val readingLocked = readAloudState?.status == ReadAloudStatus.Preparing ||
-        readAloudState?.status == ReadAloudStatus.Playing
+    val editingLocked = false
     val haptic = LocalHapticFeedback.current
     val page = suppliedPage
     BoxWithConstraints(modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh)
@@ -1874,43 +1951,6 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
             val fitHeightWidth = (maxHeight - 48.dp).coerceAtLeast(100.dp) * (page.geometry.displayWidth / page.geometry.displayHeight)
             val pageWidth = fixedPageWidth ?: ((if (fitPage) minOf(fitWidth, fitHeightWidth) else fitWidth) * state.zoom)
             val pageHeight = pageWidth * (page.geometry.displayHeight / page.geometry.displayWidth)
-            val isCurrentPageSpeaking = readAloudState?.isActive == true &&
-                (readAloudState.currentPageIndex == null || readAloudState.currentPageIndex == pageIndex)
-            val targetWordRects = if (isCurrentPageSpeaking) {
-                readAloudState?.currentWordRects.orEmpty().map {
-                    Rect(it[0], it[1], it[2], it[3])
-                }
-            } else {
-                emptyList()
-            }
-            val speechHighlightColor = MaterialTheme.colorScheme.primary
-            var animatedWordRects by remember(pageIndex) { mutableStateOf(emptyList<Rect>()) }
-            LaunchedEffect(targetWordRects) {
-                if (targetWordRects.isEmpty()) {
-                    animatedWordRects = emptyList()
-                    return@LaunchedEffect
-                }
-                val startRects = animatedWordRects
-                if (startRects.isEmpty()) {
-                    animatedWordRects = targetWordRects
-                    return@LaunchedEffect
-                }
-                val startedAt = withFrameNanos { it }
-                val durationNanos = 75_000_000L
-                do {
-                    val elapsed = withFrameNanos { it } - startedAt
-                    val linearProgress = (elapsed.toFloat() / durationNanos).coerceIn(0f, 1f)
-                    val progress = linearProgress * linearProgress * (3f - 2f * linearProgress)
-                    animatedWordRects = targetWordRects.mapIndexed { index, target ->
-                        interpolateRect(
-                            from = startRects.getOrNull(index) ?: startRects.last(),
-                            to = target,
-                            fraction = progress,
-                        )
-                    }
-                } while (linearProgress < 1f)
-                animatedWordRects = targetWordRects
-            }
             var canvasWidth by remember { mutableIntStateOf(0) }
             LaunchedEffect(page, canvasWidth) { if (!continuous) viewModel.ensurePageResolution(canvasWidth) }
             val annotations = state.annotations.filter { it.position.pageIndex == pageIndex ||
@@ -1958,6 +1998,7 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
             val currentSelectedKey by rememberUpdatedState(state.selectedKey)
             var moving by remember(page, pageIndex) { mutableStateOf<AnnotationMove?>(null) }
             var draggingSelectionHandle by remember(pageIndex) { mutableStateOf(false) }
+            val nucleusPdfState = LocalNucleusPdfReaderState.current
             fun movableBounds(annotation: ZoteroAnnotation): Rect? {
                 val position = annotation.position
                 if (annotation.type !in movableAnnotationTypes || position.pageIndex != pageIndex || position.nextPageRects.isNotEmpty()) return null
@@ -1985,6 +2026,15 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
             Box(Modifier.fillMaxSize().then(zoomTarget).then(if (continuous) Modifier else Modifier.nestedScroll(scrollConnection).verticalScroll(verticalScroll))
                 .horizontalScroll(horizontalScroll).padding(start = sidePadding, end = sidePadding, top = topPad, bottom = bottomPad)) {
                 Box(Modifier.requiredSize(pageWidth, pageHeight).offset(x = inset)) {
+                nucleusPdfState?.takeIf { it.pageCount > pageIndex }?.let { readerState ->
+                    NucleusPdfPage(
+                        state = readerState,
+                        pageIndex = pageIndex,
+                        modifier = Modifier.fillMaxSize(),
+                        selectableText = false,
+                        linksEnabled = false,
+                    )
+                }
                 Canvas(Modifier.fillMaxSize().testTag(if (continuous) "workspace-pdf-page-$pageIndex" else "workspace-pdf-page")
                     .pointerHoverIcon(when (tool) { "note", "idea", "ink", "text", "rect" -> PointerIcon.Crosshair; "pan" -> PointerIcon.Hand; else -> PointerIcon.Text })
                     .onSizeChanged {
@@ -2012,7 +2062,7 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                     .observePointerEvent(PointerEventType.Exit) {
                         hoveredAnnotationKey = null
                     }
-                    .pointerInput(page, tool, state.canWrite, inkColor, state.adjustingTextRange, state.draft == null, readingLocked) {
+                    .pointerInput(page, tool, state.canWrite, inkColor, state.adjustingTextRange, state.draft == null, editingLocked) {
                         fun point(offset: Offset) = Offset(
                             (offset.x / size.width * page.geometry.displayWidth).coerceIn(0f, page.geometry.displayWidth),
                             (offset.y / size.height * page.geometry.displayHeight).coerceIn(0f, page.geometry.displayHeight))
@@ -2025,7 +2075,7 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                                 ?: viewModel.clearSelectedAnnotation()
                         }
                         suspend fun AwaitPointerEventScope.transformSelected(down: PointerInputChange): Boolean {
-                            if (!state.canWrite || readingLocked || state.adjustingTextRange || state.draft != null) return false
+                            if (!state.canWrite || editingLocked || state.adjustingTextRange || state.draft != null) return false
                             val annotation = currentAnnotations.lastOrNull { it.key == currentSelectedKey } ?: return false
                             val from = movableBounds(annotation) ?: return false
                             val touch = point(down.position)
@@ -2057,7 +2107,7 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                             if (!dragged) selectAnnotationAt(touch)
                             return true
                         }
-                        if (readingLocked && (state.draft != null || state.adjustingTextRange)) return@pointerInput
+                        if (editingLocked && (state.draft != null || state.adjustingTextRange)) return@pointerInput
                         if (state.draft != null && state.draft.pageIndex != pageIndex) return@pointerInput
                         if (tool in listOf("select", "highlight", "underline") || state.adjustingTextRange) {
                             awaitEachGesture {
@@ -2109,8 +2159,8 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                                         viewModel.selectText(start, end)
                                     }
                                 }
-                                if (!change.pressed && dragged && !touchSelection && !state.adjustingTextRange && !readingLocked && tool == "highlight") viewModel.highlightSelectedText()
-                                else if (!change.pressed && dragged && !touchSelection && !state.adjustingTextRange && !readingLocked && tool == "underline") viewModel.underlineSelectedText()
+                                if (!change.pressed && dragged && !touchSelection && !state.adjustingTextRange && !editingLocked && tool == "highlight") viewModel.highlightSelectedText()
+                                else if (!change.pressed && dragged && !touchSelection && !state.adjustingTextRange && !editingLocked && tool == "underline") viewModel.underlineSelectedText()
                                 else if (!dragged && !state.adjustingTextRange && !touchSelection) {
                                     viewModel.clearTextSelection()
                                     selectAnnotationAt(start)
@@ -2143,7 +2193,7 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                                 }
                                 if (!dragged) selectAnnotationAt(point(down.position))
                             }
-                        } else if (tool == "ink" && state.canWrite && !readingLocked) {
+                        } else if (tool == "ink" && state.canWrite && !editingLocked) {
                             awaitEachGesture {
                                 val down = awaitFirstDown()
                                 onFocus()
@@ -2167,7 +2217,7 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                                 if (dragged && liveInkStroke.size > 1) viewModel.addInkPath(liveInkStroke, inkColor)
                                 liveInkStroke = emptyList()
                             }
-                        } else if (tool == "rect" && state.canWrite && !readingLocked) {
+                        } else if (tool == "rect" && state.canWrite && !editingLocked) {
                             awaitEachGesture {
                                 val down = awaitFirstDown()
                                 onFocus()
@@ -2200,8 +2250,8 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                             detectTapGestures { offset ->
                                 onFocus()
                                 val p = point(offset)
-                                if (tool == "text" && state.canWrite && !readingLocked) viewModel.beginText(p)
-                                else if (tool in listOf("note", "idea") && state.canWrite && !readingLocked) {
+                                if (tool == "text" && state.canWrite && !editingLocked) viewModel.beginText(p)
+                                else if (tool in listOf("note", "idea") && state.canWrite && !editingLocked) {
                                     val x = p.x.coerceAtMost((page.geometry.displayWidth - 22f).coerceAtLeast(0f))
                                     val y = p.y.coerceAtMost((page.geometry.displayHeight - 22f).coerceAtLeast(0f))
                                     val rect = Rect(x, y, x + 22f, y + 22f)
@@ -2210,7 +2260,6 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                             }
                         }
                     }) {
-                    drawImage(page.image, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()))
                     val sx = size.width / page.geometry.displayWidth
                     val sy = size.height / page.geometry.displayHeight
                     fun drawBounds(rect: Rect, color: Color, outline: Boolean = false) {
@@ -2286,7 +2335,7 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                             }) { drawAnnotation(annotation) }
                         }
                     }
-                    if (state.canWrite && state.draft == null && !readingLocked) annotations.firstOrNull {
+                    if (state.canWrite && state.draft == null && !editingLocked) annotations.firstOrNull {
                         it.key == state.selectedKey && it.type in scalableAnnotationTypes
                     }?.let { selected ->
                         val bounds = moving?.takeIf { it.key == selected.key }?.to ?: movableBounds(selected)
@@ -2330,34 +2379,6 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                             } else drawBounds(it, color.copy(alpha = 0.30f))
                         }
                     }
-                    if (isCurrentPageSpeaking) {
-                        animatedWordRects.forEach { rect ->
-                            val padX = 3.dp.toPx()
-                            val padY = 2.dp.toPx()
-                            val offset = Offset(rect.left * sx - padX, rect.top * sy - padY)
-                            val extent = Size(rect.width * sx + padX * 2, rect.height * sy + padY * 2)
-                            val corner = CornerRadius(3.dp.toPx())
-                            drawRoundRect(
-                                color = speechHighlightColor.copy(alpha = 0.16f),
-                                topLeft = offset + Offset(0f, 1.5.dp.toPx()),
-                                size = extent,
-                                cornerRadius = corner,
-                            )
-                            drawRoundRect(
-                                color = speechHighlightColor.copy(alpha = 0.28f),
-                                topLeft = offset,
-                                size = extent,
-                                cornerRadius = corner,
-                            )
-                            drawRoundRect(
-                                color = speechHighlightColor.copy(alpha = 0.9f),
-                                topLeft = offset,
-                                size = extent,
-                                cornerRadius = corner,
-                                style = Stroke(1.25.dp.toPx()),
-                            )
-                        }
-                    }
                 }
                 annotations.filter { it.type == "note" || it.comment.isNotBlank() && it.type !in listOf("ink", "text") }.forEach { annotation ->
                     val coordinates = (if (annotation.position.pageIndex == pageIndex) annotation.position.rects
@@ -2378,7 +2399,7 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                             x = (pageWidth * (ghost.left / page.geometry.displayWidth)).coerceIn(0.dp, (pageWidth - 16.dp).coerceAtLeast(0.dp)),
                             y = (pageHeight * (ghost.top / page.geometry.displayHeight) - 18.dp).coerceIn(0.dp, (pageHeight - 16.dp).coerceAtLeast(0.dp)))
                             .size(16.dp), tint = annotationMarkerColor(annotation.color))
-                        val draggable = annotation.type == "note" && state.canWrite && state.draft == null && !readingLocked
+                        val draggable = annotation.type == "note" && state.canWrite && state.draft == null && !editingLocked
                         val pinBounds = if (draggable) movableBounds(annotation) else null
                         Box(
                             modifier = Modifier.offset(
@@ -2420,13 +2441,12 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                     pageWidth = pageWidth,
                     pageHeight = pageHeight,
                     pageIndex = pageIndex,
-                    readingLocked = readingLocked,
                     onCopySelection = onCopySelection,
                     onAskAi = onAskAi,
                     onInspect = onInspect,
                 )
                 state.textSelection?.takeIf {
-                    pageIndex == state.pageIndex && !readingLocked &&
+                    pageIndex == state.pageIndex && !editingLocked &&
                         (state.draft == null || state.adjustingTextRange)
                 }?.let { selection ->
                     PdfSelectionHandles(
@@ -2451,7 +2471,6 @@ private fun PdfSelectionActions(
     pageWidth: Dp,
     pageHeight: Dp,
     pageIndex: Int,
-    readingLocked: Boolean,
     onCopySelection: () -> Unit,
     onAskAi: (() -> Unit)?,
     onInspect: () -> Unit,
@@ -2459,32 +2478,6 @@ private fun PdfSelectionActions(
     val state = viewModel.state
     val selection = state.textSelection?.takeIf { it.rects.isNotEmpty() && pageIndex == state.pageIndex }
         ?: return
-    val readFromSelection = LocalReadFromSelection.current
-    if (readFromSelection != null && !state.adjustingTextRange) {
-        val first = selection.rects.minWith(compareBy<Rect> { it.top }.thenBy { it.left })
-        val scaleX = pageWidth.value / page.geometry.displayWidth
-        val scaleY = pageHeight.value / page.geometry.displayHeight
-        val iconSize = 30f
-        val left = first.left * scaleX - iconSize - 6f
-        val iconX = if (left >= 0f) left else (selection.rects.maxOf { it.right } * scaleX + 6f)
-            .coerceAtMost(pageWidth.value - iconSize)
-        val iconY = ((first.top + first.bottom) / 2f * scaleY - iconSize / 2f)
-            .coerceIn(0f, (pageHeight.value - iconSize).coerceAtLeast(0f))
-        Surface(
-            onClick = readFromSelection,
-            modifier = Modifier.offset(x = iconX.dp, y = iconY.dp).size(iconSize.dp)
-                .interactivePointer().testTag("pdf-read-from-selection"),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            shadowElevation = 6.dp,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(painterResource(Res.drawable.filled_record_voice_over), "Read aloud from here", Modifier.size(18.dp))
-            }
-        }
-    }
-    if (readingLocked) return
     val selectionLeft = selection.rects.minOf { it.left } * pageWidth.value / page.geometry.displayWidth
     val selectionRight = selection.rects.maxOf { it.right } * pageWidth.value / page.geometry.displayWidth
     val selectionBottom = selection.rects.maxOf { it.bottom } * pageHeight.value / page.geometry.displayHeight

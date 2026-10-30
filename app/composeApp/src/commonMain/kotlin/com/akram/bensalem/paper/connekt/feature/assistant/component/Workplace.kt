@@ -10,6 +10,7 @@ import com.akram.bensalem.bistosh.core.designsystem.component.interactivePointer
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -23,6 +24,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.rememberScrollState
 import com.akram.bensalem.paper.connekt.feature.assistant.ChatMessage
 import com.akram.bensalem.paper.connekt.feature.assistant.Idea
 import com.akram.bensalem.paper.connekt.feature.assistant.Note
@@ -30,7 +32,6 @@ import com.akram.bensalem.paper.connekt.feature.assistant.PdfWorkspaceViewModel
 import com.akram.bensalem.paper.connekt.feature.assistant.PdfReadingPosition
 import com.akram.bensalem.paper.connekt.feature.assistant.PaperAgentViewModel
 import com.akram.bensalem.paper.connekt.feature.assistant.AssistantViewModel
-import com.akram.bensalem.paper.connekt.feature.assistant.ReadAloudController
 import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageEvent
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.akram.bensalem.paper.connekt.models.Paper
@@ -51,7 +52,6 @@ fun Workplace(
     ideasLoading: Boolean = false,
     ideaError: String? = null,
     pdfWorkspace: PdfWorkspaceViewModel? = null,
-    readAloud: ReadAloudController? = null,
     onExit: () -> Unit = {},
     onReadingPositionChanged: ((PdfReadingPosition, Float) -> Unit)? = null,
     onFocusModeChange: (Boolean) -> Unit = {},
@@ -61,6 +61,8 @@ fun Workplace(
     totalStudyTime: Long = 0L,
     secretStore: SecretStore? = null,
     chatError: String? = null,
+    /** Settings → Paper search: also rank passages by meaning with embeddings when a provider key exists. */
+    semanticSearchEnabled: Boolean = true,
 ) {
     var selectedPanel by remember(paper.id) { mutableStateOf(0) }
     var focusMode by remember(paper.id) { mutableStateOf(false) }
@@ -77,6 +79,7 @@ fun Workplace(
                 secretStore = secretStore,
             )
         } else null
+    if (paperAgent != null) SideEffect { paperAgent.semanticSearchEnabled = semanticSearchEnabled }
     val panels = listOf(
         "Notes" to painterResource(Res.drawable.filled_note),
         "AI Agent" to painterResource(Res.drawable.filled_smart_toy),
@@ -110,15 +113,21 @@ fun Workplace(
         }
     }
     val supportingContent: @Composable (allowEditing: Boolean) -> Unit = { allowEditing ->
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+        val compactTabs = maxWidth < 440.dp
+        val horizontalPadding = if (maxWidth < 360.dp) 8.dp else 16.dp
         Column(Modifier.fillMaxSize().nestedScroll(sidebarScroll)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Surface(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
-                    Row(Modifier.padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        Modifier.padding(4.dp).horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
                         val detailPanels = listOf(
                             "Details" to painterResource(Res.drawable.filled_article),
                         ) + panels
@@ -128,9 +137,10 @@ fun Workplace(
                             Surface(
                                 selected = selected,
                                 onClick = { selectedPanel = index },
-                                modifier = Modifier.weight(1f).interactivePointer(),
+                                modifier = (if (compactTabs) Modifier.width(64.dp) else Modifier.weight(1f))
+                                    .interactivePointer(),
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                                color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
                                 contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                             ) {
                                 Column(
@@ -139,7 +149,7 @@ fun Workplace(
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Icon(icon, if (headerCollapsed) label else null, Modifier.size(20.dp))
-                                    AnimatedVisibility(visible = !headerCollapsed) {
+                                    AnimatedVisibility(visible = !headerCollapsed && !compactTabs) {
                                         Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1,
                                             overflow = TextOverflow.Ellipsis)
                                     }
@@ -150,7 +160,8 @@ fun Workplace(
                 }
             }
             Spacer(Modifier.height(if (headerCollapsed) 8.dp else 16.dp))
-            when (selectedPanel) {
+            Box(Modifier.fillMaxSize().padding(horizontal = horizontalPadding)) {
+                when (selectedPanel) {
                 0 -> PaperDetailsPanel(paper, Modifier.fillMaxSize())
                 1 -> if (pdfWorkspace != null && hasPdfAnnotations) {
                     AnnotationList(pdfWorkspace, Modifier.fillMaxSize(), ideasOnly = null, headerCollapsed = headerCollapsed,
@@ -179,13 +190,15 @@ fun Workplace(
                         onIdeaOpened = { ideaToOpen = null }
                     )
                 }
+                }
             }
+        }
         }
     }
     if (pdfWorkspace != null && (pdfWorkspace.state.target != null || pdfWorkspace.state.localTitle != null)) {
         ZoteroPdfReader(pdfWorkspace, focusMode, onExit = onExit,
             onReadingPositionChanged = onReadingPositionChanged,
-            supportingContent = supportingContent, readAloud = readAloud,
+            supportingContent = supportingContent,
             paperAgent = paperAgent,
             studyTimeToday = studyTimeToday, totalStudyTime = totalStudyTime,
             onInspectAnnotation = {
@@ -201,16 +214,6 @@ fun Workplace(
     } else {
         Column(Modifier.fillMaxSize()) {
             TextButton(onClick = onExit, modifier = Modifier.interactivePointer()) { Icon(painterResource(Res.drawable.filled_arrow_back), null); Text("Back to library") }
-            readAloud?.let { controller ->
-                ReadAloudControls(
-                    controller = controller,
-                    text = listOfNotNull(paper.title, paper.abstract).joinToString(". "),
-                    rootId = paper.id,
-                    exampleId = "paper-overview",
-                    label = "paper overview",
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
             BoxWithConstraints(Modifier.weight(1f)) {
                 if (maxWidth >= 900.dp) Row(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f)) { PdfViewer(paper) }

@@ -143,65 +143,6 @@ class PdfPageTextIndex(
         return null
     }
 
-    fun locatePlanWords(segments: List<SpeechSegment>): List<SpeechSegment> {
-        var cursor = 0
-        return segments.map { segment ->
-            if (segment.skipped) {
-                val header = normalizeForSearch(segment.anchorText.take(40))
-                if (header.length >= 4) {
-                    val pos = haystack.indexOf(header, cursor)
-                    if (pos in cursor until minOf(haystack.length, cursor + 500)) {
-                        cursor = pos + header.length
-                    }
-                }
-                segment.copy(pageIndex = pageIndex)
-            } else {
-                val header = normalizeForSearch(segment.anchorText.take(40))
-                if (header.length >= 4) {
-                    val pos = haystack.indexOf(header, cursor).takeIf { it >= 0 }
-                        ?: header.takeIf { it.length >= 12 }?.let { haystack.indexOf(it) }
-                        ?: -1
-                    if (pos >= 0) {
-                        cursor = pos
-                    }
-                } else if (segment.wordOffsets.isNotEmpty()) {
-                    val firstWord = normalizeForSearch(
-                        segment.wordOffsets.firstOrNull { it.anchorWord != null }?.anchorWord.orEmpty(),
-                    )
-                    if (firstWord.length >= 3) {
-                        val pos = haystack.indexOf(firstWord, cursor)
-                        if (pos in cursor until minOf(haystack.length, cursor + 300)) {
-                            cursor = pos
-                        }
-                    }
-                }
-
-                val updatedWords = segment.wordOffsets.map { word ->
-                    if (word.anchorWord == null) return@map word.copy(rects = emptyList())
-                    val target = normalizeForSearch(word.anchorWord)
-                    if (target.isEmpty()) {
-                        word.copy(rects = emptyList())
-                    } else {
-                        val matchResult = findNextSequential(target, cursor)
-                        if (matchResult != null) {
-                            cursor = matchResult.first + target.length
-                            word.copy(
-                                rects = matchResult.second.selection.rects.map {
-                                    listOf(it.left, it.top, it.right, it.bottom)
-                                },
-                            )
-                        } else {
-                            word.copy(rects = emptyList())
-                        }
-                    }
-                }
-                segment.copy(
-                    pageIndex = pageIndex,
-                    wordOffsets = updatedWords,
-                )
-            }
-        }
-    }
 }
 
 /**

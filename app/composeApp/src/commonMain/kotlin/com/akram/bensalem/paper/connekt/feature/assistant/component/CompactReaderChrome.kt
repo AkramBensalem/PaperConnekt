@@ -52,7 +52,8 @@ import com.paperconnekt.app.resources.filled_find_in_page
 import com.paperconnekt.app.resources.filled_fit_screen
 import com.paperconnekt.app.resources.filled_fullscreen
 import com.paperconnekt.app.resources.filled_fullscreen_exit
-import com.paperconnekt.app.resources.filled_headphones
+import com.paperconnekt.app.resources.filled_format_underlined
+import com.paperconnekt.app.resources.filled_highlight
 import com.paperconnekt.app.resources.filled_keyboard_arrow_down
 import com.paperconnekt.app.resources.filled_keyboard_arrow_up
 import com.paperconnekt.app.resources.filled_lightbulb
@@ -90,7 +91,6 @@ internal val readerAnnotationTools = listOf(
 @Composable
 internal fun CompactReaderTopBar(
     title: String,
-    filename: String,
     state: PdfWorkspaceState,
     onExit: (() -> Unit)?,
     showSearchAction: Boolean,
@@ -111,6 +111,8 @@ internal fun CompactReaderTopBar(
     var menu by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
     val syncProblem = state.needsRefresh || state.pendingWrites > 0
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val veryCompact = maxWidth < 390.dp
     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
         onExit?.let { exit ->
             IconButton(onClick = exit, modifier = Modifier.interactivePointer()) {
@@ -120,12 +122,7 @@ internal fun CompactReaderTopBar(
         Column(Modifier.weight(1f).padding(start = if (onExit == null) 8.dp else 0.dp, end = 4.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(filename, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelSmall,
-                    color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (studyTimeToday > 0L) Text(" · ${studyDurationLabel(studyTimeToday)} today",
-                    style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant, maxLines = 1)
-            }
+            if (!veryCompact) StudyTimeIndicator(studyTimeToday, totalStudyTime)
         }
         if (showSearchAction) {
             IconButton(onClick = onSearch, modifier = Modifier.interactivePointer(),
@@ -205,7 +202,7 @@ internal fun CompactReaderTopBar(
                     text = {
                         Column {
                             Text("Study time")
-                            Text("Today ${studyDurationLabel(studyTimeToday)} · Total ${studyDurationLabel(totalStudyTime)}",
+                            Text("Total ${studyDurationLabel(totalStudyTime)} · Today ${studyDurationLabel(studyTimeToday)}",
                                 style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                         }
                     },
@@ -214,6 +211,7 @@ internal fun CompactReaderTopBar(
             }
         }
     }
+}
 }
 
 @Composable
@@ -235,13 +233,11 @@ private fun CompactToolToggle(selected: Boolean, onClick: () -> Unit, icon: Pain
 internal fun CompactReaderToolRow(
     tool: String,
     onToolChange: (String) -> Unit,
-    readMode: Boolean,
-    onReadModeChange: () -> Unit,
     hasDraft: Boolean,
     inkDraft: Boolean,
     canSaveDrawing: Boolean,
     annotateEnabled: Boolean,
-    readingLocked: Boolean,
+    editingLocked: Boolean,
     colorHex: String,
     onOpenAnnotate: () -> Unit,
     onSaveDrawing: () -> Unit,
@@ -253,7 +249,10 @@ internal fun CompactReaderToolRow(
         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         CompactToolToggle(tool == "select", { onToolChange("select") }, painterResource(Res.drawable.filled_text_fields), "Select text", !hasDraft)
         CompactToolToggle(tool == "pan", { onToolChange("pan") }, painterResource(Res.drawable.filled_pan_tool), "Pan", !hasDraft)
-        CompactToolToggle(readMode, onReadModeChange, painterResource(Res.drawable.filled_headphones), "Read aloud", !hasDraft)
+        CompactToolToggle(tool == "highlight", { onToolChange(if (tool == "highlight") "select" else "highlight") },
+            painterResource(Res.drawable.filled_highlight), "Highlight", annotateEnabled && !hasDraft)
+        CompactToolToggle(tool == "underline", { onToolChange(if (tool == "underline") "select" else "underline") },
+            painterResource(Res.drawable.filled_format_underlined), "Underline", annotateEnabled && !hasDraft)
         VerticalDivider(Modifier.height(24.dp).padding(horizontal = 4.dp), color = colors.outlineVariant.copy(alpha = 0.6f))
         Surface(
             onClick = onOpenAnnotate,
@@ -278,12 +277,12 @@ internal fun CompactReaderToolRow(
             }
         }
         if (inkDraft) {
-            FilledIconButton(onClick = onSaveDrawing, enabled = canSaveDrawing && !readingLocked,
-                modifier = Modifier.size(40.dp).interactivePointer(enabled = canSaveDrawing && !readingLocked)) {
+            FilledIconButton(onClick = onSaveDrawing, enabled = canSaveDrawing && !editingLocked,
+                modifier = Modifier.size(40.dp).interactivePointer(enabled = canSaveDrawing && !editingLocked)) {
                 Icon(painterResource(Res.drawable.filled_check), "Save drawing", Modifier.size(20.dp))
             }
-            IconButton(onClick = onDiscardDrawing, enabled = !readingLocked,
-                modifier = Modifier.size(40.dp).interactivePointer(enabled = !readingLocked)) {
+            IconButton(onClick = onDiscardDrawing, enabled = !editingLocked,
+                modifier = Modifier.size(40.dp).interactivePointer(enabled = !editingLocked)) {
                 Icon(painterResource(Res.drawable.filled_close), "Discard drawing", Modifier.size(20.dp))
             }
         }
@@ -315,7 +314,15 @@ internal fun CompactAnnotationSheet(
             Text("Pick a tool, then tap or drag on the page.", style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val columns = if (maxWidth < 460.dp) 2 else readerAnnotationTools.size
+            val itemWidth = (maxWidth - 8.dp * (columns - 1)) / columns
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                maxItemsInEachRow = columns,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 readerAnnotationTools.forEach { item ->
                     val selected = tool == item.id
                     val itemEnabled = enabled && (!inkOnly || item.id == "ink")
@@ -326,7 +333,7 @@ internal fun CompactAnnotationSheet(
                         color = if (selected) colors.primaryContainer else colors.surfaceContainerHigh,
                         contentColor = if (selected) colors.onPrimaryContainer else colors.onSurface,
                         border = if (selected) BorderStroke(1.dp, colors.primary.copy(alpha = 0.4f)) else null,
-                        modifier = Modifier.weight(1f).height(72.dp).semantics { this.selected = selected }
+                        modifier = Modifier.width(itemWidth).height(72.dp).semantics { this.selected = selected }
                             .interactivePointer(enabled = itemEnabled),
                     ) {
                         Column(Modifier.fillMaxSize().padding(4.dp), verticalArrangement = Arrangement.Center,
@@ -336,6 +343,7 @@ internal fun CompactAnnotationSheet(
                             Spacer(Modifier.height(6.dp))
                             Text(item.label, style = MaterialTheme.typography.labelMedium, maxLines = 1, textAlign = TextAlign.Center)
                         }
+                    }
                     }
                 }
             }

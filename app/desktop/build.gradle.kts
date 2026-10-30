@@ -15,6 +15,7 @@ dependencies {
     implementation(project(":app:composeApp"))
     implementation(project(":shared:storage"))
     implementation(project(":shared:secrets"))
+    implementation(project(":shared:mcp"))
     implementation(compose.desktop.currentOs)
     implementation(libs.compose.material3)
     implementation(libs.compose.resources)

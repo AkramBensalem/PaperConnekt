@@ -35,8 +35,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+fun main(args: Array<String>) {
+    if ("--mcp" in args) runStdioMcpServer()
+    val mcpHost = DesktopMcpHost()
+    try {
+        desktopApplication(mcpHost)
+    } finally {
+        mcpHost.close()
+    }
+}
+
 @OptIn(ExperimentalComposeUiApi::class)
-fun main() = application {
+private fun desktopApplication(mcpHost: DesktopMcpHost) = application {
     val menuState = remember { AppMenuState(onExit = ::exitApplication) }
     val windowState = rememberWindowState(
         initialBoundsProvider = WindowBoundsProvider(
@@ -134,6 +144,7 @@ fun main() = application {
             pdfAttachments = remember { DesktopPdfAttachmentUi() },
             menuState = menuState,
             menuDialogHost = DesktopMenuDialogHost,
+            mcpHost = mcpHost,
         )
     }
 }

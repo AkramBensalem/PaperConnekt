@@ -5,8 +5,6 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.akram.bensalem.paper.connekt.core.aiassistant.ResearchAgent
-import com.akram.bensalem.paper.connekt.core.aiassistant.createReadingAgent
 import com.akram.bensalem.paper.connekt.core.settings.createApiKeysStore
 import com.akram.bensalem.paper.connekt.models.ZoteroConfig
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroAnnotation
@@ -71,15 +69,6 @@ data class PdfMarkdownState(
     val hasPageBoundaries: Boolean get() = content?.let(::hasMarkdownPages) == true
 }
 
-/** AI-cleaned reading script (`reading.md`): what Read mode speaks, page by page. */
-data class ReadingScriptState(
-    val content: String? = null,
-    val preparing: Boolean = false,
-    val error: String? = null,
-) {
-    val pages: Map<Int, List<ReadingBlock>> by lazy { content?.let(::parseReadingScript).orEmpty() }
-}
-
 data class PdfWorkspaceState(
     val target: ZoteroPdfTarget? = null,
     val localTitle: String? = null,
@@ -111,7 +100,6 @@ data class PdfWorkspaceState(
     val message: String? = null,
     val viewMode: ReaderViewMode = ReaderViewMode.Pdf,
     val markdown: PdfMarkdownState = PdfMarkdownState(),
-    val readingScript: ReadingScriptState = ReadingScriptState(),
 ) {
     val canWrite: Boolean get() = !loading && page != null &&
         (localTitle == null || localAnnotationsReady && !needsRefresh)
@@ -141,18 +129,15 @@ class PdfWorkspaceViewModel(
     private val markdownConverter: PdfMarkdownConverter = MistralOcrConverter(),
     private val markdownStore: PdfMarkdownStore = defaultPdfMarkdownStore(),
     private val mistralApiKey: suspend () -> String = { createApiKeysStore().apiKeys.first().mistral },
-    private val openAiApiKey: suspend () -> String = { createApiKeysStore().apiKeys.first().openAi },
-    private val readingAgent: () -> ResearchAgent = ::createReadingAgent,
     private val syncDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val usageRecorder: suspend (String?, AiUsageEvent) -> Unit = { _, _ -> },
-    private val openDocument: suspend (ByteArray) -> PdfDocument = ::openPdfDocument,
     private val localAnnotationStore: LocalPdfAnnotationStore? = null,
     private val pdfCache: PdfAttachmentStorage? = null,
 ) : ViewModel() {
     var state by mutableStateOf(PdfWorkspaceState())
         private set
     private var config: ZoteroConfig? = null
-    private var document: PdfDocument? = null
+    private var pageProvider: (suspend (Int) -> PdfPage?)? = null
     private var session = 0
     private var loadJob: Job? = null
     private var renderJob: Job? = null
@@ -166,22 +151,31 @@ class PdfWorkspaceViewModel(
     private val pendingWrites = mutableListOf<PendingWrite>()
     private var remoteAnnotations = emptyList<ZoteroAnnotation>()
     private var markdownJob: Job? = null
-    private var readingJob: Job? = null
     private var pdfBytes: ByteArray? = null
-    private var renderScale = 1.5f
     private val continuousPages = mutableMapOf<Pair<Int, Int>, PdfPage>()
     private val pageTexts = mutableMapOf<Int, PdfPageText>()
 
+    fun loadedPdfBytes(): ByteArray? = pdfBytes
+
+    fun attachPageProvider(pageCount: Int, provider: suspend (Int) -> PdfPage?) {
+        pageProvider = provider
+        val pageIndex = state.pageIndex.coerceIn(0, (pageCount - 1).coerceAtLeast(0))
+        state = state.copy(
+            pageCount = pageCount,
+            pageIndex = pageIndex,
+            readingPosition = state.readingPosition.copy(pageIndex = pageIndex),
+            loading = false,
+        )
+        renderPage()
+    }
+
     suspend fun loadContinuousPage(index: Int, widthPixels: Int): PdfPage? {
-        val pdf = document ?: return null
+        val provider = pageProvider ?: return null
         val token = session
         val key = index to widthPixels
         continuousPages[key]?.let { return it }
         return try {
-            val initial = pdf.render(index, 1f)
-            val scale = minOf(widthPixels / initial.geometry.displayWidth, 8f,
-                4096f / maxOf(initial.geometry.displayWidth, initial.geometry.displayHeight))
-            val page = if (kotlin.math.abs(initial.image.width - widthPixels) < 32) initial else pdf.render(index, scale)
+            val page = provider(index) ?: return null
             currentCoroutineContext().ensureActive()
             if (token != session) null else {
                 if (continuousPages.size >= 6) continuousPages.remove(continuousPages.keys.first())
@@ -254,26 +248,13 @@ class PdfWorkspaceViewModel(
         if (account == null) return
         val token = session
         loadJob = viewModelScope.launch {
-            var opened: PdfDocument? = null
             try {
                 val bytes = loadRemotePdf(account, target)
-                if (token == session) pdfBytes = bytes
-                opened = openDocument(bytes)
-                ensureActive()
+                if (token == session) {
+                    pdfBytes = bytes
+                    state = state.copy(loading = false)
+                }
                 if (token != session) return@launch
-                document = opened
-                opened = null
-                val pageIndex = initialPosition.pageIndex.coerceIn(0, document!!.pageCount - 1)
-                state = state.copy(
-                    pageCount = document!!.pageCount,
-                    pageIndex = pageIndex,
-                    readingPosition = initialPosition.copy(
-                        pageIndex = pageIndex,
-                        fraction = initialPosition.fraction.coerceIn(0f, 1f),
-                    ),
-                    loading = false,
-                )
-                renderPage()
                 refreshAnnotations()
             } catch (exception: Exception) {
                 if (exception is CancellationException) throw exception
@@ -281,9 +262,6 @@ class PdfWorkspaceViewModel(
                     report(exception, "Could not open PDF")
                     state = state.copy(loading = false)
                 }
-
-            } finally {
-                opened?.close()
             }
         }
     }
@@ -308,23 +286,8 @@ class PdfWorkspaceViewModel(
         )
         val token = session
         loadJob = viewModelScope.launch {
-            var opened: PdfDocument? = null
             try {
-                opened = openDocument(bytes)
-                ensureActive()
                 if (token != session) return@launch
-                document = opened
-                opened = null
-                val pageCount = requireNotNull(document).pageCount
-                val pageIndex = initialPosition.pageIndex.coerceIn(0, pageCount - 1)
-                state = state.copy(
-                    pageCount = pageCount,
-                    pageIndex = pageIndex,
-                    readingPosition = initialPosition.copy(
-                        pageIndex = pageIndex,
-                        fraction = initialPosition.fraction.coerceIn(0f, 1f),
-                    ),
-                )
                 if (storageKey != null && localAnnotationStore != null) {
                     val annotations = validatedAnnotations(localAnnotationStore.load(storageKey))
                     ensureActive()
@@ -336,13 +299,11 @@ class PdfWorkspaceViewModel(
                 throw exception
             } catch (exception: Exception) {
                 if (token == session) {
-                    report(exception, if (document == null) "Could not open local PDF" else "Could not load local annotations")
-                    state = state.copy(needsRefresh = document != null)
+                    report(exception, "Could not load local annotations")
+                    state = state.copy(needsRefresh = true)
                 }
             } finally {
-                opened?.close()
                 if (token == session) {
-                    state = state.copy(loading = false)
                     renderPage()
                 }
             }
@@ -372,13 +333,10 @@ class PdfWorkspaceViewModel(
         pendingWrites.clear()
         remoteAnnotations = emptyList()
         markdownJob?.cancel()
-        readingJob?.cancel()
-        document?.close()
-        document = null
+        pageProvider = null
         pdfBytes = null
         continuousPages.clear()
         pageTexts.clear()
-        renderScale = 1.5f
         state = PdfWorkspaceState()
     }
 
@@ -395,97 +353,12 @@ class PdfWorkspaceViewModel(
         else if (state.page == null && state.pageCount > 0) renderPage()
     }
 
-    /** Loads (or converts once) the OCR Markdown used as the read-aloud script, without retrying after errors. */
-    fun ensureMarkdown() {
-        val markdown = state.markdown
-        if (markdown.content == null && !markdown.busy && markdown.error == null && markdownJob?.isActive != true) {
-            loadMarkdown(force = false)
-        }
-    }
-
     fun retryMarkdown() {
         if (markdownJob?.isActive != true) loadMarkdown(force = false)
     }
 
     fun regenerateMarkdown() {
         if (markdownJob?.isActive != true) loadMarkdown(force = true)
-    }
-
-    /**
-     * Prepares the reading script once per paper: OCR blocks are classified by the AI assistant (OpenAI, or
-     * Mistral as fallback) into readable article text versus headers, footers, authors, references…
-     * Read mode falls back to the OCR Markdown heuristics while this runs or when no model is configured.
-     */
-    fun ensureReadingScript() {
-        val reading = state.readingScript
-        if (reading.content != null || reading.preparing || reading.error != null || readingJob?.isActive == true) return
-        prepareReadingScript(force = false)
-    }
-
-    /** Re-runs the AI cleanup, e.g. after the Markdown was regenerated with positioned OCR blocks. */
-    fun regenerateReadingScript() {
-        readingJob?.cancel()
-        state = state.copy(readingScript = ReadingScriptState())
-        prepareReadingScript(force = true)
-    }
-
-    private fun prepareReadingScript(force: Boolean) {
-        val pages = state.markdown.pages.takeIf { state.markdown.hasPageBoundaries && it.isNotEmpty() } ?: return
-        val key = paperStorageKey() ?: return
-        val token = session
-        state = state.copy(readingScript = ReadingScriptState(preparing = true))
-        readingJob = viewModelScope.launch {
-            fun update(value: ReadingScriptState) {
-                if (token == session) state = state.copy(readingScript = value)
-            }
-            try {
-                val saved = if (force) null else markdownStore.loadReadingScript(key)?.takeIf { parseReadingScript(it).isNotEmpty() }
-                if (saved != null) return@launch update(ReadingScriptState(content = saved))
-                val openAiKey = try {
-                    openAiApiKey().trim()
-                } catch (exception: CancellationException) {
-                    throw exception
-                } catch (exception: Exception) {
-                    Napier.e("Could not read the saved OpenAI API key", exception)
-                    return@launch update(
-                        ReadingScriptState(error = "Could not read the saved OpenAI key. Check Settings and try again."),
-                    )
-                }
-                if (openAiKey.isBlank()) {
-                    return@launch update(
-                        ReadingScriptState(
-                            error = "Add your OpenAI API key in Settings → API keys to create an AI reading guide.",
-                        ),
-                    )
-                }
-                val candidates = readingCandidates(markdownStore.loadLayout(key), pages)
-                val cleaned = ReadingScriptCleaner(readingAgent()).clean(candidates)
-                val script = renderReadingScript(cleaned)
-                ensureActive()
-                if (token != session) return@launch
-                markdownStore.saveReadingScript(key, script)
-                usageRecorder(
-                    usagePaperId(state.target),
-                    AiUsageEvent(
-                        service = AiUsageService.READING_AI,
-                        timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
-                        inputUnits = candidates.sumOf { it.text.length.toLong() } / 4L,
-                        outputUnits = script.length.toLong() / 4L,
-                        model = "gpt-6-luna",
-                    )
-                )
-                update(ReadingScriptState(content = script))
-            } catch (exception: Exception) {
-                if (exception is CancellationException) throw exception
-                Napier.w("Could not prepare the reading script", exception)
-                update(
-                    ReadingScriptState(
-                        error = providerFailureMessage(exception, "OpenAI")
-                            ?: "Could not prepare the AI reading guide. Try again.",
-                    ),
-                )
-            }
-        }
     }
 
     private fun loadMarkdown(force: Boolean) {
@@ -501,10 +374,6 @@ class PdfWorkspaceViewModel(
             try {
                 val saved = if (force) null else markdownStore.load(key)
                 if (saved != null) {
-                    if (token == session && state.markdown.content != saved) {
-                        readingJob?.cancel()
-                        state = state.copy(readingScript = ReadingScriptState())
-                    }
                     update { PdfMarkdownState(content = saved, syncError = markdownStore.syncError) }
                     alignMarkdownPage()
                     return@launch
@@ -557,9 +426,7 @@ class PdfWorkspaceViewModel(
                         model = converted.layout?.model ?: MISTRAL_OCR_MODEL,
                     )
                 )
-                readingJob?.cancel()
                 update { PdfMarkdownState(content = markdown, syncError = markdownStore.syncError) }
-                if (token == session) state = state.copy(readingScript = ReadingScriptState())
                 alignMarkdownPage()
                 if (force) state = state.copy(message = "Markdown version regenerated")
             } catch (exception: Exception) {
@@ -614,26 +481,19 @@ class PdfWorkspaceViewModel(
     }
 
     fun ensurePageResolution(widthPixels: Int) {
-        val page = state.page ?: return
-        if (widthPixels <= 0 || state.rendering) return
-        val scale = minOf(widthPixels / page.geometry.displayWidth, 8f,
-            4096f / maxOf(page.geometry.displayWidth, page.geometry.displayHeight))
-        val targetWidth = (page.geometry.displayWidth * scale).toInt()
-        if (kotlin.math.abs(page.image.width - targetWidth) < 32) return
-        renderScale = scale
-        renderPage()
+        if (state.page == null || widthPixels <= 0 || state.rendering) return
+        state = state.copy(displayedPageWidth = widthPixels.toFloat())
     }
 
     private fun renderPage() {
-        val pdf = document ?: return
+        val provider = pageProvider ?: return
         val token = session
         val index = state.pageIndex
-        val scale = renderScale
         renderJob?.cancel()
         state = state.copy(rendering = true)
         renderJob = viewModelScope.launch {
             try {
-                val page = pdf.render(index, scale)
+                val page = provider(index) ?: return@launch
                 ensureActive()
                 if (token == session) state = state.copy(page = page, rendering = false,
                     pageGeometries = state.pageGeometries + (index to page.geometry))
@@ -1161,9 +1021,9 @@ class PdfWorkspaceViewModel(
         if (index !in 0 until state.pageCount) return null
         state.page?.takeIf { state.pageIndex == index }?.let { return PdfPageText(index, it.geometry, it.glyphs) }
         pageTexts[index]?.let { return it }
-        val pdf = document ?: return null
+        val provider = pageProvider ?: return null
         val token = session
-        val page = pdf.render(index, 0.2f)
+        val page = provider(index) ?: return null
         if (token != session) return null
         if (pageTexts.size >= 64) pageTexts.clear()
         return PdfPageText(index, page.geometry, page.glyphs).also {
