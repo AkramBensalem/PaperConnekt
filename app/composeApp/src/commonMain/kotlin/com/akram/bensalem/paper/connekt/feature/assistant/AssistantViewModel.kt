@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.akram.bensalem.paper.connekt.models.Paper
 import com.akram.bensalem.paper.connekt.core.aiassistant.PaperAiTask
 import com.akram.bensalem.paper.connekt.core.aiassistant.PaperTriageUsage
+import com.akram.bensalem.paper.connekt.feature.mcp.IdeaNoteChanges
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
@@ -43,6 +44,20 @@ class AssistantViewModel(
     )
     private var studyTimer: StudyTimer? = null
     private var studyTimerJob: Job? = null
+
+    init {
+        // Notes added by an MCP client are written to the same store; reload the open board once pending saves finish.
+        viewModelScope.launch {
+            IdeaNoteChanges.changes.collect { paperId ->
+                if (selectedPaperId != paperId) return@collect
+                ideaSaveMutex.withLock { }
+                if (selectedPaperId == paperId) {
+                    ideaLoadJob?.cancel()
+                    loadIdeas(paperId)
+                }
+            }
+        }
+    }
 
     fun updateHistoryAccount(userId: String?) {
         if (historyUserId == userId) {

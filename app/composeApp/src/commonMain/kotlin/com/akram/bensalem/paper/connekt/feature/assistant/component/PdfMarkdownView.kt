@@ -207,11 +207,6 @@ private fun MarkdownPage(
     content: String, index: Int, width: androidx.compose.ui.unit.Dp, zoom: Float, aspect: Float,
     fitHeightPixels: Int? = null,
 ) {
-    val blocks = remember(content) {
-        content.split(Regex("""\n\s*\n"""))
-            .map(String::trim)
-            .filter(String::isNotBlank)
-    }
     Layout(
         modifier = Modifier.testTag("markdown-page-$index"),
         content = {
@@ -220,18 +215,12 @@ private fun MarkdownPage(
             ) {
                 Surface(Modifier.fillMaxSize(), shadowElevation = 1.dp) {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 40.dp, vertical = 32.dp)) {
-                        blocks.forEach { block ->
-                            Box(
-                                Modifier.fillMaxWidth(),
-                            ) {
-                                SelectionContainer {
-                                    Markdown(
-                                        rememberMarkdownState(block),
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                        imageTransformer = Coil3ImageTransformerImpl,
-                                    )
-                                }
-                            }
+                        SelectionContainer {
+                            Markdown(
+                                rememberMarkdownState(content),
+                                modifier = Modifier.fillMaxWidth(),
+                                imageTransformer = Coil3ImageTransformerImpl,
+                            )
                         }
                     }
                 }

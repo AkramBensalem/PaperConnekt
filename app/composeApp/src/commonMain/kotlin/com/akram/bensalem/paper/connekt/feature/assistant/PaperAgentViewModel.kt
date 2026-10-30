@@ -19,6 +19,13 @@ import com.akram.bensalem.paper.connekt.core.settings.createApiKeysStore
 import kotlinx.coroutines.flow.first
 import com.paperconnekt.secrets.SecretKey
 import com.paperconnekt.secrets.SecretStore
+import com.paperconnekt.knowledge.Citations
+import com.paperconnekt.knowledge.EmbeddingProvider
+import com.paperconnekt.knowledge.HybridPaperRetriever
+import com.paperconnekt.knowledge.KnowledgeFormat
+import com.paperconnekt.knowledge.PaperIndex
+import com.paperconnekt.knowledge.RetrievalQuery
+import kotlinx.coroutines.flow.flowOn
 
 
 /** A passage the user explicitly asked the agent about, kept even if the PDF selection is cleared before sending. */
@@ -44,7 +51,14 @@ class PaperAgentViewModel(
     private val ideaBoard: AssistantViewModel? = null,
     private val usageRecorder: suspend (String?, AiUsageEvent) -> Unit = { _, _ -> },
     private val apiKeysStore: ApiKeysStore = createApiKeysStore(),
+    private val knowledge: PaperKnowledgeCache = PaperKnowledgeCache(),
+    private val embeddingProviders: EmbeddingProviders = EmbeddingProviders(secretStore),
 ) : ViewModel() {
+    /**
+     * Whether paper search also ranks passages by meaning (embeddings). Mirrors Settings → Paper search; even when on,
+     * it only applies with a Mistral or OpenAI key.
+     */
+    var semanticSearchEnabled by mutableStateOf(true)
     /** The open conversation. */
     var conversation by mutableStateOf(PaperAgentConversation())
         private set
@@ -72,6 +86,13 @@ class PaperAgentViewModel(
         private set
     /** Changes made during the current run, shown live while the agent works. */
     val liveActions = mutableStateListOf<PaperAgentAction>()
+    /** Text of the current model step, streamed token by token. */
+    var streamingText by mutableStateOf("")
+        private set
+    /** Tools run during the current reply, in order. */
+    val liveSteps = mutableStateListOf<PaperAgentLiveStep>()
+    /** Passages retrieved during the current reply. */
+    val liveSources = mutableStateListOf<PaperAgentSource>()
     private var job: Job? = null
     private var loadedKey: String? = null
     private var modelLoaded = false
@@ -202,9 +223,16 @@ class PaperAgentViewModel(
                             appendLine("Abstract:")
                             appendLine(it.take(8_000))
                         }
-                        workspace.state.markdown.content?.take(40_000)?.let {
-                            appendLine("Paper Markdown:")
-                            appendLine(it)
+                        val pages = workspace.state.markdown.pages
+                        if (pages.isNotEmpty()) {
+                            val index = knowledge.index(knowledgeKey(), pages)
+                            val query = "$selectedText\n$existingComment"
+                            appendLine("Paper map:")
+                            appendLine(KnowledgeFormat.paperMap(index, maxChars = 1_800))
+                            appendLine()
+                            appendLine("Passages most related to the selection (retrieved, not the whole paper):")
+                            val related = retrieverFor(index).retrieve(RetrievalQuery(query, limit = 5))
+                            appendLine(KnowledgeFormat.results(query.take(600), related, maxChars = 8_000))
                         }
                     }
                 }
@@ -253,6 +281,7 @@ class PaperAgentViewModel(
         pinned = null
         running = true
         liveActions.clear()
+        resetLiveRun()
         val actions = mutableListOf<PaperAgentAction>()
         job = viewModelScope.launch {
             try {
@@ -262,6 +291,7 @@ class PaperAgentViewModel(
                     compactNow(upTo = (pending - KEEP_AFTER_AUTO_COMPACT).coerceAtLeast(conversation.compactedCount))
                 }
                 workspace.awaitMarkdown()
+                prepareSemanticSearch()
                 var ideaBoardError: String? = null
                 val ideas = try {
                     ideaPaperId?.let { ideaBoard?.awaitIdeaNotes(it) }
@@ -272,10 +302,12 @@ class PaperAgentViewModel(
                     ideaBoardError = exception.message ?: exception::class.simpleName
                     null
                 }
-                val toolbox = PaperAgentToolbox(workspace, ui, ideaBoard, ideaPaperId) { action ->
+                val toolbox = PaperAgentToolbox(workspace, ui, ideaBoard, ideaPaperId, knowledge,
+                    retriever = { retrieverFor(it) }, onSources = { liveSources += it }) { action ->
                     actions += action
                     liveActions += action
                 }
+                val paperIndex = if (includePaperContext) toolbox.currentIndex() else null
                 val history = conversation.messages.subList(conversation.compactedCount.coerceAtMost(pending), pending)
                     .filterNot { it.isError }
                     .map { turn -> AgentTurn(turn.role, turn.quote?.let { "About: \"${it.take(600)}\"\n${turn.text}" } ?: turn.text) }
@@ -288,17 +320,37 @@ class PaperAgentViewModel(
                         pageContextEnd = pageContextEnd,
                         ideas = ideas,
                         ideaBoardError = ideaBoardError,
+                        knowledge = paperIndex,
                     ),
                     history = history,
                     message = quote?.let { "About this passage on page ${it.pageIndex + 1}:\n> ${it.text.replace("\n", "\n> ")}\n\n$message" } ?: message,
                     tools = toolbox.tools,
                     summary = conversation.summary
                 )
-                val reply = withContext(agentContext) { agent.respond(request) }
-                recordAgentUsage(request, reply, AiUsageService.CHAT)
-                append(PaperAgentMessage(AgentRole.ASSISTANT, reply.ifBlank { "Done." }, actions = actions.toList()))
+                var reply = ""
+                val usage = TokenUsage()
+                agent.stream(request).flowOn(agentContext).collect { event ->
+                    when (event) {
+                        AgentEvent.StepStarted -> streamingText = ""
+                        is AgentEvent.TextDelta -> streamingText += event.text
+                        is AgentEvent.ToolStarted -> liveSteps += PaperAgentLiveStep(event.callId, toolStepLabel(event.name, event.arguments))
+                        is AgentEvent.ToolFinished -> liveSteps.indexOfFirst { it.id == event.callId }.takeIf { it >= 0 }
+                            ?.let { liveSteps[it] = liveSteps[it].copy(done = true, ok = event.ok) }
+                        is AgentEvent.Usage -> usage.add(event)
+                        // Fall back to the streamed text if the provider's final message came back without it.
+                        is AgentEvent.Completed -> reply = event.text.ifBlank { streamingText.trim() }
+                    }
+                }
+                val report = if (Citations.hasMarkers(reply)) toolbox.currentIndex()?.let { Citations.verify(reply, it) } else null
+                recordAgentUsage(request, reply, AiUsageService.CHAT, tokens = usage.reported())
+                append(PaperAgentMessage(AgentRole.ASSISTANT, (report?.text ?: reply).ifBlank { "Done." },
+                    actions = actions.toList(),
+                    sources = replySources(liveSources.toList(), report, report?.let { toolbox.currentIndex() }),
+                    steps = liveSteps.map { it.label },
+                    unverifiedCitations = report?.unknown.orEmpty()))
             } catch (exception: CancellationException) {
-                append(PaperAgentMessage(AgentRole.ASSISTANT, "Stopped.", actions = actions.toList(), isError = true))
+                append(PaperAgentMessage(AgentRole.ASSISTANT, "Stopped.", actions = actions.toList(), isError = true,
+                    sources = replySources(liveSources.toList(), null, null), steps = liveSteps.map { it.label }))
                 throw exception
             } catch (exception: AgentNotConfiguredException) {
                 val message = exception.message ?: "AI responses are not available in this build."
@@ -315,8 +367,15 @@ class PaperAgentViewModel(
                 running = false
                 compacting = false
                 liveActions.clear()
+                resetLiveRun()
             }
         }
+    }
+
+    private fun resetLiveRun() {
+        streamingText = ""
+        liveSteps.clear()
+        liveSources.clear()
     }
 
     fun run(command: PaperAgentCommand) {
@@ -404,6 +463,12 @@ class PaperAgentViewModel(
         }
     }
 
+    /** Shows the page where a cited or retrieved passage starts. */
+    fun openSource(source: PaperAgentSource) {
+        if (workspace.state.viewMode != ReaderViewMode.Pdf) workspace.showPdf()
+        workspace.goToPage((source.firstPage - 1).coerceAtLeast(0))
+    }
+
     private fun append(message: PaperAgentMessage) = update { copy(messages = messages + message) }
 
     private fun update(block: PaperAgentConversation.() -> PaperAgentConversation) {
@@ -438,11 +503,61 @@ class PaperAgentViewModel(
         if (storageReady) persist() else viewModelScope.launch { load() }
     }
 
+    private suspend fun embedder(): EmbeddingProvider? = if (semanticSearchEnabled) embeddingProviders.current() else null
+
+    private fun knowledgeKey(): String = workspace.paperStorageKey() ?: workspace.state.annotationParentKey ?: "open-paper"
+
+    /**
+     * Starts embedding the open paper in the background (only its new or changed passages; the rest is cached on
+     * disk), so semantic search is usually ready by the time the agent's first search runs.
+     */
+    private suspend fun prepareSemanticSearch() {
+        val embedder = embedder() ?: return
+        val pages = workspace.state.markdown.pages.takeIf { it.isNotEmpty() } ?: return
+        try {
+            knowledge.embed(knowledge.index(knowledgeKey(), pages), embedder, embeddingUsage(embedder))
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Napier.w("Could not start paper embedding", exception)
+        }
+    }
+
+    private suspend fun retrieverFor(index: PaperIndex): HybridPaperRetriever {
+        val embedder = embedder() ?: return knowledge.retriever(index, null)
+        return knowledge.retriever(index, embedder, onEmbedded = embeddingUsage(embedder))
+    }
+
+    /** Records embedding cost (about four characters per token) against the open paper. */
+    private fun embeddingUsage(embedder: EmbeddingProvider): suspend (List<String>) -> Unit = { texts ->
+        withContext(ui) {
+            usageRecorder(
+                usagePaperId(workspace.state.target),
+                AiUsageEvent(
+                    service = AiUsageService.EMBEDDINGS,
+                    timestamp = nowMillis(),
+                    inputUnits = texts.sumOf { it.length.toLong() } / 4L,
+                    model = embedder.modelId,
+                )
+            )
+        }
+    }
+
+    override fun onCleared() {
+        knowledge.close()
+        super.onCleared()
+    }
+
+    /**
+     * Records the cost of one request. [tokens] are the provider-reported input/output tokens summed over every model
+     * call of an agent run (tool loops included); without them the cost is estimated from the request size.
+     */
     private suspend fun recordAgentUsage(
         request: AgentRequest,
         response: String,
         service: AiUsageService,
         paperId: String? = usagePaperId(workspace.state.target),
+        tokens: Pair<Long, Long>? = null,
     ) {
         val input = buildString {
             append(request.systemPrompt)
@@ -455,11 +570,25 @@ class PaperAgentViewModel(
             AiUsageEvent(
                 service = service,
                 timestamp = nowMillis(),
-                inputUnits = input.length.toLong() / 4L,
-                outputUnits = response.length.toLong() / 4L,
+                inputUnits = tokens?.first ?: (input.length.toLong() / 4L),
+                outputUnits = tokens?.second ?: (response.length.toLong() / 4L),
                 model = selectedModel.id,
             )
         )
+    }
+
+    /** Sums provider-reported token counts over the model calls of one run. */
+    private class TokenUsage {
+        private var input = 0L
+        private var output = 0L
+        private var reported = false
+
+        fun add(event: AgentEvent.Usage) {
+            event.inputTokens?.let { input += it; reported = true }
+            event.outputTokens?.let { output += it; reported = true }
+        }
+
+        fun reported(): Pair<Long, Long>? = if (reported) input to output else null
     }
 
     private companion object {

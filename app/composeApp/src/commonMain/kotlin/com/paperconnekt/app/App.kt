@@ -21,6 +21,9 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
+import com.akram.bensalem.paper.connekt.feature.mcp.LocalMcpHost
+import com.akram.bensalem.paper.connekt.feature.mcp.McpHost
+import com.akram.bensalem.paper.connekt.feature.mcp.McpHostConfig
 import com.paperconnekt.domain.navigation.AppDestination
 import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.PersistentResearchStore
@@ -37,6 +40,7 @@ fun PaperConnektApp(
     menuState: AppMenuState = remember { AppMenuState() },
     showMobileMenu: Boolean = false,
     menuDialogHost: AppMenuDialogHost = MaterialAppMenuDialogHost,
+    mcpHost: McpHost? = null,
 ) {
     val store = rememberResearchStore(workspaceStorage)
     var initializationError by remember(store) { mutableStateOf<String?>(null) }
@@ -57,13 +61,21 @@ fun PaperConnektApp(
     SideEffect {
         menuState.workspaceReady = initialized && settings.onboardingCompleted
     }
+    if (mcpHost != null) {
+        val mcpConfig = McpHostConfig(
+            enabled = initialized && settings.mcpServerEnabled,
+            port = settings.mcpServerPort,
+            allowIdeaWrites = settings.mcpAllowIdeaWrites,
+        )
+        LaunchedEffect(mcpHost, mcpConfig) { mcpHost.apply(mcpConfig, store, secretStore) }
+    }
     val startDestination = if (settings.onboardingCompleted) {
         AppDestination.DASHBOARD
     } else {
         AppDestination.ONBOARDING
     }
 
-    CompositionLocalProvider(LocalPdfAttachments provides pdfAttachments) {
+    CompositionLocalProvider(LocalPdfAttachments provides pdfAttachments, LocalMcpHost provides mcpHost) {
         PaperConnektTheme(preference = settings.selectedTheme) {
             Surface(
                 modifier = Modifier.fillMaxSize(),

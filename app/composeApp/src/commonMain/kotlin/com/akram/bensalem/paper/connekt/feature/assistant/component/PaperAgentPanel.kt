@@ -9,6 +9,7 @@ import com.paperconnekt.app.resources.filled_content_copy
 import com.paperconnekt.app.resources.filled_delete_outline
 import com.paperconnekt.app.resources.filled_description
 import com.paperconnekt.app.resources.filled_error_outline
+import com.paperconnekt.app.resources.filled_find_in_page
 import com.paperconnekt.app.resources.filled_format_quote
 import com.paperconnekt.app.resources.filled_history
 import com.paperconnekt.app.resources.filled_hourglass_top
@@ -59,6 +60,7 @@ import com.paperconnekt.app.resources.filled_tune
 import com.paperconnekt.app.resources.filled_check
 import com.paperconnekt.app.resources.filled_close
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 
 
@@ -89,7 +91,9 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
     val storageKey = workspace.paperStorageKey()
     LaunchedEffect(storageKey) { agent.load() }
     val listState = remember(conversation.id, agent.showHistory) { LazyListState((itemCount - 1).coerceAtLeast(0)) }
-    LaunchedEffect(itemCount, agent.liveActions.size) { if (itemCount > 0 && !agent.showHistory) listState.animateScrollToItem(itemCount - 1) }
+    LaunchedEffect(itemCount, agent.liveActions.size, agent.liveSteps.size, agent.streamingText.length / 240) {
+        if (itemCount > 0 && !agent.showHistory) listState.animateScrollToItem(itemCount - 1)
+    }
     LaunchedEffect(state.pageIndex, state.readerPageCount) {
         if (!contextInitialized || state.pageIndex != lastReaderPage) {
             agent.pageContextStart = state.pageIndex
@@ -210,25 +214,38 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                 if (conversation.compactedCount > 0) {
                     val earlier = conversation.messages.take(conversation.compactedCount)
                     if (showEarlier) items(earlier, key = { it.id }) { message ->
-                        Box(Modifier.alpha(0.6f)) { AgentMessage(message, onAction = openAction) }
+                        Box(Modifier.alpha(0.6f)) { AgentMessage(message, onAction = openAction, onSource = agent::openSource) }
                     }
                     item(key = "compacted-${conversation.compactedCount}") {
                         CompactedDivider(conversation.summary.orEmpty(), earlier.size, showEarlier) { showEarlier = !showEarlier }
                     }
                 }
-                items(conversation.messages.drop(conversation.compactedCount), key = { it.id }) { message -> AgentMessage(message, onAction = openAction) }
+                items(conversation.messages.drop(conversation.compactedCount), key = { it.id }) { message ->
+                    AgentMessage(message, onAction = openAction, onSource = agent::openSource)
+                }
                 if (agent.running) item(key = "running") {
                     AgentBubble {
+                        if (agent.streamingText.isNotBlank()) {
+                            ChatMarkdown(agent.streamingText, Modifier.fillMaxWidth())
+                            Spacer(Modifier.height(8.dp))
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
                             Text(when {
                                 agent.compacting -> "Compacting the conversation…"
                                 state.markdown.converting -> "Creating the Markdown version of the PDF…"
+                                agent.liveSteps.any { !it.done } -> "Working on the paper…"
+                                agent.streamingText.isNotBlank() -> "Writing…"
                                 agent.liveActions.isNotEmpty() -> "Updating the workspace…"
                                 else -> "Thinking…"
                             }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+                        AgentSteps(agent.liveSteps)
+                        val retrieved = agent.liveSources.distinctBy { it.chunkId }.size
+                        if (retrieved > 0) Text("$retrieved passage${if (retrieved == 1) "" else "s"} retrieved",
+                            Modifier.padding(top = 4.dp), style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                         ActionChips(agent.liveActions, openAction)
                     }
                 }
@@ -710,7 +727,7 @@ private fun AgentBubble(
 }
 
 @Composable
-private fun AgentMessage(message: PaperAgentMessage, onAction: (PaperAgentAction) -> Unit) {
+private fun AgentMessage(message: PaperAgentMessage, onAction: (PaperAgentAction) -> Unit, onSource: (PaperAgentSource) -> Unit) {
     val user = message.role == AgentRole.USER
     Column(Modifier.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start) {
         if (user) {
@@ -738,9 +755,11 @@ private fun AgentMessage(message: PaperAgentMessage, onAction: (PaperAgentAction
                     Spacer(Modifier.width(8.dp))
                     Text(message.text, color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodySmall)
                 }
+                ReplyEvidence(message, onSource)
             } else AgentBubble(Modifier.testTag("paper-agent-reply")) {
                 SelectionContainer { ChatMarkdown(message.text, Modifier.fillMaxWidth()) }
                 ActionChips(message.actions, onAction)
+                ReplyEvidence(message, onSource)
             }
             if (!message.isError && message.text.isNotBlank()) {
                 IconButton(onClick = { clipboard.setText(AnnotatedString(message.text)) },
@@ -749,6 +768,86 @@ private fun AgentMessage(message: PaperAgentMessage, onAction: (PaperAgentAction
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AgentSteps(steps: List<PaperAgentLiveStep>, visible: Int = 8) {
+    if (steps.isEmpty()) return
+    Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (steps.size > visible) Text("+${steps.size - visible} earlier step${if (steps.size - visible == 1) "" else "s"}",
+            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        steps.takeLast(visible).forEach { step ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                when {
+                    !step.done -> CircularProgressIndicator(Modifier.size(10.dp), strokeWidth = 1.5.dp)
+                    step.ok -> Icon(painterResource(Res.drawable.filled_check), "Done", Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
+                    else -> Icon(painterResource(Res.drawable.filled_error_outline), "Failed", Modifier.size(12.dp), tint = MaterialTheme.colorScheme.error)
+                }
+                Spacer(Modifier.width(6.dp))
+                Text(step.label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+/** Collapsible evidence of a reply: the passages it cited or retrieved, and the steps the agent took. */
+@Composable
+private fun ReplyEvidence(message: PaperAgentMessage, onSource: (PaperAgentSource) -> Unit) {
+    if (message.sources.isEmpty() && message.steps.isEmpty() && message.unverifiedCitations.isEmpty()) return
+    var expanded by remember(message.id) { mutableStateOf(false) }
+    val cited = message.sources.count { it.cited }
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        if (message.unverifiedCitations.isNotEmpty()) {
+            Row(Modifier.padding(bottom = 4.dp), verticalAlignment = Alignment.Top) {
+                Icon(painterResource(Res.drawable.filled_error_outline), null, Modifier.size(12.dp).padding(top = 1.dp), tint = MaterialTheme.colorScheme.error)
+                Spacer(Modifier.width(6.dp))
+                Text("Cites passages that are not in this paper (${message.unverifiedCitations.joinToString()}); double-check those claims.",
+                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+            }
+        }
+        val summary = listOfNotNull(
+            "$cited cited".takeIf { cited > 0 },
+            "${message.sources.size} retrieved".takeIf { message.sources.isNotEmpty() },
+            "${message.steps.size} step${if (message.steps.size == 1) "" else "s"}".takeIf { message.steps.isNotEmpty() },
+        ).joinToString(" · ")
+        if (summary.isNotEmpty()) Row(Modifier.clip(RoundedCornerShape(8.dp)).clickable { expanded = !expanded }.interactivePointer()
+            .padding(vertical = 4.dp, horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(painterResource(Res.drawable.filled_find_in_page), null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(6.dp))
+            Text("Sources · $summary", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(painterResource(if (expanded) Res.drawable.filled_expand_less else Res.drawable.filled_expand_more),
+                if (expanded) "Hide sources" else "Show sources", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        AnimatedVisibility(expanded) {
+            Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                message.sources.forEach { SourceRow(it, onSource) }
+                if (message.steps.isNotEmpty()) Text("Steps: ${message.steps.joinToString(" → ")}",
+                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SourceRow(source: PaperAgentSource, onSource: (PaperAgentSource) -> Unit) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+        .background(if (source.cited) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer)
+        .clickable { onSource(source) }.interactivePointer().testTag("paper-agent-source")
+        .padding(horizontal = 8.dp, vertical = 6.dp)) {
+        Text("${source.pageLabel} · ${source.section}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(source.excerpt, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(listOfNotNull(
+            "cited".takeIf { source.cited },
+            source.via.takeIf { it != "cited" },
+            source.kind.takeIf { it != "text" },
+            source.relevance?.let { "relevance ${(it * 100).roundToInt()}%" },
+            source.score?.let { "score ${(it * 10).roundToInt() / 10.0}" },
+            source.chunkId,
+        ).joinToString(" · "), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

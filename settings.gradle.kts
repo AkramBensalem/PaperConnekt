@@ -24,6 +24,8 @@ dependencyResolutionManagement {
 include(":shared:domain")
 include(":shared:storage")
 include(":shared:secrets")
+include(":shared:knowledge")
+include(":shared:mcp")
 include(":plugin:native-api")
 include(":plugin:native-plugins:common")
 include(":plugin:native-plugins:vscode")

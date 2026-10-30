@@ -229,6 +229,7 @@ private fun LocalPaperWorkspace(
                     ideaBoard = assistant,
                     pdfWorkspace = workspace,
                     secretStore = secretStore,
+                    semanticSearchEnabled = settings.semanticSearchEnabled,
                     onReadingPositionChanged = { position, zoom ->
                         pendingPosition = SavedPdfReadingPosition(position.pageIndex, position.fraction, zoom)
                     },
@@ -412,6 +413,7 @@ private fun ZoteroPaperWorkspace(
                         studyTimeToday = activeStudy?.dailyStudyMillis?.get(today) ?: 0L,
                         totalStudyTime = activeStudy?.totalStudyMillis ?: 0L,
                         secretStore = secretStore,
+                        semanticSearchEnabled = settings.semanticSearchEnabled,
                         onReadingPositionChanged = { position, zoom ->
                             pendingPosition = SavedPdfReadingPosition(position.pageIndex, position.fraction, zoom)
                         },

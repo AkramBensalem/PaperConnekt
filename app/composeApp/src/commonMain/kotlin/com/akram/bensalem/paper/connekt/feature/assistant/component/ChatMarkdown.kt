@@ -28,8 +28,8 @@ import com.mikepenz.markdown.compose.components.markdownComponents
 import com.akram.bensalem.paper.connekt.feature.assistant.component.MarkdownHost as Markdown
 import com.akram.bensalem.paper.connekt.feature.assistant.component.markdownHostColors as markdownColor
 import com.akram.bensalem.paper.connekt.feature.assistant.component.markdownHostTypography as markdownTypography
+import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
 import com.mikepenz.markdown.model.ImageTransformer
-import com.mikepenz.markdown.model.NoOpImageTransformerImpl
 import com.mikepenz.markdown.model.markdownAnnotator
 import com.mikepenz.markdown.model.markdownDimens
 import com.mikepenz.markdown.model.markdownInlineContent
@@ -250,7 +250,7 @@ internal fun ChatMarkdown(
     text: String,
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.onSurface,
-    imageTransformer: ImageTransformer = NoOpImageTransformerImpl(),
+    imageTransformer: ImageTransformer = Coil3ImageTransformerImpl,
 ) {
     val prepared = remember(text) { prepareChatMarkdown(text) }
     val base = MaterialTheme.typography.bodyMedium.copy(lineHeight = 21.sp, color = color)
@@ -276,7 +276,7 @@ internal fun ChatMarkdown(
         }
     }
     Markdown(
-        rememberMarkdownState(prepared.markdown, immediate = true),
+        rememberMarkdownState(prepared.markdown, retainState = true),
         modifier = modifier,
         colors = markdownColor(text = color, codeBackground = codeColor, inlineCodeBackground = codeColor,
             tableBackground = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f)),

@@ -5,4 +5,6 @@ enum class SecretKey {
     MISTRAL,
     ZOTERO,
     OPENALEX,
+    /** Bearer token MCP clients present to the local PaperConnekt MCP server; generated on this device. */
+    MCP_TOKEN,
 }

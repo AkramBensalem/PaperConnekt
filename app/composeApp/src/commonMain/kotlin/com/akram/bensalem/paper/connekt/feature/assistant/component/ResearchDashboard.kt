@@ -393,6 +393,7 @@ private fun PaperCostDialog(paper: StudiedPaper, onDismiss: () -> Unit) {
                                 AiUsageService.OCR -> "$input pages processed"
                                 AiUsageService.CHAT, AiUsageService.LITERATURE_TRIAGE, AiUsageService.RELEVANCE_SCORING ->
                                     "$input input / $output output tokens"
+                                AiUsageService.EMBEDDINGS -> "$input tokens embedded"
                             },
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -610,6 +611,7 @@ private fun serviceColor(service: AiUsageService) = when (service) {
     AiUsageService.CHAT -> MaterialTheme.colorScheme.tertiary
     AiUsageService.LITERATURE_TRIAGE -> MaterialTheme.colorScheme.inversePrimary
     AiUsageService.RELEVANCE_SCORING -> MaterialTheme.colorScheme.secondaryContainer
+    AiUsageService.EMBEDDINGS -> MaterialTheme.colorScheme.outline
 }
 
 @Composable

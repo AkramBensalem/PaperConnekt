@@ -61,6 +61,8 @@ fun Workplace(
     totalStudyTime: Long = 0L,
     secretStore: SecretStore? = null,
     chatError: String? = null,
+    /** Settings → Paper search: also rank passages by meaning with embeddings when a provider key exists. */
+    semanticSearchEnabled: Boolean = true,
 ) {
     var selectedPanel by remember(paper.id) { mutableStateOf(0) }
     var focusMode by remember(paper.id) { mutableStateOf(false) }
@@ -77,6 +79,7 @@ fun Workplace(
                 secretStore = secretStore,
             )
         } else null
+    if (paperAgent != null) SideEffect { paperAgent.semanticSearchEnabled = semanticSearchEnabled }
     val panels = listOf(
         "Notes" to painterResource(Res.drawable.filled_note),
         "AI Agent" to painterResource(Res.drawable.filled_smart_toy),

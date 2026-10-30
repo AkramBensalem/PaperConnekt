@@ -62,6 +62,7 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
 import com.paperconnekt.domain.model.LibraryEntry
 import com.paperconnekt.domain.model.LibraryEntryKind
@@ -271,6 +272,7 @@ fun LibraryScreen(
     var showManualPaper by remember { mutableStateOf(false) }
     var newPaperParentFolderId by remember { mutableStateOf<String?>(null) }
     var showCollections by remember { mutableStateOf(savedLibraryState.showCollections) }
+    var showZoteroCollections by remember { mutableStateOf(false) }
     var localPage by remember { mutableStateOf(savedLibraryState.localPage) }
     var zoteroPage by remember { mutableStateOf(savedLibraryState.zoteroPage) }
     var zoteroTrashItems by remember { mutableStateOf<List<ZoteroItem>>(emptyList()) }
@@ -733,6 +735,7 @@ fun LibraryScreen(
                         query = ""
                         selectedPaperId = null
                         selectedZoteroPaperKey = null
+                        showZoteroCollections = false
                         zoteroTrashVisible = false
                         zoteroTrashItems = emptyList()
                     },
@@ -826,6 +829,8 @@ fun LibraryScreen(
                         }
                     },
                     onAttachPdf = ::uploadZoteroPdf,
+                    showCollections = showZoteroCollections,
+                    onShowCollections = { showZoteroCollections = it },
                 )
             } else if (compact) {
                 Column(
@@ -1443,6 +1448,8 @@ private fun ZoteroLibraryContent(
     trashItems: List<ZoteroItem>,
     onRestoreTrash: (ZoteroItem) -> Unit,
     onAttachPdf: (ZoteroLibraryPaper) -> Unit,
+    showCollections: Boolean,
+    onShowCollections: (Boolean) -> Unit,
 ) {
     val collectionEntries = collections.map { collection ->
         LibraryEntry(
@@ -1517,59 +1524,124 @@ private fun ZoteroLibraryContent(
             }
         }
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val compact = maxWidth < 900.dp
+            val compact = maxWidth < 900.dp || (maxHeight < 620.dp && maxWidth < 1100.dp)
             if (compact) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    LibraryFolderPane(
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        folders = collectionEntries,
-                        entries = collectionEntries + paperEntries,
-                        selectedFolderId = selectedCollectionKey,
-                        expandedFolders = expandedCollectionIds,
-                        onSelectFolder = onSelectCollection,
-                        onToggleFolder = onToggleCollection,
-                        onNewFolder = { onCreateCollection(null) },
-                        onArchive = {
-                            onViewChange(LibraryView.ALL)
-                            onShowTrash()
-                        },
-                        archiveCount = trashItems.size,
-                        archiveSelected = trashVisible,
-                        onNewSubcollection = { entry ->
-                            collections.firstOrNull { it.key == entry.id }?.let { onCreateCollection(it.key) }
-                        },
-                        onFindPaper = { entry ->
-                            onSelectCollection(entry.id)
-                            onFindPaper()
-                        },
-                        onNewItem = { entry ->
-                            onSelectCollection(entry.id)
-                            onCreateItem()
-                        },
-                        onRename = { entry ->
-                            collections.firstOrNull { it.key == entry.id }?.let(onRenameCollection)
-                        },
-                        onDelete = { entry ->
-                            collections.firstOrNull { it.key == entry.id }?.let(onDeleteCollection)
-                        },
-                        showActions = true,
-                        showCreateCollection = false,
-                        showArchive = true,
-                        archiveLabel = "Bin",
-                        archiveSubtitle = "Deleted Zotero items",
-                        headerSubtitle = "Zotero library · ${selectedGroupName ?: "My library"}",
-                        headerAction = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                ZoteroGroupSelector(
-                                    groups = groups,
-                                    selectedGroupName = selectedGroupName,
-                                    onSelectGroup = onSelectGroup,
-                                )
-                                ZoteroSyncIndicator(syncState, lastSyncedAt, onRefresh)
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        TextButton(onClick = { onShowCollections(true) }) {
+                            Icon(painterResource(Res.drawable.filled_folder_open), contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                collections.firstOrNull { it.key == selectedCollectionKey }?.data?.name
+                                    ?: "Browse collections",
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            ZoteroGroupSelector(
+                                groups = groups,
+                                selectedGroupName = selectedGroupName,
+                                onSelectGroup = onSelectGroup,
+                            )
+                            ZoteroSyncIndicator(syncState, lastSyncedAt, onRefresh)
+                        }
+                    }
+                    if (showCollections) {
+                        Dialog(onDismissRequest = { onShowCollections(false) }) {
+                            Surface(
+                                modifier = Modifier
+                                    .widthIn(max = 600.dp)
+                                    .fillMaxWidth()
+                                    .heightIn(max = 720.dp),
+                                shape = MaterialTheme.shapes.large,
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Column {
+                                            Text("Browse collections", style = MaterialTheme.typography.titleLarge)
+                                            Text(
+                                                "Zotero library · ${selectedGroupName ?: "My library"}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                        IconButton(onClick = { onShowCollections(false) }) {
+                                            Icon(
+                                                painterResource(Res.drawable.filled_close),
+                                                contentDescription = "Close collections",
+                                            )
+                                        }
+                                    }
+                                    LibraryFolderPane(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        folders = collectionEntries,
+                                        entries = collectionEntries + paperEntries,
+                                        selectedFolderId = selectedCollectionKey,
+                                        expandedFolders = expandedCollectionIds,
+                                        onSelectFolder = {
+                                            onSelectCollection(it)
+                                            onShowCollections(false)
+                                        },
+                                        onToggleFolder = onToggleCollection,
+                                        onNewFolder = {
+                                            onShowCollections(false)
+                                            onCreateCollection(null)
+                                        },
+                                        onArchive = {
+                                            onShowCollections(false)
+                                            onViewChange(LibraryView.ALL)
+                                            onShowTrash()
+                                        },
+                                        archiveCount = trashItems.size,
+                                        archiveSelected = trashVisible,
+                                        onNewSubcollection = { entry ->
+                                            onShowCollections(false)
+                                            collections.firstOrNull { it.key == entry.id }
+                                                ?.let { onCreateCollection(it.key) }
+                                        },
+                                        onFindPaper = { entry ->
+                                            onShowCollections(false)
+                                            onSelectCollection(entry.id)
+                                            onFindPaper()
+                                        },
+                                        onNewItem = { entry ->
+                                            onShowCollections(false)
+                                            onSelectCollection(entry.id)
+                                            onCreateItem()
+                                        },
+                                        onRename = { entry ->
+                                            onShowCollections(false)
+                                            collections.firstOrNull { it.key == entry.id }
+                                                ?.let(onRenameCollection)
+                                        },
+                                        onDelete = { entry ->
+                                            onShowCollections(false)
+                                            collections.firstOrNull { it.key == entry.id }
+                                                ?.let(onDeleteCollection)
+                                        },
+                                        showActions = true,
+                                        showCreateCollection = false,
+                                        showArchive = true,
+                                        archiveLabel = "Bin",
+                                        archiveSubtitle = "Deleted Zotero items",
+                                        headerSubtitle = "Zotero library · ${selectedGroupName ?: "My library"}",
+                                        compact = true,
+                                        compactMaxHeight = 560.dp,
+                                    )
+                                }
                             }
-                        },
-                        compact = true,
-                    )
+                        }
+                    }
                     ZoteroPaperList(
                         modifier = Modifier.fillMaxWidth(),
                         papers = visiblePapers,
@@ -2354,9 +2426,10 @@ private fun LibraryFolderPane(
     headerSubtitle: String = "Local library",
     headerAction: (@Composable () -> Unit)? = null,
     compact: Boolean = false,
+    compactMaxHeight: Dp = 260.dp,
 ) {
     Card(
-        modifier = modifier.then(if (compact) Modifier.heightIn(max = 260.dp) else Modifier),
+        modifier = modifier.then(if (compact) Modifier.heightIn(max = compactMaxHeight) else Modifier),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,

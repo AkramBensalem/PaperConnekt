@@ -7,6 +7,13 @@ import com.akram.bensalem.paper.connekt.core.aiassistant.AgentTool
 import com.akram.bensalem.paper.connekt.core.aiassistant.AgentToolArguments
 import com.akram.bensalem.paper.connekt.core.aiassistant.AgentToolParameter
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroAnnotation
+import com.paperconnekt.knowledge.ChunkKind
+import com.paperconnekt.knowledge.KnowledgeFormat
+import com.paperconnekt.knowledge.LexicalPaperRetriever
+import com.paperconnekt.knowledge.PaperRetriever
+import com.paperconnekt.knowledge.PaperChunk
+import com.paperconnekt.knowledge.PaperIndex
+import com.paperconnekt.knowledge.RetrievalQuery
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -51,13 +58,18 @@ internal fun ZoteroAnnotation.agentSummary(): String = buildString {
     if (comment.isNotBlank()) append(" note=\"").append(excerpt(comment, 140)).append('"')
 }
 
-/** Everything the agent should know about the open paper. The PDF itself is never sent; only its Markdown version. */
+/**
+ * Everything the agent should know about the open paper. The PDF itself is never sent; only its Markdown version.
+ * Short papers are sent whole. Longer ones send a compact map from [knowledge] and the agent retrieves cited passages
+ * with search_paper/read_chunks, which keeps every request small and every claim traceable to a page and section.
+ */
 fun paperAgentSystemPrompt(
-    state: PdfWorkspaceState, maxMarkdownChars: Int = 80_000,
+    state: PdfWorkspaceState, maxMarkdownChars: Int = 24_000,
     includePageContext: Boolean = true, includePaperContext: Boolean = true,
     pageContextStart: Int = state.pageIndex, pageContextEnd: Int = pageContextStart,
     ideas: List<Idea>? = null,
-    ideaBoardError: String? = null
+    ideaBoardError: String? = null,
+    knowledge: PaperIndex? = null,
 ): String = buildString {
     val item = state.target?.item?.data
     val pages = state.markdown.pages
@@ -94,15 +106,21 @@ fun paperAgentSystemPrompt(
                 else -> {
                     if (!state.markdown.hasPageBoundaries) appendLine("This Markdown has no page boundaries, so page numbers below are approximate.")
                     val cleaned = pages.map(::agentMarkdown)
+                    val current = state.pageIndex.coerceIn(0, cleaned.lastIndex)
                     if (cleaned.sumOf { it.length } <= maxMarkdownChars) {
                         cleaned.forEachIndexed { index, page -> appendLine("<page number=\"${index + 1}\">").appendLine(page).appendLine("</page>") }
+                    } else if (knowledge != null) {
+                        appendLine("The paper is long, so only its map and the reader's current page are included. Retrieve everything else with search_paper, then read_chunks for full passages.")
+                        appendLine("### Paper map")
+                        appendLine(KnowledgeFormat.paperMap(knowledge))
+                        appendLine("### Current page")
+                        appendLine("<page number=\"${current + 1}\">").appendLine(cleaned[current].take(6_000)).appendLine("</page>")
                     } else {
                         appendLine("The paper is long, so only an outline and the pages around the reader are included. Use read_pages or search_paper for anything else.")
                         appendLine("### Outline")
                         cleaned.forEachIndexed { index, page ->
                             markdownHeading.findAll(page).take(8).forEach { appendLine("- p${index + 1}: ${excerpt(it.groupValues[1], 100)}") }
                         }
-                        val current = state.pageIndex.coerceIn(0, cleaned.lastIndex)
                         (maxOf(0, current - 1)..minOf(cleaned.lastIndex, current + 1)).forEach { index ->
                             appendLine("<page number=\"${index + 1}\">").appendLine(cleaned[index].take(maxMarkdownChars / 4)).appendLine("</page>")
                         }
@@ -124,13 +142,15 @@ fun paperAgentSystemPrompt(
                 appendLine("Not available yet${state.markdown.error?.let { " ($it)" } ?: ""}. Call read_pages to load it.")
             }
         }
-        else -> appendLine("## Paper content\nThe page and whole-paper content were excluded for this question. Use read_pages or search_paper only if the user asks for paper details.")
+        else -> appendLine("## Paper content\nThe page and whole-paper content were excluded for this question. Use search_paper, read_chunks or read_pages only if the user asks for paper details.")
     }
     appendLine()
     appendLine(
         """
         ## How to work
-        - Ground every answer in the supplied Markdown content (or read_pages/search_paper when context was excluded). Cite pages like "(p. 3)". Never invent content that is not in the paper; say so when something is missing.
+        - Ground every answer in the paper. When the needed passage is not already above, call search_paper (mode=relevant by default, mode=exact for literal terms, numbers or symbols), then read_chunks for any result you rely on that was truncated or needs surrounding context. Use get_outline to navigate sections. Prefer a few focused searches over reading whole pages.
+        - Cite evidence like "(p. 4, §3.2 Method) [c12]": the page and section shown in each result, then its chunk ID in square brackets (several as [c3, c4]). The reader does not see the IDs; the app checks them against the paper and lists the cited passages as Sources, so cite only IDs you actually read. Never invent content that is not in the paper; if retrieval finds nothing, say so instead of guessing.
+        - When a question has several independent parts, request all the searches you need in one step; they run in parallel.
         - "This page", "here" or "the current page" refer to the reader's current page. "This", "the selection" or "the selected text" refer to the selected text or selected annotation.
         - You can change the PDF exactly like the user can: highlight_text, underline via style, highlight_keywords, add_note, add_text, draw_shape, draw_freehand, update_annotation, delete_annotation, go_to_page.
         - To anchor anything on text, pass a short, distinctive verbatim phrase (4–20 words) from the Markdown on that page. Long passages are fine for highlights, but copy them exactly. Math and tables may not match; anchor on nearby words instead.
@@ -170,6 +190,12 @@ class PaperAgentToolbox(
     private val ui: CoroutineContext = Dispatchers.Main,
     private val ideaBoard: AssistantViewModel? = null,
     private val ideaPaperId: String? = ideaBoard?.state?.selectedPaper?.id,
+    private val knowledge: PaperKnowledgeCache = PaperKnowledgeCache(),
+    private val compute: CoroutineContext = Dispatchers.Default,
+    /** Ranks passages for search_paper; hybrid keyword + meaning search when embeddings are available. */
+    private val retriever: suspend (PaperIndex) -> PaperRetriever = { LexicalPaperRetriever(it) },
+    /** Receives the passages each retrieval tool returned, on [ui]; feeds the reply's Sources list. */
+    private val onSources: (List<PaperAgentSource>) -> Unit = {},
     private val onAction: (PaperAgentAction) -> Unit = {}
 ) {
     private val state get() = workspace.state
@@ -182,15 +208,48 @@ class PaperAgentToolbox(
             val end = (args.int("end_page") ?: start).coerceIn(start, minOf(pages.size, start + 5))
             (start..end).joinToString("\n") { "<page number=\"$it\">\n${agentMarkdown(pages[it - 1])}\n</page>" }
         },
-        tool("search_paper", "Find where words or a phrase appear in the paper's Markdown. Returns pages with short snippets.", string("query", "Words or phrase to find.")) { args ->
-            val pages = markdownPages() ?: return@tool missingMarkdown()
-            val query = args.requireString("query").trim()
-            val results = pages.flatMapIndexed { index, page ->
-                Regex(Regex.escape(query), RegexOption.IGNORE_CASE).findAll(page).take(3).map { match ->
-                    "p${index + 1}: …${excerpt(page.substring(maxOf(0, match.range.first - 80), minOf(page.length, match.range.last + 80)), 200)}…"
-                }.toList()
+        knowledgeTool(
+            "search_paper",
+            "Retrieve the passages of the paper that answer a question. Returns ranked chunks with IDs, pages, sections and why they matched. mode=relevant ranks by keywords and, when available, by meaning (finds paraphrases and synonyms); mode=exact lists literal occurrences of a term, number or symbol.",
+            string("query", "Question, keywords or phrase to look for."),
+            AgentToolParameter("mode", "relevant (default) or exact.", STRING, false, listOf("relevant", "exact")),
+            int("max_results", "Number of passages, 1-10. Defaults to 5.", false),
+            int("start_page", "Only search from this page (1-based).", false),
+            int("end_page", "Only search up to this page, inclusive.", false),
+            AgentToolParameter("kind", "Only this kind of passage.", STRING, false, ChunkKind.entries.map { it.name.lowercase() }),
+        ) { index, args, found ->
+            val query = args.requireString("query")
+            val limit = (args.int("max_results") ?: 5).coerceIn(1, 10)
+            val start = args.int("start_page")
+            val end = args.int("end_page")
+            val pages = if (start == null && end == null) null
+            else ((start ?: 1).coerceAtLeast(1)..(end ?: start ?: index.pageCount).coerceAtLeast(start ?: 1)).toSet()
+            val kind = args.string("kind")?.let { name -> ChunkKind.entries.firstOrNull { it.name.equals(name, ignoreCase = true) } }
+            if (args.string("mode").equals("exact", ignoreCase = true)) {
+                val matches = index.findExact(query, limit = limit * 3, pages = pages)
+                matches.distinctBy { it.chunk.id }.forEach { found += it.chunk.toSource("exact", snippet = it.snippet) }
+                KnowledgeFormat.exact(query, matches)
+            } else {
+                val results = retriever(index).retrieve(RetrievalQuery(query, limit, pages, kind?.let { setOf(it) }))
+                results.forEach { found += it.toSource() }
+                KnowledgeFormat.results(query, results)
             }
-            if (results.isEmpty()) "No matches for \"$query\"." else results.take(25).joinToString("\n")
+        },
+        knowledgeTool(
+            "read_chunks",
+            "Read the full text of passages by chunk ID (from search_paper or get_outline), optionally with neighbouring chunks for context.",
+            AgentToolParameter("ids", "Chunk IDs such as c12.", STRING_LIST),
+            int("neighbors", "Also include this many chunks before and after each one, 0-2. Defaults to 0.", false),
+        ) { index, args, found ->
+            val radius = (args.int("neighbors") ?: 0).coerceIn(0, 2)
+            val chunks = args.strings("ids").take(8)
+                .flatMap { id -> if (radius == 0) listOfNotNull(index.chunk(id)) else index.neighbors(id, radius) }
+                .distinctBy(PaperChunk::id).sortedBy(PaperChunk::ordinal)
+            chunks.forEach { found += it.toSource("read") }
+            KnowledgeFormat.chunks(chunks)
+        },
+        knowledgeTool("get_outline", "Get the paper's section outline with pages and the first chunk ID of each section.") { index, _, _ ->
+            KnowledgeFormat.outline(index)
         },
         tool("list_annotations", "List existing annotations with their keys.", int("page", "Only this page (1-based).", false)) { args ->
             val page = args.int("page")
@@ -373,6 +432,40 @@ class PaperAgentToolbox(
         onAction(PaperAgentAction("$verb ${idea.title}.md", state.pageIndex, ideaId = idea.id))
         return "$verb Idea Board Markdown note id=${idea.id} title=\"${idea.title}\". Saved successfully."
     }
+
+    /**
+     * Like [tool], but only reads the Markdown on [ui]; indexing and retrieval run on [compute] to keep the reader
+     * smooth. Passages added to `found` are reported through [onSources].
+     */
+    private fun knowledgeTool(
+        name: String,
+        description: String,
+        vararg parameters: AgentToolParameter,
+        run: suspend (PaperIndex, AgentToolArguments, MutableList<PaperAgentSource>) -> String,
+    ) = AgentTool(name, description, parameters.toList()) { args ->
+        try {
+            val (pages, paperId) = withContext(ui) { markdownPages() to knowledgePaperId() }
+            if (pages == null) withContext(ui) { missingMarkdown() }
+            else {
+                val found = mutableListOf<PaperAgentSource>()
+                val result = withContext(compute) { run(knowledge.index(paperId, pages), args, found) }
+                if (found.isNotEmpty()) withContext(ui) { onSources(found) }
+                result
+            }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            "Error: ${exception.message ?: exception::class.simpleName}"
+        }
+    }
+
+    /** Index of the open paper, shared with the system prompt through the same cache. Call it on [ui]. */
+    suspend fun currentIndex(): PaperIndex? {
+        val pages = markdownPages() ?: return null
+        return knowledge.index(knowledgePaperId(), pages)
+    }
+
+    private fun knowledgePaperId() = workspace.paperStorageKey() ?: state.annotationParentKey ?: "open-paper"
 
     private fun tool(name: String, description: String, vararg parameters: AgentToolParameter, run: suspend (AgentToolArguments) -> String) =
         AgentTool(name, description, parameters.toList()) { args ->
