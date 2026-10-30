@@ -64,6 +64,9 @@ class McpServer(
     private suspend fun handleSingle(element: JsonElement): JsonElement? {
         val message = element as? JsonObject
             ?: return error(JsonNull, McpProtocol.INVALID_REQUEST, "A JSON-RPC message must be an object.")
+        if ((message["jsonrpc"] as? JsonPrimitive)?.content != "2.0") {
+            return error(message["id"] ?: JsonNull, McpProtocol.INVALID_REQUEST, "jsonrpc must be \"2.0\".")
+        }
         val id = message["id"]
         val method = (message["method"] as? JsonPrimitive)?.takeIf { it.isString }?.content
         if (method == null) {
