@@ -32,6 +32,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -437,6 +439,7 @@ fun DashboardAnalytics(
             color: androidx.compose.ui.graphics.Color,
             description: String,
         ) {
+            val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
             Canvas(Modifier.fillMaxWidth().height(150.dp).semantics { contentDescription = description }) {
                 val peak = values.maxOrNull()?.coerceAtLeast(0.0000001) ?: 0.0000001
                 val step = size.width / values.lastIndex.coerceAtLeast(1)
@@ -447,7 +450,7 @@ fun DashboardAnalytics(
                 }
                 repeat(4) { index ->
                     val y = size.height * index / 3f
-                    drawLine(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f), Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
+                    drawLine(gridColor, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
                 }
                 drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx()))
                 values.forEachIndexed { index, value ->
@@ -483,6 +486,7 @@ fun DashboardAnalytics(
 private fun usageDate(event: AiUsageEvent): LocalDate =
     Instant.fromEpochMilliseconds(event.timestamp).toLocalDateTime(TimeZone.currentSystemDefault()).date
 
+@Composable
 private fun serviceColor(service: AiUsageService) = when (service) {
     AiUsageService.OCR -> MaterialTheme.colorScheme.primary
     AiUsageService.CHAT -> MaterialTheme.colorScheme.tertiary
