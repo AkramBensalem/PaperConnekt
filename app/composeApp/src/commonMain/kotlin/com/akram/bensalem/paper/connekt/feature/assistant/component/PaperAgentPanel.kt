@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.imePadding
 import com.akram.bensalem.bistosh.core.designsystem.component.clipChipInteraction
 import com.akram.bensalem.bistosh.core.designsystem.component.interactivePointer
 import com.akram.bensalem.paper.connekt.core.aiassistant.AgentRole
@@ -98,7 +99,7 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
         }
     }
 
-    Column(modifier.fillMaxSize().testTag("paper-agent-panel")) {
+    Column(modifier.fillMaxSize().imePadding().testTag("paper-agent-panel")) {
         agent.storageError?.let { error ->
             Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = agent::retryStorage) { Text("Retry chat storage") }
@@ -266,12 +267,23 @@ private fun AgentComposer(
 ) {
     val send = { agent.send() }
     val pageCount = state.readerPageCount.coerceAtLeast(1)
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-    ) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val editorMinHeight = when {
+            maxHeight < 420.dp -> 96.dp
+            maxWidth < 400.dp -> 116.dp
+            else -> 150.dp
+        }
+        val editorMaxHeight = when {
+            maxHeight < 420.dp -> 170.dp
+            maxWidth < 400.dp -> 210.dp
+            else -> 260.dp
+        }
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        ) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Context", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
             Row(
@@ -318,7 +330,7 @@ private fun AgentComposer(
             }
             if (preview) {
                 Surface(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp, max = 260.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = editorMinHeight, max = editorMaxHeight),
                     shape = RoundedCornerShape(14.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
@@ -342,7 +354,7 @@ private fun AgentComposer(
                     value = agent.input,
                     onValueChange = { agent.input = it },
                     enabled = agent.providerKeyAvailable,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp, max = 260.dp)
+                    modifier = Modifier.fillMaxWidth().heightIn(min = editorMinHeight, max = editorMaxHeight)
                         .testTag("paper-agent-input")
                         .onPreviewKeyEvent { event ->
                             if (event.type == KeyEventType.KeyDown && event.key == Key.Enter &&
@@ -383,6 +395,7 @@ private fun AgentComposer(
                         Text("Send")
                     }
                 }
+            }
             }
         }
     }

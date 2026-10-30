@@ -10,6 +10,7 @@ import com.akram.bensalem.bistosh.core.designsystem.component.interactivePointer
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -23,6 +24,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.rememberScrollState
 import com.akram.bensalem.paper.connekt.feature.assistant.ChatMessage
 import com.akram.bensalem.paper.connekt.feature.assistant.Idea
 import com.akram.bensalem.paper.connekt.feature.assistant.Note
@@ -108,15 +110,21 @@ fun Workplace(
         }
     }
     val supportingContent: @Composable (allowEditing: Boolean) -> Unit = { allowEditing ->
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+        val compactTabs = maxWidth < 440.dp
+        val horizontalPadding = if (maxWidth < 360.dp) 8.dp else 16.dp
         Column(Modifier.fillMaxSize().nestedScroll(sidebarScroll)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Surface(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
-                    Row(Modifier.padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        Modifier.padding(4.dp).horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
                         val detailPanels = listOf(
                             "Details" to painterResource(Res.drawable.filled_article),
                         ) + panels
@@ -126,7 +134,8 @@ fun Workplace(
                             Surface(
                                 selected = selected,
                                 onClick = { selectedPanel = index },
-                                modifier = Modifier.weight(1f).interactivePointer(),
+                                modifier = (if (compactTabs) Modifier.width(64.dp) else Modifier.weight(1f))
+                                    .interactivePointer(),
                                 shape = RoundedCornerShape(12.dp),
                                 color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
                                 contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
@@ -137,7 +146,7 @@ fun Workplace(
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Icon(icon, if (headerCollapsed) label else null, Modifier.size(20.dp))
-                                    AnimatedVisibility(visible = !headerCollapsed) {
+                                    AnimatedVisibility(visible = !headerCollapsed && !compactTabs) {
                                         Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1,
                                             overflow = TextOverflow.Ellipsis)
                                     }
@@ -148,7 +157,8 @@ fun Workplace(
                 }
             }
             Spacer(Modifier.height(if (headerCollapsed) 8.dp else 16.dp))
-            when (selectedPanel) {
+            Box(Modifier.fillMaxSize().padding(horizontal = horizontalPadding)) {
+                when (selectedPanel) {
                 0 -> PaperDetailsPanel(paper, Modifier.fillMaxSize())
                 1 -> if (pdfWorkspace != null && hasPdfAnnotations) {
                     AnnotationList(pdfWorkspace, Modifier.fillMaxSize(), ideasOnly = null, headerCollapsed = headerCollapsed,
@@ -177,7 +187,9 @@ fun Workplace(
                         onIdeaOpened = { ideaToOpen = null }
                     )
                 }
+                }
             }
+        }
         }
     }
     if (pdfWorkspace != null && (pdfWorkspace.state.target != null || pdfWorkspace.state.localTitle != null)) {

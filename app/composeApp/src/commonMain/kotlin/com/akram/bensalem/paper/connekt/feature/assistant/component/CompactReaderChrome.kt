@@ -111,6 +111,8 @@ internal fun CompactReaderTopBar(
     var menu by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
     val syncProblem = state.needsRefresh || state.pendingWrites > 0
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val veryCompact = maxWidth < 390.dp
     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
         onExit?.let { exit ->
             IconButton(onClick = exit, modifier = Modifier.interactivePointer()) {
@@ -120,7 +122,7 @@ internal fun CompactReaderTopBar(
         Column(Modifier.weight(1f).padding(start = if (onExit == null) 8.dp else 0.dp, end = 4.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
-            StudyTimeIndicator(studyTimeToday, totalStudyTime)
+            if (!veryCompact) StudyTimeIndicator(studyTimeToday, totalStudyTime)
         }
         if (showSearchAction) {
             IconButton(onClick = onSearch, modifier = Modifier.interactivePointer(),
@@ -209,6 +211,7 @@ internal fun CompactReaderTopBar(
             }
         }
     }
+}
 }
 
 @Composable
@@ -311,7 +314,15 @@ internal fun CompactAnnotationSheet(
             Text("Pick a tool, then tap or drag on the page.", style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val columns = if (maxWidth < 460.dp) 2 else readerAnnotationTools.size
+            val itemWidth = (maxWidth - 8.dp * (columns - 1)) / columns
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                maxItemsInEachRow = columns,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 readerAnnotationTools.forEach { item ->
                     val selected = tool == item.id
                     val itemEnabled = enabled && (!inkOnly || item.id == "ink")
@@ -322,7 +333,7 @@ internal fun CompactAnnotationSheet(
                         color = if (selected) colors.primaryContainer else colors.surfaceContainerHigh,
                         contentColor = if (selected) colors.onPrimaryContainer else colors.onSurface,
                         border = if (selected) BorderStroke(1.dp, colors.primary.copy(alpha = 0.4f)) else null,
-                        modifier = Modifier.weight(1f).height(72.dp).semantics { this.selected = selected }
+                        modifier = Modifier.width(itemWidth).height(72.dp).semantics { this.selected = selected }
                             .interactivePointer(enabled = itemEnabled),
                     ) {
                         Column(Modifier.fillMaxSize().padding(4.dp), verticalArrangement = Arrangement.Center,
@@ -332,6 +343,7 @@ internal fun CompactAnnotationSheet(
                             Spacer(Modifier.height(6.dp))
                             Text(item.label, style = MaterialTheme.typography.labelMedium, maxLines = 1, textAlign = TextAlign.Center)
                         }
+                    }
                     }
                 }
             }

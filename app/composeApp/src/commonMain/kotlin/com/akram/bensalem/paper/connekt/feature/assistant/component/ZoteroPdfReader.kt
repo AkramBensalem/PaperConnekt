@@ -131,6 +131,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalDensity
@@ -324,7 +325,7 @@ fun ZoteroPdfReader(
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); viewModel.dismissMessage() }
     }
-    BoxWithConstraints(Modifier.fillMaxSize().focusRequester(focusRequester).onPreviewKeyEvent { event ->
+    BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding().focusRequester(focusRequester).onPreviewKeyEvent { event ->
         if (event.type != KeyEventType.KeyDown || state.draft != null) false
         else when {
             !showSearch && (event.isCtrlPressed || event.isMetaPressed) && event.key == Key.C && state.textSelection != null -> { copySelection(); true }
@@ -345,7 +346,7 @@ fun ZoteroPdfReader(
             else -> false
         }
     }.focusable()) {
-        val wide = maxWidth >= 900.dp
+        val wide = maxWidth >= 840.dp && maxHeight >= 480.dp
         val compact = maxWidth < CompactReaderMaxWidth
         val density = LocalDensity.current
         val readerWidth = maxWidth
@@ -915,7 +916,14 @@ fun ZoteroPdfReader(
     if (showAnnotations) {
         ModalBottomSheet(onDismissRequest = { showAnnotations = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-            Box(Modifier.fillMaxWidth().fillMaxHeight(0.85f).padding(16.dp)) {
+            Box(
+                Modifier.fillMaxWidth()
+                    .fillMaxHeight(0.9f)
+                    .widthIn(max = 840.dp)
+                    .align(Alignment.CenterHorizontally)
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                    .imePadding()
+            ) {
                 if (supportingContent != null) supportingContent(!editingLocked)
                 else ReaderAnnotationPane(viewModel, onSelected = { showAnnotations = false }, allowEditing = !editingLocked)
             }
