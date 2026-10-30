@@ -262,8 +262,8 @@ fun LibraryScreen(
     var deleteFolder by remember { mutableStateOf<LibraryEntry?>(null) }
     var movePaper by remember { mutableStateOf<LibraryEntry?>(null) }
     var editPaper by remember { mutableStateOf<Paper?>(null) }
-    var selectedPaperId by remember { mutableStateOf<String?>(null) }
-    var selectedZoteroPaperKey by remember { mutableStateOf<String?>(null) }
+    var selectedPaperId by remember { mutableStateOf(savedLibraryState.selectedPaperId) }
+    var selectedZoteroPaperKey by remember { mutableStateOf(savedLibraryState.selectedZoteroPaperKey) }
     var permanentlyDeletePaper by remember { mutableStateOf<Paper?>(null) }
     var expandedFolders by remember { mutableStateOf(savedLibraryState.expandedFolderIds.toSet()) }
     var storageError by remember { mutableStateOf<String?>(null) }
@@ -271,8 +271,8 @@ fun LibraryScreen(
     var showManualPaper by remember { mutableStateOf(false) }
     var newPaperParentFolderId by remember { mutableStateOf<String?>(null) }
     var showCollections by remember { mutableStateOf(savedLibraryState.showCollections) }
-    var localPage by remember { mutableStateOf(0) }
-    var zoteroPage by remember { mutableStateOf(0) }
+    var localPage by remember { mutableStateOf(savedLibraryState.localPage) }
+    var zoteroPage by remember { mutableStateOf(savedLibraryState.zoteroPage) }
     var zoteroTrashItems by remember { mutableStateOf<List<ZoteroItem>>(emptyList()) }
     var zoteroTrashVisible by remember { mutableStateOf(false) }
     var showZoteroCollectionDialog by remember { mutableStateOf(false) }
@@ -280,17 +280,27 @@ fun LibraryScreen(
     var zoteroRenameTarget by remember { mutableStateOf<ZoteroCollection?>(null) }
     var zoteroDeleteTarget by remember { mutableStateOf<ZoteroCollection?>(null) }
     var showZoteroItemDialog by remember { mutableStateOf(false) }
+    var localPageResetInitialized by remember { mutableStateOf(false) }
+    var zoteroPageResetInitialized by remember { mutableStateOf(false) }
     val pdfAttachments = LocalPdfAttachments.current
     val selectedZoteroGroupName = selectedZoteroGroupId?.let { id ->
         zoteroGroups.firstOrNull { it.id.toString() == id }?.data?.name
     }
 
     LaunchedEffect(source, view, query, selectedFolderId) {
-        localPage = 0
+        if (localPageResetInitialized) {
+            localPage = 0
+        } else {
+            localPageResetInitialized = true
+        }
     }
 
     LaunchedEffect(source, selectedZoteroGroupId, selectedZoteroCollectionKey, zoteroView, query, zoteroPapers.size) {
-        zoteroPage = 0
+        if (zoteroPageResetInitialized) {
+            zoteroPage = 0
+        } else {
+            zoteroPageResetInitialized = true
+        }
     }
     val latestLibraryUiState by androidx.compose.runtime.rememberUpdatedState(
         LibraryUiState(
@@ -303,6 +313,10 @@ fun LibraryScreen(
             view = if (source == LibrarySource.ZOTERO) zoteroView.name else view.name,
             query = query,
             showCollections = showCollections,
+            localPage = localPage,
+            zoteroPage = zoteroPage,
+            selectedPaperId = selectedPaperId,
+            selectedZoteroPaperKey = selectedZoteroPaperKey,
         ),
     )
 
@@ -317,6 +331,10 @@ fun LibraryScreen(
         zoteroView,
         query,
         showCollections,
+        localPage,
+        zoteroPage,
+        selectedPaperId,
+        selectedZoteroPaperKey,
     ) {
         delay(250)
         try {

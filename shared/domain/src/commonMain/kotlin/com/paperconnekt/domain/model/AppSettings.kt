@@ -46,6 +46,10 @@ data class LibraryUiState(
     val view: String = "ALL",
     val query: String = "",
     val showCollections: Boolean = false,
+    val localPage: Int = 0,
+    val zoteroPage: Int = 0,
+    val selectedPaperId: String? = null,
+    val selectedZoteroPaperKey: String? = null,
 )
 
 @Serializable
