@@ -36,13 +36,10 @@ kotlin {
             api(libs.koog.agents)
             api(libs.koog.agents.additions)
             implementation(libs.koog.http.client.ktor)
-        }
-        androidMain.dependencies {
-            implementation(libs.pdfbox.android)
+            implementation(libs.nucleus.pdfium)
         }
         val desktopMain by getting {
             dependencies {
-                implementation(libs.pdfbox)
                 implementation(libs.jlatexmath)
             }
         }

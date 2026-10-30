@@ -2,20 +2,12 @@ package com.akram.bensalem.paper.connekt.feature.assistant
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.ImageBitmap
 import kotlin.math.max
 import kotlin.math.min
-
-interface PdfDocument {
-    val pageCount: Int
-    suspend fun render(pageIndex: Int, scale: Float): PdfPage
-    fun close()
-}
 
 data class PdfGlyph(val text: String, val bounds: Rect)
 
 data class PdfPage(
-    val image: ImageBitmap,
     val geometry: PdfGeometry,
     val glyphs: List<PdfGlyph>
 )
@@ -120,13 +112,4 @@ data class PdfGeometry(val left: Float, val bottom: Float, val width: Float, val
         val b = toDisplay(Offset(rect[2], rect[3]))
         return Rect(min(a.x, b.x), min(a.y, b.y), max(a.x, b.x), max(a.y, b.y))
     }
-}
-
-fun PdfPageBox.toGeometry(): PdfGeometry = PdfGeometry(left, bottom, width, height, rotation)
-
-/** Maps a glyph from its text-direction space to display coordinates of the page. */
-fun RawPdfGlyph.toPdfGlyph(geometry: PdfGeometry): PdfGlyph {
-    val textGeometry = geometry.copy(rotation = direction)
-    val textRect = Rect(x, y - height, x + width, y)
-    return PdfGlyph(text, geometry.displayRect(textGeometry.pdfRect(textRect)))
 }

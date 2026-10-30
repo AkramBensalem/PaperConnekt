@@ -145,14 +145,13 @@ class PdfWorkspaceViewModel(
     private val readingAgent: () -> ResearchAgent = ::createReadingAgent,
     private val syncDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val usageRecorder: suspend (String?, AiUsageEvent) -> Unit = { _, _ -> },
-    private val openDocument: suspend (ByteArray) -> PdfDocument = ::openPdfDocument,
     private val localAnnotationStore: LocalPdfAnnotationStore? = null,
     private val pdfCache: PdfAttachmentStorage? = null,
 ) : ViewModel() {
     var state by mutableStateOf(PdfWorkspaceState())
         private set
     private var config: ZoteroConfig? = null
-    private var document: PdfDocument? = null
+    private var pageProvider: (suspend (Int) -> PdfPage?)? = null
     private var session = 0
     private var loadJob: Job? = null
     private var renderJob: Job? = null
@@ -168,20 +167,30 @@ class PdfWorkspaceViewModel(
     private var markdownJob: Job? = null
     private var readingJob: Job? = null
     private var pdfBytes: ByteArray? = null
-    private var renderScale = 1.5f
     private val continuousPages = mutableMapOf<Pair<Int, Int>, PdfPage>()
     private val pageTexts = mutableMapOf<Int, PdfPageText>()
 
+    fun loadedPdfBytes(): ByteArray? = pdfBytes
+
+    fun attachPageProvider(pageCount: Int, provider: suspend (Int) -> PdfPage?) {
+        pageProvider = provider
+        val pageIndex = state.pageIndex.coerceIn(0, (pageCount - 1).coerceAtLeast(0))
+        state = state.copy(
+            pageCount = pageCount,
+            pageIndex = pageIndex,
+            readingPosition = state.readingPosition.copy(pageIndex = pageIndex),
+            loading = false,
+        )
+        renderPage()
+    }
+
     suspend fun loadContinuousPage(index: Int, widthPixels: Int): PdfPage? {
-        val pdf = document ?: return null
+        val provider = pageProvider ?: return null
         val token = session
         val key = index to widthPixels
         continuousPages[key]?.let { return it }
         return try {
-            val initial = pdf.render(index, 1f)
-            val scale = minOf(widthPixels / initial.geometry.displayWidth, 8f,
-                4096f / maxOf(initial.geometry.displayWidth, initial.geometry.displayHeight))
-            val page = if (kotlin.math.abs(initial.image.width - widthPixels) < 32) initial else pdf.render(index, scale)
+            val page = provider(index) ?: return null
             currentCoroutineContext().ensureActive()
             if (token != session) null else {
                 if (continuousPages.size >= 6) continuousPages.remove(continuousPages.keys.first())
@@ -254,26 +263,13 @@ class PdfWorkspaceViewModel(
         if (account == null) return
         val token = session
         loadJob = viewModelScope.launch {
-            var opened: PdfDocument? = null
             try {
                 val bytes = loadRemotePdf(account, target)
-                if (token == session) pdfBytes = bytes
-                opened = openDocument(bytes)
-                ensureActive()
+                if (token == session) {
+                    pdfBytes = bytes
+                    state = state.copy(loading = false)
+                }
                 if (token != session) return@launch
-                document = opened
-                opened = null
-                val pageIndex = initialPosition.pageIndex.coerceIn(0, document!!.pageCount - 1)
-                state = state.copy(
-                    pageCount = document!!.pageCount,
-                    pageIndex = pageIndex,
-                    readingPosition = initialPosition.copy(
-                        pageIndex = pageIndex,
-                        fraction = initialPosition.fraction.coerceIn(0f, 1f),
-                    ),
-                    loading = false,
-                )
-                renderPage()
                 refreshAnnotations()
             } catch (exception: Exception) {
                 if (exception is CancellationException) throw exception
@@ -281,9 +277,6 @@ class PdfWorkspaceViewModel(
                     report(exception, "Could not open PDF")
                     state = state.copy(loading = false)
                 }
-
-            } finally {
-                opened?.close()
             }
         }
     }
@@ -308,23 +301,8 @@ class PdfWorkspaceViewModel(
         )
         val token = session
         loadJob = viewModelScope.launch {
-            var opened: PdfDocument? = null
             try {
-                opened = openDocument(bytes)
-                ensureActive()
                 if (token != session) return@launch
-                document = opened
-                opened = null
-                val pageCount = requireNotNull(document).pageCount
-                val pageIndex = initialPosition.pageIndex.coerceIn(0, pageCount - 1)
-                state = state.copy(
-                    pageCount = pageCount,
-                    pageIndex = pageIndex,
-                    readingPosition = initialPosition.copy(
-                        pageIndex = pageIndex,
-                        fraction = initialPosition.fraction.coerceIn(0f, 1f),
-                    ),
-                )
                 if (storageKey != null && localAnnotationStore != null) {
                     val annotations = validatedAnnotations(localAnnotationStore.load(storageKey))
                     ensureActive()
@@ -336,13 +314,11 @@ class PdfWorkspaceViewModel(
                 throw exception
             } catch (exception: Exception) {
                 if (token == session) {
-                    report(exception, if (document == null) "Could not open local PDF" else "Could not load local annotations")
-                    state = state.copy(needsRefresh = document != null)
+                    report(exception, "Could not load local annotations")
+                    state = state.copy(needsRefresh = true)
                 }
             } finally {
-                opened?.close()
                 if (token == session) {
-                    state = state.copy(loading = false)
                     renderPage()
                 }
             }
@@ -373,12 +349,10 @@ class PdfWorkspaceViewModel(
         remoteAnnotations = emptyList()
         markdownJob?.cancel()
         readingJob?.cancel()
-        document?.close()
-        document = null
+        pageProvider = null
         pdfBytes = null
         continuousPages.clear()
         pageTexts.clear()
-        renderScale = 1.5f
         state = PdfWorkspaceState()
     }
 
@@ -614,26 +588,19 @@ class PdfWorkspaceViewModel(
     }
 
     fun ensurePageResolution(widthPixels: Int) {
-        val page = state.page ?: return
-        if (widthPixels <= 0 || state.rendering) return
-        val scale = minOf(widthPixels / page.geometry.displayWidth, 8f,
-            4096f / maxOf(page.geometry.displayWidth, page.geometry.displayHeight))
-        val targetWidth = (page.geometry.displayWidth * scale).toInt()
-        if (kotlin.math.abs(page.image.width - targetWidth) < 32) return
-        renderScale = scale
-        renderPage()
+        if (state.page == null || widthPixels <= 0 || state.rendering) return
+        state = state.copy(displayedPageWidth = widthPixels.toFloat())
     }
 
     private fun renderPage() {
-        val pdf = document ?: return
+        val provider = pageProvider ?: return
         val token = session
         val index = state.pageIndex
-        val scale = renderScale
         renderJob?.cancel()
         state = state.copy(rendering = true)
         renderJob = viewModelScope.launch {
             try {
-                val page = pdf.render(index, scale)
+                val page = provider(index) ?: return@launch
                 ensureActive()
                 if (token == session) state = state.copy(page = page, rendering = false,
                     pageGeometries = state.pageGeometries + (index to page.geometry))
@@ -1161,9 +1128,9 @@ class PdfWorkspaceViewModel(
         if (index !in 0 until state.pageCount) return null
         state.page?.takeIf { state.pageIndex == index }?.let { return PdfPageText(index, it.geometry, it.glyphs) }
         pageTexts[index]?.let { return it }
-        val pdf = document ?: return null
+        val provider = pageProvider ?: return null
         val token = session
-        val page = pdf.render(index, 0.2f)
+        val page = provider(index) ?: return null
         if (token != session) return null
         if (pageTexts.size >= 64) pageTexts.clear()
         return PdfPageText(index, page.geometry, page.glyphs).also {

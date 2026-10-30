@@ -2,7 +2,6 @@ package com.akram.bensalem.paper.connekt.feature.assistant
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.ImageBitmap
 import com.akram.bensalem.paper.connekt.models.ZoteroConfig
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroAnnotation
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroItem
@@ -209,20 +208,15 @@ class LocalPdfAnnotationsTest {
         val workspace = PdfWorkspaceViewModel(
             repository = NoZoteroCalls(),
             localAnnotationStore = store,
-            openDocument = {
-                object : PdfDocument {
-                    override val pageCount = 1
-                    override suspend fun render(pageIndex: Int, scale: Float) = PdfPage(
-                        ImageBitmap(100, 100),
-                        PdfGeometry(0f, 0f, 100f, 100f, 0),
-                        listOf(PdfGlyph("Selectable text", Rect(10f, 10f, 80f, 20f))),
-                    )
-                    override fun close() = Unit
-                }
-            },
         )
         try {
             workspace.openLocal(byteArrayOf(), "Local paper", KEY)
+            workspace.attachPageProvider(1) {
+                PdfPage(
+                    PdfGeometry(0f, 0f, 100f, 100f, 0),
+                    listOf(PdfGlyph("Selectable text", Rect(10f, 10f, 80f, 20f))),
+                )
+            }
             runCurrent()
             block(workspace)
         } finally {

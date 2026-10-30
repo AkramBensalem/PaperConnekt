@@ -144,7 +144,9 @@ import com.akram.bensalem.paper.connekt.feature.assistant.*
 import com.akram.bensalem.bistosh.core.designsystem.component.clipChipInteraction
 import com.akram.bensalem.bistosh.core.designsystem.component.interactivePointer
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroAnnotation
-import kotlinx.coroutines.delay
+import dev.nucleusframework.pdfium.PdfPage as NucleusPdfPage
+import dev.nucleusframework.pdfium.PdfReaderState
+import dev.nucleusframework.pdfium.rememberPdfReaderState
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -153,6 +155,7 @@ internal val annotationColorNames = listOf("Yellow", "Red", "Green", "Blue", "Pu
 
 /** Starts read-aloud at the part covered by the current text selection; null when read mode is off. */
 internal val LocalReadFromSelection = compositionLocalOf<(() -> Unit)?> { null }
+private val LocalNucleusPdfReaderState = compositionLocalOf<PdfReaderState?> { null }
 internal fun annotationColor(hex: String): Color = Color(0xff000000L or hex.removePrefix("#").toLong(16))
 private fun TextFieldValue.wrapSelection(prefix: String, suffix: String): TextFieldValue {
     val start = selection.min
@@ -226,6 +229,16 @@ fun ZoteroPdfReader(
     totalStudyTime: Long = 0L
 ) {
     val state = viewModel.state
+    val nucleusPdfState = rememberPdfReaderState()
+    val loadedPdfBytes = viewModel.loadedPdfBytes()
+    LaunchedEffect(loadedPdfBytes) {
+        loadedPdfBytes?.let {
+            nucleusPdfState.open(it)
+            viewModel.attachPageProvider(nucleusPdfState.pageCount) { index ->
+                nucleusPdfState.loadPaperConnektPage(index)
+            }
+        }
+    }
     LaunchedEffect(state.target, state.localTitle, state.readingPosition, state.zoom) {
         onReadingPositionChanged?.invoke(state.readingPosition, state.zoom)
     }
@@ -381,12 +394,6 @@ fun ZoteroPdfReader(
             scope.launch { snackbar.showSnackbar("Selected text copied") }
         }
     }
-    LaunchedEffect(state.target) {
-        while (state.target != null) {
-            delay(60_000)
-            if (!viewModel.state.syncing && viewModel.state.draft == null && !viewModel.state.needsRefresh) viewModel.refreshAnnotations()
-        }
-    }
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); viewModel.dismissMessage() }
     }
@@ -434,6 +441,7 @@ fun ZoteroPdfReader(
                     )
                 }
             }
+        CompositionLocalProvider(LocalNucleusPdfReaderState provides nucleusPdfState) {
         Row(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).fillMaxHeight()) {
             if (!focusMode) Surface(
@@ -1016,6 +1024,7 @@ fun ZoteroPdfReader(
                         .testTag("reader-sidebar-resize-handle")
                 )
             }
+        }
         }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (state.textSelection != null || state.selectedKey != null) 128.dp else 64.dp))
@@ -1958,6 +1967,7 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
             val currentSelectedKey by rememberUpdatedState(state.selectedKey)
             var moving by remember(page, pageIndex) { mutableStateOf<AnnotationMove?>(null) }
             var draggingSelectionHandle by remember(pageIndex) { mutableStateOf(false) }
+            val nucleusPdfState = LocalNucleusPdfReaderState.current
             fun movableBounds(annotation: ZoteroAnnotation): Rect? {
                 val position = annotation.position
                 if (annotation.type !in movableAnnotationTypes || position.pageIndex != pageIndex || position.nextPageRects.isNotEmpty()) return null
@@ -1985,6 +1995,15 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
             Box(Modifier.fillMaxSize().then(zoomTarget).then(if (continuous) Modifier else Modifier.nestedScroll(scrollConnection).verticalScroll(verticalScroll))
                 .horizontalScroll(horizontalScroll).padding(start = sidePadding, end = sidePadding, top = topPad, bottom = bottomPad)) {
                 Box(Modifier.requiredSize(pageWidth, pageHeight).offset(x = inset)) {
+                nucleusPdfState?.takeIf { it.pageCount > pageIndex }?.let { readerState ->
+                    NucleusPdfPage(
+                        state = readerState,
+                        pageIndex = pageIndex,
+                        modifier = Modifier.fillMaxSize(),
+                        selectableText = false,
+                        linksEnabled = false,
+                    )
+                }
                 Canvas(Modifier.fillMaxSize().testTag(if (continuous) "workspace-pdf-page-$pageIndex" else "workspace-pdf-page")
                     .pointerHoverIcon(when (tool) { "note", "idea", "ink", "text", "rect" -> PointerIcon.Crosshair; "pan" -> PointerIcon.Hand; else -> PointerIcon.Text })
                     .onSizeChanged {
@@ -2210,7 +2229,6 @@ private fun PdfPageCanvas(modifier: Modifier, viewModel: PdfWorkspaceViewModel, 
                             }
                         }
                     }) {
-                    drawImage(page.image, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()))
                     val sx = size.width / page.geometry.displayWidth
                     val sy = size.height / page.geometry.displayHeight
                     fun drawBounds(rect: Rect, color: Color, outline: Boolean = false) {
