@@ -521,6 +521,26 @@ fun LibraryScreen(
         }
     }
 
+    fun addPaperToZotero(paper: Paper) {
+        showPaperSearch = false
+        runZoteroWrite { config ->
+            zoteroClient.createItem(
+                config,
+                ZoteroJournalArticleRequest(
+                    title = paper.title,
+                    creators = paper.authors.map { author ->
+                        ZoteroCreator("author", name = author)
+                    },
+                    abstractNote = paper.abstractText,
+                    date = paper.year?.toString(),
+                    DOI = paper.doi,
+                    url = paper.sourceUrl,
+                    collections = listOfNotNull(selectedZoteroCollectionKey),
+                ),
+            )
+        }
+    }
+
     fun loadZoteroTrash() {
         if (zoteroTrashVisible) return
         selectedZoteroPaperKey = null
@@ -698,7 +718,11 @@ fun LibraryScreen(
                     onNewFolder = { showCreateFolder = true },
                     onFindPaper = { showPaperSearch = true },
                     onAddManually = { showManualPaper = true },
-                    onCreateZoteroItem = { showZoteroItemDialog = true },
+                    onCreateZoteroItem = { showPaperSearch = true },
+                    onCreateZoteroCollection = {
+                        zoteroCollectionParent = null
+                        showZoteroCollectionDialog = true
+                    },
                 )
             if (source == LibrarySource.ZOTERO) {
                 ZoteroLibraryContent(
@@ -767,6 +791,7 @@ fun LibraryScreen(
                         zoteroCollectionParent = parent
                         showZoteroCollectionDialog = true
                     },
+                    onFindPaper = { showPaperSearch = true },
                     onCreateItem = { showZoteroItemDialog = true },
                     onRenameCollection = { zoteroRenameTarget = it },
                     onDeleteCollection = { zoteroDeleteTarget = it },
@@ -1056,8 +1081,14 @@ fun LibraryScreen(
 
     if (showPaperSearch) {
         LibraryPaperSearchDialog(
-            savedPapers = papers,
-            onSave = { paper -> addPaper(paper) },
+            savedPapers = if (source == LibrarySource.LOCAL) papers else emptyList(),
+            onSave = { paper ->
+                if (source == LibrarySource.LOCAL) {
+                    addPaper(paper)
+                } else {
+                    addPaperToZotero(paper)
+                }
+            },
             onDismiss = {
                 showPaperSearch = false
                 newPaperParentFolderId = null
@@ -1362,6 +1393,7 @@ private fun ZoteroLibraryContent(
     onCloseDetails: () -> Unit,
     onOpenPdf: (ZoteroLibraryPaper) -> Unit,
     onCreateCollection: (String?) -> Unit,
+    onFindPaper: () -> Unit,
     onCreateItem: () -> Unit,
     onRenameCollection: (ZoteroCollection) -> Unit,
     onDeleteCollection: (ZoteroCollection) -> Unit,
@@ -1465,6 +1497,10 @@ private fun ZoteroLibraryContent(
                         onNewSubcollection = { entry ->
                             collections.firstOrNull { it.key == entry.id }?.let { onCreateCollection(it.key) }
                         },
+                        onFindPaper = { entry ->
+                            onSelectCollection(entry.id)
+                            onFindPaper()
+                        },
                         onNewItem = { entry ->
                             onSelectCollection(entry.id)
                             onCreateItem()
@@ -1545,6 +1581,10 @@ private fun ZoteroLibraryContent(
                         archiveSelected = trashVisible,
                         onNewSubcollection = { entry ->
                             collections.firstOrNull { it.key == entry.id }?.let { onCreateCollection(it.key) }
+                        },
+                        onFindPaper = { entry ->
+                            onSelectCollection(entry.id)
+                            onFindPaper()
                         },
                         onNewItem = { entry ->
                             onSelectCollection(entry.id)
@@ -2057,6 +2097,7 @@ private fun LibraryHeader(
     onFindPaper: () -> Unit,
     onAddManually: () -> Unit,
     onCreateZoteroItem: (() -> Unit)? = null,
+    onCreateZoteroCollection: (() -> Unit)? = null,
 ) {
     var addMenuExpanded by remember { mutableStateOf(false) }
     WorkspaceHeader(
@@ -2120,7 +2161,7 @@ private fun LibraryHeader(
                         )
                     } else {
                         DropdownMenuItem(
-                            text = { Text("Add paper to Zotero") },
+                            text = { Text("Add paper") },
                             leadingIcon = {
                                 Icon(
                                     painterResource(Res.drawable.filled_add),
@@ -2136,14 +2177,14 @@ private fun LibraryHeader(
                     }
                 }
             }
-            if (source == LibrarySource.LOCAL) {
-                HeaderAction(
-                    label = "New collection",
-                    icon = Res.drawable.filled_create_new_folder,
-                    onClick = onNewFolder,
-                    primary = false,
-                )
-            }
+            HeaderAction(
+                label = "New collection",
+                icon = Res.drawable.filled_create_new_folder,
+                onClick = if (source == LibrarySource.LOCAL) onNewFolder else {
+                    onCreateZoteroCollection ?: {}
+                },
+                primary = false,
+            )
         },
         tools = {
             Row(
@@ -2657,7 +2698,7 @@ private fun FolderActions(
             }
             onNewItem?.let { onCreateItem ->
                 DropdownMenuItem(
-                    text = { Text("Add paper") },
+                    text = { Text("New item manually") },
                     leadingIcon = {
                         Icon(
                             painterResource(Res.drawable.filled_add),
