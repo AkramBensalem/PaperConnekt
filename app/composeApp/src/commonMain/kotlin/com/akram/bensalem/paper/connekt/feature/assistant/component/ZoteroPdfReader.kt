@@ -235,6 +235,7 @@ fun ZoteroPdfReader(
     var readMode by remember(state.target) { mutableStateOf(false) }
     var showAnnotations by remember(state.target) { mutableStateOf(false) }
     var sidebarVisible by remember { mutableStateOf(true) }
+    var sidebarWidth by remember(state.target) { mutableStateOf(340.dp) }
     var showSearch by remember(state.target) { mutableStateOf(false) }
     var showPagePicker by remember { mutableStateOf(false) }
     var fitPage by remember { mutableStateOf(false) }
@@ -972,11 +973,36 @@ fun ZoteroPdfReader(
         }
         if (wide && sidebarVisible && !focusMode) {
             VerticalDivider()
-            Surface(Modifier.width(340.dp).fillMaxHeight(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
-                Box(Modifier.fillMaxSize().padding(16.dp)) {
-                    if (supportingContent != null) supportingContent(!readingLocked)
-                    else ReaderAnnotationPane(viewModel, allowEditing = !readingLocked)
+            val minSidebarWidth = 280.dp
+            val maxSidebarWidth = (maxWidth / 2f).coerceAtLeast(minSidebarWidth)
+            val resolvedSidebarWidth = sidebarWidth.coerceIn(minSidebarWidth, maxSidebarWidth)
+            Box(Modifier.width(resolvedSidebarWidth).fillMaxHeight()) {
+                Surface(
+                    Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow
+                ) {
+                    Box(Modifier.fillMaxSize().padding(16.dp)) {
+                        if (supportingContent != null) supportingContent(!readingLocked)
+                        else ReaderAnnotationPane(viewModel, allowEditing = !readingLocked)
+                    }
                 }
+                Box(
+                    Modifier
+                        .align(Alignment.CenterStart)
+                        .width(12.dp)
+                        .fillMaxHeight()
+                        .pointerHoverIcon(PointerIcon.ColResize)
+                        .pointerInput(maxWidth) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                val dragWidth = with(density) { dragAmount.x.toDp() }
+                                sidebarWidth = (sidebarWidth - dragWidth)
+                                    .coerceIn(minSidebarWidth, maxSidebarWidth)
+                            }
+                        }
+                        .semantics { contentDescription = "Resize sidebar" }
+                        .testTag("reader-sidebar-resize-handle")
+                )
             }
         }
         }

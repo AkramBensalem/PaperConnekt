@@ -12,7 +12,20 @@ data class AppSettings(
     val openAlexDiscoveryEnabled: Boolean = false,
     val selectedTheme: ThemePreference = ThemePreference.SYSTEM,
     val libraryUiState: LibraryUiState = LibraryUiState(),
+    val zoteroLibraryCache: ZoteroLibraryCache = ZoteroLibraryCache(),
     val pdfReadingPositions: Map<String, SavedPdfReadingPosition> = emptyMap(),
+)
+
+@Serializable
+data class ZoteroLibraryCache(
+    val accountKey: String = "",
+    val groupsJson: String = "",
+    val collectionsJson: String = "",
+    val itemsJson: String = "",
+    val attachmentsJson: String = "",
+    val syncState: String = "IDLE",
+    val lastSyncedAtEpochMillis: Long? = null,
+    val error: String? = null,
 )
 
 @Serializable

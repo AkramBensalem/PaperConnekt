@@ -62,6 +62,7 @@ import com.paperconnekt.domain.model.LibraryEntry
 import com.paperconnekt.domain.model.LibraryEntryKind
 import com.paperconnekt.domain.model.LibraryUiState
 import com.paperconnekt.domain.model.Paper
+import com.paperconnekt.domain.model.ZoteroLibraryCache
 import com.paperconnekt.secrets.SecretKey
 import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.LocalResearchStore
@@ -74,7 +75,12 @@ import com.akram.bensalem.paper.connekt.feature.assistant.ZoteroPdfTarget
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.random.Random
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.filled_add
 import com.paperconnekt.app.resources.filled_archive
@@ -82,6 +88,7 @@ import com.paperconnekt.app.resources.filled_attach_file
 import com.paperconnekt.app.resources.filled_check_circle
 import com.paperconnekt.app.resources.filled_chevron_right
 import com.paperconnekt.app.resources.filled_close
+import com.paperconnekt.app.resources.filled_cloud_done
 import com.paperconnekt.app.resources.filled_create_new_folder
 import com.paperconnekt.app.resources.filled_delete
 import com.paperconnekt.app.resources.filled_delete_outline
@@ -93,6 +100,8 @@ import com.paperconnekt.app.resources.filled_more_horiz
 import com.paperconnekt.app.resources.filled_picture_as_pdf
 import com.paperconnekt.app.resources.filled_restore_from_trash
 import com.paperconnekt.app.resources.filled_search
+import com.paperconnekt.app.resources.filled_sync
+import com.paperconnekt.app.resources.filled_sync_problem
 import com.paperconnekt.app.resources.filled_unpublished
 import com.paperconnekt.app.resources.research_graph_empty
 import org.jetbrains.compose.resources.painterResource
@@ -115,6 +124,31 @@ private data class ZoteroLibraryPaper(
 )
 
 private const val LIBRARY_PAGE_SIZE = 10
+private const val ZOTERO_SYNC_IDLE = "IDLE"
+private const val ZOTERO_SYNCING = "SYNCING"
+private const val ZOTERO_SYNCED = "SYNCED"
+private const val ZOTERO_SYNC_ERROR = "ERROR"
+
+private val zoteroCacheJson = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+}
+
+private inline fun <reified T> decodeZoteroCache(value: String): T =
+    zoteroCacheJson.decodeFromString(value)
+
+private fun decodeZoteroPapers(cache: ZoteroLibraryCache): List<ZoteroLibraryPaper> {
+    if (cache.itemsJson.isBlank()) return emptyList()
+    val items = decodeZoteroCache<List<ZoteroItem>>(cache.itemsJson)
+    val attachments = cache.attachmentsJson
+        .takeIf(String::isNotBlank)
+        ?.let { decodeZoteroCache<List<ZoteroItem>>(it) }
+        .orEmpty()
+        .groupBy { it.data.parentItem }
+    return items.map { item ->
+        ZoteroLibraryPaper(item, attachments[item.key].orEmpty().firstOrNull())
+    }
+}
 
 @Composable
 fun LibraryScreen(
@@ -143,6 +177,8 @@ fun LibraryScreen(
     var zoteroPapers by remember { mutableStateOf<List<ZoteroLibraryPaper>>(emptyList()) }
     var zoteroLoading by remember { mutableStateOf(false) }
     var zoteroError by remember { mutableStateOf<String?>(null) }
+    var zoteroSyncState by remember { mutableStateOf(ZOTERO_SYNC_IDLE) }
+    var zoteroLastSyncedAt by remember { mutableStateOf<Long?>(null) }
     var selectedZoteroCollectionKey by remember { mutableStateOf(savedLibraryState.selectedZoteroCollectionKey) }
     var expandedZoteroCollectionIds by remember {
         mutableStateOf(savedLibraryState.expandedZoteroCollectionIds.toSet())
@@ -225,6 +261,34 @@ fun LibraryScreen(
         }
     }
 
+    val zoteroAccountKey = "${settings.zoteroUserId}:${settings.zoteroLibraryId}:${selectedZoteroGroupId ?: "personal"}"
+
+    LaunchedEffect(source, zoteroAccountKey, settings.zoteroLibraryCache) {
+        if (source != LibrarySource.ZOTERO) return@LaunchedEffect
+        val cache = settings.zoteroLibraryCache.takeIf { it.accountKey == zoteroAccountKey }
+        if (cache == null) {
+            zoteroGroups = emptyList()
+            zoteroCollections = emptyList()
+            zoteroPapers = emptyList()
+            zoteroSyncState = ZOTERO_SYNC_IDLE
+            zoteroLastSyncedAt = null
+            return@LaunchedEffect
+        }
+        runCatching {
+            zoteroGroups = decodeZoteroCache<List<ZoteroGroup>>(cache.groupsJson)
+            zoteroCollections = decodeZoteroCache<List<ZoteroCollection>>(cache.collectionsJson)
+            zoteroPapers = decodeZoteroPapers(cache)
+        }.onFailure { error ->
+            io.github.aakira.napier.Napier.e("Could not read cached Zotero Library", error)
+            zoteroError = "Saved Zotero results could not be read. Refresh to rebuild the cache."
+        }
+        zoteroSyncState = cache.syncState
+        zoteroLastSyncedAt = cache.lastSyncedAtEpochMillis
+        if (cache.syncState == ZOTERO_SYNC_ERROR) {
+            zoteroError = cache.error
+        }
+    }
+
     LaunchedEffect(source, settings.zoteroEnabled, settings.zoteroUserId, settings.zoteroLibraryId) {
         if (source != LibrarySource.ZOTERO) return@LaunchedEffect
         zoteroError = null
@@ -243,9 +307,11 @@ fun LibraryScreen(
             return@LaunchedEffect
         }
         try {
-            zoteroGroups = zoteroClient.listGroups(
-                ZoteroConfig(apiKey = apiKey, userId = settings.zoteroUserId),
-            )
+            zoteroGroups = withContext(Dispatchers.Default) {
+                zoteroClient.listGroups(
+                    ZoteroConfig(apiKey = apiKey, userId = settings.zoteroUserId),
+                )
+            }
             if (selectedZoteroGroupId != null &&
                 zoteroGroups.none { it.id.toString() == selectedZoteroGroupId }
             ) {
@@ -264,34 +330,89 @@ fun LibraryScreen(
         if (source != LibrarySource.ZOTERO) return@LaunchedEffect
         val apiKey = secretStore.read(SecretKey.ZOTERO).orEmpty()
         if (!settings.zoteroEnabled || apiKey.isBlank() || settings.zoteroUserId.isBlank()) return@LaunchedEffect
-        zoteroLoading = true
+        val accountKey = "${settings.zoteroUserId}:${settings.zoteroLibraryId}:${selectedZoteroGroupId ?: "personal"}"
+        val hasCachedResults = zoteroPapers.isNotEmpty() || zoteroCollections.isNotEmpty()
+        zoteroLoading = !hasCachedResults
+        zoteroSyncState = ZOTERO_SYNCING
+        withContext(Dispatchers.Default) {
+            store.updateSettings { current ->
+                val existing = current.zoteroLibraryCache
+                val sameAccount = existing.accountKey == accountKey
+                current.copy(
+                    zoteroLibraryCache = existing.copy(
+                        accountKey = accountKey,
+                        groupsJson = if (sameAccount) existing.groupsJson else "",
+                        collectionsJson = if (sameAccount) existing.collectionsJson else "",
+                        itemsJson = if (sameAccount) existing.itemsJson else "",
+                        attachmentsJson = if (sameAccount) existing.attachmentsJson else "",
+                        syncState = ZOTERO_SYNCING,
+                        error = null,
+                    ),
+                )
+            }
+        }
         try {
             val config = ZoteroConfig(
                 apiKey = apiKey,
                 userId = settings.zoteroUserId,
                 groupId = selectedZoteroGroupId,
             )
-            val topLevelItems = zoteroClient.listLibraryItems(config)
-                .filter { it.data.itemType != "attachment" }
-            val attachmentsByParent = zoteroClient.listAttachments(config)
-                .filter { attachment ->
-                    attachment.data.parentItem != null &&
-                        (attachment.data.contentType.equals("application/pdf", ignoreCase = true) ||
-                            attachment.data.filename?.endsWith(".pdf", ignoreCase = true) == true)
-                }
-                .groupBy { it.data.parentItem }
-            zoteroCollections = zoteroClient.listCollections(config)
+            val result = withContext(Dispatchers.Default) {
+                val topLevelItems = zoteroClient.listLibraryItems(config)
+                    .filter { it.data.itemType != "attachment" }
+                val attachments = zoteroClient.listAttachments(config)
+                    .filter { attachment ->
+                        attachment.data.parentItem != null &&
+                            (attachment.data.contentType.equals("application/pdf", ignoreCase = true) ||
+                                attachment.data.filename?.endsWith(".pdf", ignoreCase = true) == true)
+                    }
+                val collections = zoteroClient.listCollections(config)
+                Triple(topLevelItems, attachments, collections)
+            }
+            val (topLevelItems, attachments, collections) = result
+            val attachmentsByParent = attachments.groupBy { it.data.parentItem }
+            zoteroCollections = collections
             val collectionKeys = zoteroCollections.map(ZoteroCollection::key).toSet()
             selectedZoteroCollectionKey = selectedZoteroCollectionKey?.takeIf(collectionKeys::contains)
             expandedZoteroCollectionIds = expandedZoteroCollectionIds.filterTo(mutableSetOf(), collectionKeys::contains)
             zoteroPapers = topLevelItems.map { item ->
                 ZoteroLibraryPaper(item, attachmentsByParent[item.key].orEmpty().firstOrNull())
             }
+            zoteroSyncState = ZOTERO_SYNCED
+            zoteroLastSyncedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+            zoteroError = null
+            withContext(Dispatchers.Default) {
+                store.updateSettings { current ->
+                    current.copy(
+                        zoteroLibraryCache = ZoteroLibraryCache(
+                            accountKey = accountKey,
+                            groupsJson = zoteroCacheJson.encodeToString(zoteroGroups),
+                            collectionsJson = zoteroCacheJson.encodeToString(zoteroCollections),
+                            itemsJson = zoteroCacheJson.encodeToString(topLevelItems),
+                            attachmentsJson = zoteroCacheJson.encodeToString(attachments),
+                            syncState = ZOTERO_SYNCED,
+                            lastSyncedAtEpochMillis = zoteroLastSyncedAt,
+                        ),
+                    )
+                }
+            }
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (error: Exception) {
             io.github.aakira.napier.Napier.e("Could not load Zotero Library", error)
             zoteroError = error.message ?: "Could not load your Zotero library."
+            zoteroSyncState = ZOTERO_SYNC_ERROR
+            withContext(Dispatchers.Default) {
+                store.updateSettings { current ->
+                    current.copy(
+                        zoteroLibraryCache = current.zoteroLibraryCache.copy(
+                            accountKey = accountKey,
+                            syncState = ZOTERO_SYNC_ERROR,
+                            error = zoteroError,
+                        ),
+                    )
+                }
+            }
         } finally {
             zoteroLoading = false
         }
@@ -411,6 +532,8 @@ fun LibraryScreen(
                     query = query,
                     loading = zoteroLoading,
                     error = zoteroError,
+                    syncState = zoteroSyncState,
+                    lastSyncedAt = zoteroLastSyncedAt,
                     page = zoteroPage,
                     onPageChange = { zoteroPage = it },
                     groups = zoteroGroups,
@@ -864,6 +987,8 @@ private fun ZoteroLibraryContent(
     query: String,
     loading: Boolean,
     error: String?,
+    syncState: String,
+    lastSyncedAt: Long?,
     page: Int,
     onPageChange: (Int) -> Unit,
     groups: List<ZoteroGroup>,
@@ -947,11 +1072,14 @@ private fun ZoteroLibraryContent(
                         showCreateCollection = false,
                         showArchive = false,
                         headerAction = {
-                            ZoteroGroupSelector(
-                                groups = groups,
-                                selectedGroupName = selectedGroupName,
-                                onSelectGroup = onSelectGroup,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                ZoteroGroupSelector(
+                                    groups = groups,
+                                    selectedGroupName = selectedGroupName,
+                                    onSelectGroup = onSelectGroup,
+                                )
+                                ZoteroSyncIndicator(syncState, lastSyncedAt, onRefresh)
+                            }
                         },
                     )
                     ZoteroPaperList(
@@ -989,11 +1117,14 @@ private fun ZoteroLibraryContent(
                         showCreateCollection = false,
                         showArchive = false,
                         headerAction = {
-                            ZoteroGroupSelector(
-                                groups = groups,
-                                selectedGroupName = selectedGroupName,
-                                onSelectGroup = onSelectGroup,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                ZoteroGroupSelector(
+                                    groups = groups,
+                                    selectedGroupName = selectedGroupName,
+                                    onSelectGroup = onSelectGroup,
+                                )
+                                ZoteroSyncIndicator(syncState, lastSyncedAt, onRefresh)
+                            }
                         },
                     )
                     ZoteroPaperList(
@@ -1028,6 +1159,7 @@ private fun ZoteroGroupSelector(
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
+
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
@@ -1049,6 +1181,41 @@ private fun ZoteroGroupSelector(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ZoteroSyncIndicator(
+    syncState: String,
+    lastSyncedAt: Long?,
+    onRefresh: () -> Unit,
+) {
+    val syncing = syncState == ZOTERO_SYNCING
+    val failed = syncState == ZOTERO_SYNC_ERROR
+    IconButton(
+        onClick = onRefresh,
+        enabled = !syncing,
+    ) {
+        Icon(
+            painter = painterResource(
+                when {
+                    syncing -> Res.drawable.filled_sync
+                    failed -> Res.drawable.filled_sync_problem
+                    else -> Res.drawable.filled_cloud_done
+                },
+            ),
+            contentDescription = when {
+                syncing -> "Zotero synchronization in progress"
+                failed -> "Zotero synchronization failed; retry"
+                lastSyncedAt != null -> "Zotero synchronized; refresh"
+                else -> "Synchronize Zotero library"
+            },
+            tint = when {
+                syncing -> MaterialTheme.colorScheme.primary
+                failed -> MaterialTheme.colorScheme.error
+                else -> MaterialTheme.colorScheme.primary
+            },
+        )
     }
 }
 
@@ -1075,7 +1242,7 @@ private fun ZoteroPaperList(
             loading -> {
                 androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
             }
-            error != null -> {
+            error != null && papers.isEmpty() -> {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                     Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
@@ -1087,6 +1254,13 @@ private fun ZoteroPaperList(
                 LibraryNotice("No Zotero items match this view.")
             }
             else -> {
+                if (error != null) {
+                    Text(
+                        error,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 val pageCount = (papers.size + LIBRARY_PAGE_SIZE - 1) / LIBRARY_PAGE_SIZE
                 val currentPage = page.coerceIn(0, (pageCount - 1).coerceAtLeast(0))
                 Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
