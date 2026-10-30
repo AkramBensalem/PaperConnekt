@@ -265,15 +265,57 @@ private fun AgentComposer(
     preview: Boolean,
     onPreviewChange: (Boolean) -> Unit,
 ) {
-    val send = { agent.send() }
     val pageCount = state.readerPageCount.coerceAtLeast(1)
     BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val compact = maxWidth < 520.dp
+        val constrained = compact || maxHeight < 620.dp
+        var composerExpanded by remember { mutableStateOf(false) }
+        val send = {
+            agent.send()
+            if (constrained) composerExpanded = false
+        }
+        if (constrained && !composerExpanded && agent.input.isBlank() && !preview) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                onClick = { composerExpanded = true },
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.filled_chat_bubble_outline),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        "Ask about this paper…",
+                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                    )
+                    Icon(
+                        painterResource(Res.drawable.filled_expand_more),
+                        contentDescription = "Expand message composer",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        } else {
         val editorMinHeight = when {
+            compact -> 76.dp
             maxHeight < 420.dp -> 96.dp
             maxWidth < 400.dp -> 116.dp
             else -> 150.dp
         }
         val editorMaxHeight = when {
+            compact -> 132.dp
             maxHeight < 420.dp -> 170.dp
             maxWidth < 400.dp -> 210.dp
             else -> 260.dp
@@ -285,7 +327,9 @@ private fun AgentComposer(
             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         ) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Context", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+            if (!compact) {
+                Text("Context", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+            }
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -320,7 +364,11 @@ private fun AgentComposer(
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Message", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                if (!compact) {
+                    Text("Message", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
                 TextButton(
                     onClick = { onPreviewChange(!preview) },
                     modifier = Modifier.height(32.dp).interactivePointer(),
@@ -370,12 +418,16 @@ private fun AgentComposer(
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Markdown supported · Ctrl/⌘ + Enter to send",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
+                if (!compact) {
+                    Text(
+                        "Markdown supported · Ctrl/⌘ + Enter to send",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
                 if (agent.running) {
                     FilledTonalButton(onClick = agent::stop, modifier = Modifier.interactivePointer()) {
                         Icon(painterResource(Res.drawable.filled_stop), "Stop", Modifier.size(18.dp))
@@ -391,8 +443,11 @@ private fun AgentComposer(
                         ).testTag("paper-agent-send"),
                     ) {
                         Icon(painterResource(Res.drawable.filled_send), "Send", Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Send")
+                        if (!compact) {
+                            Spacer(Modifier.width(6.dp))
+                            Text("Send")
+                        }
+                        }
                     }
                 }
             }

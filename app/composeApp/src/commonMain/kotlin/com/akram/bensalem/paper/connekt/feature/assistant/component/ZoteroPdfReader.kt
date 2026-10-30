@@ -1075,6 +1075,8 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                 editMarkdown = true
             }
         }
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+        val compact = maxWidth < 520.dp
         AlertDialog(
             onDismissRequest = viewModel::cancelDraft,
             modifier = Modifier.widthIn(max = 620.dp),
@@ -1100,7 +1102,7 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                         )
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(annotationTitle, style = MaterialTheme.typography.headlineSmall)
+                        Text(annotationTitle, style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall)
                         Text(
                             "Page ${draft.pageIndex + 1} · ${if (draft.editing == null) "New annotation" else "Saved annotation"}",
                             style = MaterialTheme.typography.labelMedium,
@@ -1111,8 +1113,8 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
             },
             text = {
                 Column(
-                    Modifier.heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    Modifier.heightIn(max = if (compact) 420.dp else 560.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 14.dp),
                 ) {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -1121,7 +1123,7 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
                     ) {
                         Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+                            Modifier.fillMaxWidth().padding(horizontal = if (compact) 10.dp else 14.dp, vertical = if (compact) 8.dp else 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
@@ -1147,14 +1149,14 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.18f)),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Column(Modifier.padding(if (compact) 10.dp else 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("Selected text", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
                                     Text("From page ${draft.pageIndex + 1}", style = MaterialTheme.typography.labelSmall)
                                 }
                                 Text(
                                     draft.text,
-                                    maxLines = 6,
+                                    maxLines = if (compact) 4 else 6,
                                     overflow = TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -1249,7 +1251,7 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                                 label = { Text(if (draft.type == "text") "Text" else "Note / comment") },
                                 placeholder = { Text("Write a Markdown note or comment…") },
                                 modifier = Modifier.fillMaxWidth(),
-                                minLines = 6,
+                                minLines = if (compact) 4 else 6,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     unfocusedContainerColor = Color.Transparent,
                                     focusedContainerColor = Color.Transparent,
@@ -1284,7 +1286,7 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                             color = MaterialTheme.colorScheme.surfaceContainer,
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
                         ) {
-                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Column(Modifier.padding(if (compact) 8.dp else 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Row(
                                     Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1412,11 +1414,13 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             Text("Annotation color", style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                "Choose a color that is easy to scan in your PDF.",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            if (!compact) {
+                                Text(
+                                    "Choose a color that is easy to scan in your PDF.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                             Row(
                                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -1444,10 +1448,17 @@ fun AnnotationEditor(viewModel: PdfWorkspaceViewModel, paperAgent: PaperAgentVie
                     enabled = canSave,
                     onClick = viewModel::saveDraft,
                     modifier = Modifier.interactivePointer(enabled = canSave),
-                ) { Text(if (state.localTitle != null) "Save locally & close" else "Save to Zotero & close") }
+                ) {
+                    Text(
+                        if (compact) "Save & close"
+                        else if (state.localTitle != null) "Save locally & close"
+                        else "Save to Zotero & close"
+                    )
+                }
             },
             dismissButton = { TextButton(onClick = viewModel::cancelDraft, modifier = Modifier.interactivePointer()) { Text("Cancel") } }
         )
+        }
     }
 }
 
