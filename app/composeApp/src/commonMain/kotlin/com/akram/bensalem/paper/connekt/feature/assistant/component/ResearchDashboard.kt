@@ -36,6 +36,7 @@ import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageService
 import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageSummary
 import com.akram.bensalem.paper.connekt.feature.assistant.StudiedPaper
 import com.akram.bensalem.paper.connekt.feature.assistant.ZoteroPdfTarget
+import com.paperconnekt.app.resources.filled_schedule
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -447,11 +448,17 @@ fun StudyTimeIndicator(todayMillis: Long, totalMillis: Long) {
 }
 
 fun studyDurationLabel(millis: Long): String {
-    val minutes = millis.coerceAtLeast(0L) / 60_000L
-    if (minutes == 0L) return if (millis > 0L) "<1m" else "0m"
-    val hours = minutes / 60L
-    val remainingMinutes = minutes % 60L
-    return if (hours == 0L) "${minutes}m" else "${hours}h ${remainingMinutes.toString().padStart(2, '0')}m"
+    val totalSeconds = millis.coerceAtLeast(0L) / 1_000L
+    val hours = totalSeconds / 3_600L
+    val minutes = (totalSeconds % 3_600L) / 60L
+    val seconds = totalSeconds % 60L
+    return if (hours > 0L) {
+        "${hours}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s"
+    } else if (minutes > 0L) {
+        "${minutes}m ${seconds.toString().padStart(2, '0')}s"
+    } else {
+        "${seconds}s"
+    }
 }
 
 @Composable

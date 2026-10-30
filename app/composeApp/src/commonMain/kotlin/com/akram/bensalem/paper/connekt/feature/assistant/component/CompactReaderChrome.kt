@@ -199,7 +199,7 @@ internal fun CompactReaderTopBar(
                     text = {
                         Column {
                             Text("Study time")
-                            Text("Today ${studyDurationLabel(studyTimeToday)} · Total ${studyDurationLabel(totalStudyTime)}",
+                            Text("Total ${studyDurationLabel(totalStudyTime)} · Today ${studyDurationLabel(studyTimeToday)}",
                                 style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                         }
                     },

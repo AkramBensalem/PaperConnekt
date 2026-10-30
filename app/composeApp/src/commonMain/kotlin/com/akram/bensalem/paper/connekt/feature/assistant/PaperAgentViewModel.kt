@@ -62,6 +62,8 @@ class PaperAgentViewModel(
         private set
     var includePageContext by mutableStateOf(true)
     var includePaperContext by mutableStateOf(true)
+    var pageContextStart by mutableStateOf(0)
+    var pageContextEnd by mutableStateOf(0)
     var annotationAiRunning by mutableStateOf(false)
         private set
     var annotationAiError by mutableStateOf<String?>(null)
@@ -269,6 +271,8 @@ class PaperAgentViewModel(
                         workspace.state,
                         includePageContext = includePageContext,
                         includePaperContext = includePaperContext,
+                        pageContextStart = pageContextStart,
+                        pageContextEnd = pageContextEnd,
                         ideas = ideas,
                         ideaBoardError = ideaBoardError,
                     ),

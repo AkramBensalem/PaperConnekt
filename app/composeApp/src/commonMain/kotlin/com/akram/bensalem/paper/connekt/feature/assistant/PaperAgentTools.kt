@@ -55,6 +55,7 @@ internal fun ZoteroAnnotation.agentSummary(): String = buildString {
 fun paperAgentSystemPrompt(
     state: PdfWorkspaceState, maxMarkdownChars: Int = 80_000,
     includePageContext: Boolean = true, includePaperContext: Boolean = true,
+    pageContextStart: Int = state.pageIndex, pageContextEnd: Int = pageContextStart,
     ideas: List<Idea>? = null,
     ideaBoardError: String? = null
 ): String = buildString {
@@ -110,10 +111,18 @@ fun paperAgentSystemPrompt(
             }
         }
         includePageContext -> {
-            appendLine("## Current page content (Markdown version produced by OCR)")
-            val currentPage = pages.getOrNull(state.pageIndex)
-            if (currentPage != null) appendLine("<page number=\"${state.pageIndex + 1}\">\n${agentMarkdown(currentPage)}\n</page>")
-            else appendLine("Not available yet${state.markdown.error?.let { " ($it)" } ?: ""}. Call read_pages to load it.")
+            val first = minOf(pageContextStart, pageContextEnd).coerceIn(0, (pages.size - 1).coerceAtLeast(0))
+            val last = maxOf(pageContextStart, pageContextEnd).coerceIn(first, (pages.size - 1).coerceAtLeast(first))
+            appendLine("## Selected page range content (Markdown version produced by OCR)")
+            appendLine("The user selected pages ${first + 1}-${last + 1} as focused reader context.")
+            val selectedPages = pages.takeIf { it.isNotEmpty() }?.subList(first, last + 1)
+            if (selectedPages != null) {
+                selectedPages.forEachIndexed { offset, page ->
+                    appendLine("<page number=\"${first + offset + 1}\">\n${agentMarkdown(page)}\n</page>")
+                }
+            } else {
+                appendLine("Not available yet${state.markdown.error?.let { " ($it)" } ?: ""}. Call read_pages to load it.")
+            }
         }
         else -> appendLine("## Paper content\nThe page and whole-paper content were excluded for this question. Use read_pages or search_paper only if the user asks for paper details.")
     }

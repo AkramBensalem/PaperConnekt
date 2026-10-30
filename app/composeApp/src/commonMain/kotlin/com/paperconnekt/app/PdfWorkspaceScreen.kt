@@ -50,6 +50,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 internal class PdfNavigationGuard {
     var beforeNavigate: ((() -> Unit) -> Unit)? = null
@@ -342,6 +345,7 @@ private fun ZoteroPaperWorkspace(
             workspace.updateConfig(
                 ZoteroConfig(apiKey = apiKey, userId = zoteroUserId, groupId = target.groupId),
             )
+            assistant.updateHistoryAccount(zoteroUserId.trim())
             assistant.selectZoteroPaper(target)
             workspace.open(
                 target,
@@ -389,6 +393,12 @@ private fun ZoteroPaperWorkspace(
             }
             else -> {
                 val state = assistant.state
+                val activeStudy = state.history.papers.firstOrNull {
+                    it.target.attachment.key == target.attachment.key &&
+                        it.target.groupId == target.groupId
+                }
+                val today = Clock.System.now()
+                    .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
                 state.selectedPaper?.let { paper ->
                     Workplace(
                         paper = paper,
@@ -404,6 +414,8 @@ private fun ZoteroPaperWorkspace(
                         ideaError = state.ideaError,
                         ideaBoard = assistant,
                         pdfWorkspace = workspace,
+                        studyTimeToday = activeStudy?.dailyStudyMillis?.get(today) ?: 0L,
+                        totalStudyTime = activeStudy?.totalStudyMillis ?: 0L,
                         secretStore = secretStore,
                         onReadingPositionChanged = { position, zoom ->
                             pendingPosition = SavedPdfReadingPosition(position.pageIndex, position.fraction, zoom)

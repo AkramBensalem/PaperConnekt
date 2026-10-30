@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
@@ -78,12 +80,23 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
         action.ideaId?.let(onOpenIdea) ?: agent.open(action)
     }
     var showEarlier by remember(conversation.id) { mutableStateOf(false) }
+    var previewInput by remember { mutableStateOf(false) }
+    var lastReaderPage by remember { mutableStateOf(state.pageIndex) }
+    var contextInitialized by remember { mutableStateOf(false) }
     val hiddenEarlier = if (showEarlier) 0 else conversation.compactedCount.coerceAtMost(conversation.messages.size)
     val itemCount = agent.messages.size - hiddenEarlier + (if (conversation.compactedCount > 0) 1 else 0) + if (agent.running) 1 else 0
     val storageKey = workspace.paperStorageKey()
     LaunchedEffect(storageKey) { agent.load() }
     val listState = remember(conversation.id, agent.showHistory) { LazyListState((itemCount - 1).coerceAtLeast(0)) }
     LaunchedEffect(itemCount, agent.liveActions.size) { if (itemCount > 0 && !agent.showHistory) listState.animateScrollToItem(itemCount - 1) }
+    LaunchedEffect(state.pageIndex, state.readerPageCount) {
+        if (!contextInitialized || state.pageIndex != lastReaderPage) {
+            agent.pageContextStart = state.pageIndex
+            agent.pageContextEnd = state.pageIndex
+            lastReaderPage = state.pageIndex
+            contextInitialized = true
+        }
+    }
 
     Column(modifier.fillMaxSize().testTag("paper-agent-panel")) {
         agent.storageError?.let { error ->
@@ -116,20 +129,23 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
             Text("Loading saved chats...", style = MaterialTheme.typography.bodySmall)
         }
         AnimatedVisibility(visible = !headerCollapsed) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Icon(painterResource(Res.drawable.filled_auto_awesome), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(6.dp))
                 Text(if (agent.showHistory) "Chat history" else if (agent.messages.isEmpty()) "Research agent" else conversation.title,
                     style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 var modelMenu by remember { mutableStateOf(false) }
                 Box {
-                    AssistChip(
+                    OutlinedButton(
                         onClick = { if (!agent.running) modelMenu = true },
                         enabled = !agent.running,
-                        label = { Text(agent.selectedModel.label) },
-                        leadingIcon = { Icon(painterResource(Res.drawable.filled_tune), null, Modifier.size(16.dp)) },
-                        modifier = Modifier.interactivePointer(enabled = !agent.running),
-                    )
+                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 5.dp),
+                        modifier = Modifier.height(34.dp).interactivePointer(enabled = !agent.running),
+                    ) {
+                        Icon(painterResource(Res.drawable.filled_tune), null, Modifier.size(15.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text(agent.selectedModel.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Icon(painterResource(Res.drawable.filled_expand_more), null, Modifier.size(17.dp))
+                    }
                     DropdownMenu(expanded = modelMenu, onDismissRequest = { modelMenu = false }) {
                         ResearchAgentModels.all.forEach { model ->
                             DropdownMenuItem(
@@ -143,67 +159,35 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                         }
                     }
                 }
-                HeaderButton(painterResource(Res.drawable.filled_add_comment), "New chat", enabled = !agent.running && agent.messages.isNotEmpty(), onClick = agent::newChat)
-                HeaderButton(painterResource(Res.drawable.filled_history), if (agent.showHistory) "Back to chat" else "Chat history", enabled = !agent.running,
-                    selected = agent.showHistory, onClick = { agent.run(PaperAgentCommand.History) })
                 var menu by remember { mutableStateOf(false) }
-                Box {
-                    HeaderButton(painterResource(Res.drawable.filled_more_vert), "More chat actions", enabled = !agent.running && agent.messages.isNotEmpty()) { menu = true }
-                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(text = { Text("Compact conversation") }, enabled = agent.canCompact,
-                            leadingIcon = { Icon(painterResource(Res.drawable.filled_compress), null, Modifier.size(18.dp)) },
-                            onClick = { menu = false; agent.compact() }, modifier = Modifier.interactivePointer(enabled = agent.canCompact))
-                        DropdownMenuItem(text = { Text("Delete conversation") },
-                            leadingIcon = { Icon(painterResource(Res.drawable.filled_delete_outline), null, Modifier.size(18.dp)) },
-                            onClick = { menu = false; agent.deleteConversation(conversation.id) }, modifier = Modifier.interactivePointer())
+                Surface(
+                    shape = RoundedCornerShape(11.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(11.dp)),
+                ) {
+                    Row {
+                        HeaderButton(painterResource(Res.drawable.filled_add_comment), "New chat",
+                            enabled = !agent.running && agent.messages.isNotEmpty(), onClick = agent::newChat)
+                        HeaderButton(painterResource(Res.drawable.filled_history), if (agent.showHistory) "Back to chat" else "Chat history",
+                            enabled = !agent.running, selected = agent.showHistory,
+                            onClick = { agent.run(PaperAgentCommand.History) })
+                        HeaderButton(painterResource(Res.drawable.filled_more_vert), "More chat actions",
+                            enabled = !agent.running && agent.messages.isNotEmpty()) { menu = true }
                     }
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Compact conversation") }, enabled = agent.canCompact,
+                        leadingIcon = { Icon(painterResource(Res.drawable.filled_compress), null, Modifier.size(18.dp)) },
+                        onClick = { menu = false; agent.compact() }, modifier = Modifier.interactivePointer(enabled = agent.canCompact))
+                    DropdownMenuItem(text = { Text("Delete conversation") },
+                        leadingIcon = { Icon(painterResource(Res.drawable.filled_delete_outline), null, Modifier.size(18.dp)) },
+                        onClick = { menu = false; agent.deleteConversation(conversation.id) }, modifier = Modifier.interactivePointer())
                 }
             }
         }
         if (agent.showHistory) {
             ChatHistory(agent, Modifier.weight(1f))
         } else Column(Modifier.weight(1f).fillMaxWidth()) {
-            AnimatedVisibility(visible = !headerCollapsed) {
-                FlowRow(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    ContextChip(painterResource(Res.drawable.filled_description), "Page ${state.pageIndex + 1} of ${state.readerPageCount.coerceAtLeast(1)}")
-                    FilterChip(
-                        selected = agent.includePageContext,
-                        onClick = { agent.includePageContext = !agent.includePageContext },
-                        label = { Text("Page context") },
-                        leadingIcon = { Icon(painterResource(Res.drawable.filled_description), null, Modifier.size(16.dp)) },
-                        trailingIcon = if (agent.includePageContext) {
-                            { Icon(painterResource(Res.drawable.filled_check), null, Modifier.size(16.dp)) }
-                        } else null,
-                        modifier = Modifier.clipChipInteraction().interactivePointer(),
-                    )
-                    FilterChip(
-                        selected = agent.includePaperContext,
-                        onClick = { agent.includePaperContext = !agent.includePaperContext },
-                        label = { Text("Whole paper") },
-                        leadingIcon = { Icon(painterResource(Res.drawable.filled_article), null, Modifier.size(16.dp)) },
-                        trailingIcon = if (agent.includePaperContext) {
-                            { Icon(painterResource(Res.drawable.filled_check), null, Modifier.size(16.dp)) }
-                        } else null,
-                        modifier = Modifier.interactivePointer(),
-                    )
-                    val markdown = state.markdown
-                    when {
-                        markdown.content != null -> ContextChip(painterResource(Res.drawable.filled_article), "Markdown ready")
-                        markdown.busy -> ContextChip(painterResource(Res.drawable.filled_hourglass_top), if (markdown.converting) "Creating Markdown…" else "Loading Markdown…")
-                        markdown.missingApiKey -> ContextChip(painterResource(Res.drawable.filled_key), "Mistral key needed", error = true)
-                        markdown.error != null -> ContextChip(painterResource(Res.drawable.filled_error_outline), "Markdown unavailable", error = true)
-                        else -> ContextChip(painterResource(Res.drawable.filled_article), "Markdown on first question")
-                    }
-                    state.textSelection?.text?.takeIf { it.isNotBlank() && agent.pinned == null }?.let {
-                        ContextChip(painterResource(Res.drawable.filled_text_fields), "Selection: “${it.take(28)}${if (it.length > 28) "…" else ""}”")
-                    }
-                    state.annotations.find { it.key == state.selectedKey }?.let {
-                        ContextChip(painterResource(Res.drawable.filled_bookmark), "Selected ${if (it.isIdea) "idea" else it.type}")
-                    }
-                }
-            }
-
             LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState,
                 verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
                 if (agent.messages.isEmpty() && !agent.running) item {
@@ -263,25 +247,212 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
             }
             val commands = PaperAgentCommand.matching(agent.input)
             if (commands.isNotEmpty()) CommandSuggestions(commands) { agent.input = ""; agent.run(it) }
-            Row(verticalAlignment = Alignment.Bottom) {
-                val send = { agent.send() }
+            AgentComposer(
+                agent = agent,
+                state = state,
+                preview = previewInput,
+                onPreviewChange = { previewInput = it },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AgentComposer(
+    agent: PaperAgentViewModel,
+    state: PdfWorkspaceState,
+    preview: Boolean,
+    onPreviewChange: (Boolean) -> Unit,
+) {
+    val send = { agent.send() }
+    val pageCount = state.readerPageCount.coerceAtLeast(1)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Context", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                ContextChip(painterResource(Res.drawable.filled_description), "Now p. ${state.pageIndex + 1}")
+                PageRangeSelector(agent, pageCount)
+                FilterChip(
+                    selected = agent.includePaperContext,
+                    onClick = { agent.includePaperContext = !agent.includePaperContext },
+                    label = { Text("Full paper") },
+                    leadingIcon = { Icon(painterResource(Res.drawable.filled_article), null, Modifier.size(15.dp)) },
+                    trailingIcon = if (agent.includePaperContext) {
+                        { Icon(painterResource(Res.drawable.filled_check), null, Modifier.size(15.dp)) }
+                    } else null,
+                    modifier = Modifier.height(32.dp).interactivePointer(),
+                )
+            }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                val markdown = state.markdown
+                when {
+                    markdown.content != null -> ContextChip(painterResource(Res.drawable.filled_article), "Markdown ready")
+                    markdown.busy -> ContextChip(painterResource(Res.drawable.filled_hourglass_top), if (markdown.converting) "Creating Markdown…" else "Loading Markdown…")
+                    markdown.missingApiKey -> ContextChip(painterResource(Res.drawable.filled_key), "Mistral key needed", error = true)
+                    markdown.error != null -> ContextChip(painterResource(Res.drawable.filled_error_outline), "Markdown unavailable", error = true)
+                    else -> ContextChip(painterResource(Res.drawable.filled_article), "Markdown on first question")
+                }
+                state.textSelection?.text?.takeIf { it.isNotBlank() && agent.pinned == null }?.let {
+                    ContextChip(painterResource(Res.drawable.filled_text_fields), "Selection: “${it.take(28)}${if (it.length > 28) "…" else ""}”")
+                }
+                state.annotations.find { it.key == state.selectedKey }?.let {
+                    ContextChip(painterResource(Res.drawable.filled_bookmark), "Selected ${if (it.isIdea) "idea" else it.type}")
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Message", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                TextButton(
+                    onClick = { onPreviewChange(!preview) },
+                    modifier = Modifier.height(32.dp).interactivePointer(),
+                ) {
+                    Text(if (preview) "Edit Markdown" else "Preview Markdown")
+                }
+            }
+            if (preview) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp, max = 260.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                ) {
+                    if (agent.input.isBlank()) {
+                        Text(
+                            "Your Markdown preview will appear here.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(14.dp),
+                        )
+                    } else {
+                        ChatMarkdown(
+                            agent.input,
+                            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(14.dp),
+                        )
+                    }
+                }
+            } else {
                 OutlinedTextField(
                     value = agent.input,
                     onValueChange = { agent.input = it },
                     enabled = agent.providerKeyAvailable,
-                    modifier = Modifier.weight(1f).heightIn(max = 160.dp).testTag("paper-agent-input").onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown && event.key == Key.Enter && !event.isShiftPressed) { send(); true } else false
-                    },
-                    placeholder = { Text("Ask, annotate, or type / for commands…") },
-                    shape = RoundedCornerShape(20.dp),
-                    maxLines = 6
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp, max = 260.dp)
+                        .testTag("paper-agent-input")
+                        .onPreviewKeyEvent { event ->
+                            if (event.type == KeyEventType.KeyDown && event.key == Key.Enter &&
+                                (event.isCtrlPressed || event.isMetaPressed)
+                            ) {
+                                send()
+                                true
+                            } else false
+                        },
+                    placeholder = { Text("Write your question in Markdown…") },
+                    shape = RoundedCornerShape(14.dp),
+                    maxLines = 12,
                 )
-                Spacer(Modifier.width(6.dp))
-                if (agent.running) FilledTonalIconButton(onClick = agent::stop, modifier = Modifier.interactivePointer()) {
-                    Icon(painterResource(Res.drawable.filled_stop), "Stop")
-                } else FilledIconButton(onClick = send, enabled = agent.input.isNotBlank() && agent.storageReady && agent.providerKeyAvailable,
-                    modifier = Modifier.interactivePointer(enabled = agent.input.isNotBlank() && agent.storageReady && agent.providerKeyAvailable).testTag("paper-agent-send")) {
-                    Icon(painterResource(Res.drawable.filled_send), "Send")
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Markdown supported · Ctrl/⌘ + Enter to send",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                if (agent.running) {
+                    FilledTonalButton(onClick = agent::stop, modifier = Modifier.interactivePointer()) {
+                        Icon(painterResource(Res.drawable.filled_stop), "Stop", Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Stop")
+                    }
+                } else {
+                    Button(
+                        onClick = send,
+                        enabled = agent.input.isNotBlank() && agent.storageReady && agent.providerKeyAvailable,
+                        modifier = Modifier.interactivePointer(
+                            enabled = agent.input.isNotBlank() && agent.storageReady && agent.providerKeyAvailable
+                        ).testTag("paper-agent-send"),
+                    ) {
+                        Icon(painterResource(Res.drawable.filled_send), "Send", Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Send")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PageRangeSelector(agent: PaperAgentViewModel, pageCount: Int) {
+    var menu by remember { mutableStateOf(false) }
+    var startText by remember { mutableStateOf("") }
+    var endText by remember { mutableStateOf("") }
+    val start = agent.pageContextStart.coerceIn(0, pageCount - 1)
+    val end = agent.pageContextEnd.coerceIn(start, pageCount - 1)
+    Box {
+        FilterChip(
+            selected = agent.includePageContext,
+            onClick = {
+                startText = (start + 1).toString()
+                endText = (end + 1).toString()
+                menu = true
+            },
+            label = { Text("Pages ${start + 1}–${end + 1}") },
+            leadingIcon = { Icon(painterResource(Res.drawable.filled_description), null, Modifier.size(15.dp)) },
+            trailingIcon = { Icon(painterResource(Res.drawable.filled_expand_more), null, Modifier.size(15.dp)) },
+            modifier = Modifier.height(32.dp).interactivePointer(),
+        )
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            Column(Modifier.width(270.dp).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Focused page context", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = startText,
+                        onValueChange = { startText = it.filter(Char::isDigit).take(5) },
+                        label = { Text("From") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = endText,
+                        onValueChange = { endText = it.filter(Char::isDigit).take(5) },
+                        label = { Text("To") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Include selected pages", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    Switch(checked = agent.includePageContext, onCheckedChange = { agent.includePageContext = it })
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { menu = false }, modifier = Modifier.interactivePointer()) { Text("Cancel") }
+                    Button(
+                        onClick = {
+                            val from = startText.toIntOrNull()?.coerceIn(1, pageCount)
+                            val to = endText.toIntOrNull()?.coerceIn(1, pageCount)
+                            if (from != null && to != null) {
+                                agent.pageContextStart = minOf(from, to) - 1
+                                agent.pageContextEnd = maxOf(from, to) - 1
+                                agent.includePageContext = true
+                                menu = false
+                            }
+                        },
+                        enabled = startText.toIntOrNull() != null && endText.toIntOrNull() != null,
+                        modifier = Modifier.interactivePointer(
+                            enabled = startText.toIntOrNull() != null && endText.toIntOrNull() != null
+                        ),
+                    ) { Text("Apply") }
                 }
             }
         }

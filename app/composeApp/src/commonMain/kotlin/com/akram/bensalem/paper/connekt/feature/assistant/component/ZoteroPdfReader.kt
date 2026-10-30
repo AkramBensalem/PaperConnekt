@@ -997,7 +997,7 @@ fun ZoteroPdfReader(
                     Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.surfaceContainerLow
                 ) {
-                    Box(Modifier.fillMaxSize().padding(16.dp)) {
+                    Box(Modifier.fillMaxSize().padding(start = 24.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)) {
                         if (supportingContent != null) supportingContent(!readingLocked)
                         else ReaderAnnotationPane(viewModel, allowEditing = !readingLocked)
                     }
@@ -1007,6 +1007,8 @@ fun ZoteroPdfReader(
                         .align(Alignment.CenterStart)
                         .width(12.dp)
                         .fillMaxHeight()
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         .pointerHoverIcon(PointerIcon.Hand)
                         .pointerInput(readerWidth) {
                             detectDragGestures { change, dragAmount ->
@@ -1018,7 +1020,16 @@ fun ZoteroPdfReader(
                         }
                         .semantics { contentDescription = "Resize sidebar" }
                         .testTag("reader-sidebar-resize-handle")
-                )
+                ) {
+                    Box(
+                        Modifier
+                            .align(Alignment.Center)
+                            .width(3.dp)
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.outline)
+                    )
+                }
             }
         }
         }
