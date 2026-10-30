@@ -62,6 +62,41 @@ class AndroidPdfAttachmentStorage(context: Context) : PdfAttachmentStorage {
         file.readBytes().also(::requirePdfHeader)
     }
 
+    private fun cachedPdfFile(key: String): File {
+        val hash = MessageDigest.getInstance("SHA-256").digest(key.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+        return File(File(directory, "zotero-cache"), "$hash.pdf")
+    }
+
+    override suspend fun readCachedPdf(key: String): ByteArray? = withContext(Dispatchers.IO) {
+        cachedPdfFile(key).takeIf { it.isFile }?.let { file ->
+            try {
+                file.readBytes().also(::requirePdfHeader)
+            } catch (error: Exception) {
+                Files.deleteIfExists(file.toPath())
+                null
+            }
+        }
+    }
+
+    override suspend fun writeCachedPdf(key: String, bytes: ByteArray) = withContext(Dispatchers.IO) {
+        requirePdfHeader(bytes.copyOfRange(0, minOf(bytes.size, 5)))
+        val file = cachedPdfFile(key)
+        Files.createDirectories(file.parentFile.toPath())
+        val temporary = Files.createTempFile(file.parentFile.toPath(), "pdf-", ".tmp")
+        try {
+            Files.write(temporary, bytes)
+            try {
+                Files.move(temporary, file.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
+            } catch (_: AtomicMoveNotSupportedException) {
+                Files.move(temporary, file.toPath(), REPLACE_EXISTING)
+            }
+        } finally {
+            Files.deleteIfExists(temporary)
+        }
+        Unit
+    }
+
     private fun annotationFile(key: String): File {
         val hash = MessageDigest.getInstance("SHA-256").digest(key.toByteArray())
             .joinToString("") { "%02x".format(it) }

@@ -243,8 +243,15 @@ class AssistantViewModel(
             title = item.data.title ?: target.attachment.data.filename ?: "Zotero PDF",
             authors = item.data.creators.map { it.name ?: listOfNotNull(it.firstName, it.lastName).joinToString(" ") },
             abstract = item.data.abstractNote,
+            tags = item.data.tags.map { it.tag },
+            publicationName = item.data.publicationTitle,
             publicationDate = item.data.date,
+            volume = item.data.volume,
+            issue = item.data.issue,
+            pages = item.data.pages,
             doi = item.data.doi,
+            url = item.data.url,
+            filePath = target.attachment.data.filename,
             createdAt = now, updatedAt = now, visitedAt = now
         ))
         state = state.copy(chatMessages = emptyList())

@@ -67,6 +67,7 @@ private fun AppShellContent(
     var destination by remember { mutableStateOf(startDestination) }
     var requestedPaper by remember { mutableStateOf<Paper?>(null) }
     var requestedZoteroTarget by remember { mutableStateOf<ZoteroPdfTarget?>(null) }
+    var pdfWorkspaceFocused by remember { mutableStateOf(false) }
     var requestedGraphId by remember { mutableStateOf<String?>(null) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var showAddPaper by remember { mutableStateOf(false) }
@@ -104,6 +105,7 @@ private fun AppShellContent(
                     }
                     if (destination != target) {
                         pdfNavigation.navigate {
+                            pdfWorkspaceFocused = false
                             destination = target
                         }
                     }
@@ -158,7 +160,34 @@ private fun AppShellContent(
     )
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        if (destination == AppDestination.GRAPH_CANVAS) {
+        if (pdfWorkspaceFocused) {
+            DestinationScreen(
+                destination = AppDestination.ASSISTANT,
+                store = store,
+                secretStore = secretStore,
+                paddingValues = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                onNavigate = { destination = it },
+                onPaperSelected = {
+                    requestedPaper = it
+                    pdfWorkspaceFocused = true
+                    destination = AppDestination.ASSISTANT
+                },
+                requestedPaper = requestedPaper,
+                onPaperRequestConsumed = { requestedPaper = null },
+                requestedZoteroTarget = requestedZoteroTarget,
+                onZoteroRequestConsumed = { requestedZoteroTarget = null },
+                onZoteroTargetSelected = {
+                    requestedZoteroTarget = it
+                    pdfWorkspaceFocused = true
+                    destination = AppDestination.ASSISTANT
+                },
+                onPdfWorkspaceOpened = { pdfWorkspaceFocused = true },
+                onPdfWorkspaceClosed = { pdfWorkspaceFocused = false },
+                onGraphSelected = { requestedGraphId = it },
+                requestedGraphId = requestedGraphId,
+                onOpenGraph = ::openPaperGraph,
+            )
+        } else if (destination == AppDestination.GRAPH_CANVAS) {
             // The canvas is a focused workspace. Keep it out of the application
             // navigation rail so it owns the complete available page.
             DestinationScreen(
@@ -169,6 +198,7 @@ private fun AppShellContent(
                 onNavigate = { destination = it },
                 onPaperSelected = {
                     requestedPaper = it
+                    pdfWorkspaceFocused = true
                     destination = AppDestination.ASSISTANT
                 },
                 requestedPaper = requestedPaper,
@@ -177,8 +207,10 @@ private fun AppShellContent(
                 onZoteroRequestConsumed = { requestedZoteroTarget = null },
                 onZoteroTargetSelected = {
                     requestedZoteroTarget = it
+                    pdfWorkspaceFocused = true
                     destination = AppDestination.ASSISTANT
                 },
+                onPdfWorkspaceOpened = { pdfWorkspaceFocused = true },
                 onGraphSelected = { requestedGraphId = it },
                 requestedGraphId = requestedGraphId,
                 onOpenGraph = ::openPaperGraph,
@@ -231,6 +263,7 @@ private fun AppShellContent(
                         onNavigate = { destination = it },
                         onPaperSelected = {
                             requestedPaper = it
+                            pdfWorkspaceFocused = true
                             destination = AppDestination.ASSISTANT
                         },
                         requestedPaper = requestedPaper,
@@ -239,8 +272,10 @@ private fun AppShellContent(
                         onZoteroRequestConsumed = { requestedZoteroTarget = null },
                         onZoteroTargetSelected = {
                             requestedZoteroTarget = it
+                            pdfWorkspaceFocused = true
                             destination = AppDestination.ASSISTANT
                         },
+                        onPdfWorkspaceOpened = { pdfWorkspaceFocused = true },
                         onGraphSelected = { requestedGraphId = it },
                         requestedGraphId = requestedGraphId,
                         onOpenGraph = ::openPaperGraph,
@@ -277,6 +312,7 @@ private fun AppShellContent(
                     onNavigate = { destination = it },
                     onPaperSelected = {
                         requestedPaper = it
+                        pdfWorkspaceFocused = true
                         destination = AppDestination.ASSISTANT
                     },
                     requestedPaper = requestedPaper,
@@ -285,8 +321,10 @@ private fun AppShellContent(
                     onZoteroRequestConsumed = { requestedZoteroTarget = null },
                     onZoteroTargetSelected = {
                         requestedZoteroTarget = it
+                        pdfWorkspaceFocused = true
                         destination = AppDestination.ASSISTANT
                     },
+                    onPdfWorkspaceOpened = { pdfWorkspaceFocused = true },
                     onGraphSelected = { requestedGraphId = it },
                     requestedGraphId = requestedGraphId,
                     onOpenGraph = ::openPaperGraph,

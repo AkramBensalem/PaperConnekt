@@ -153,6 +153,7 @@ private fun LocalPaperWorkspace(
             publicationDate = paper.year?.toString(),
             doi = paper.doi,
             tags = paper.tags,
+            publicationName = paper.source.takeIf { it.isNotBlank() && it != "Local" },
             url = paper.sourceUrl,
             filePath = paper.pdfPath,
             createdAt = 0L,
@@ -281,6 +282,7 @@ private fun ZoteroPaperWorkspace(
     onBack: () -> Unit,
     secretStore: SecretStore?,
 ) {
+    val storage = LocalPdfAttachments.current.storage
     val settings by store.settings.collectAsState()
     val positionKey = "pdf/zotero/$zoteroUserId/${target.groupId ?: "personal"}/${target.attachment.key}"
     val savedPosition = remember(positionKey) { settings.pdfReadingPositions[positionKey] ?: SavedPdfReadingPosition() }
@@ -289,6 +291,7 @@ private fun ZoteroPaperWorkspace(
             mistralApiKey = { secretStore?.read(SecretKey.MISTRAL).orEmpty() },
             openAiApiKey = { secretStore?.read(SecretKey.OPENAI).orEmpty() },
             readingAgent = { createReadingAgent(secretStore) },
+            pdfCache = storage,
         )
     }
     val assistant = viewModel { AssistantViewModel(AssistantRepository()) }

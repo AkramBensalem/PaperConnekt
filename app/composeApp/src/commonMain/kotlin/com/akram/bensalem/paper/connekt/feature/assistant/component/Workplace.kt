@@ -34,6 +34,7 @@ import com.akram.bensalem.paper.connekt.feature.assistant.ReadAloudController
 import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageEvent
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.akram.bensalem.paper.connekt.models.Paper
+import com.paperconnekt.app.resources.filled_article
 import com.paperconnekt.secrets.SecretStore
 
 @Composable
@@ -118,9 +119,12 @@ fun Workplace(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Row(Modifier.padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        panels.forEachIndexed { index, (title, icon) ->
+                        val detailPanels = listOf(
+                            "Details" to painterResource(Res.drawable.filled_article),
+                        ) + panels
+                        detailPanels.forEachIndexed { index, (title, icon) ->
                             val selected = selectedPanel == index
-                            val label = if (index == 0 && hasPdfAnnotations) "Annotations" else title
+                            val label = if (index == 1 && hasPdfAnnotations) "Annotations" else title
                             Surface(
                                 selected = selected,
                                 onClick = { selectedPanel = index },
@@ -147,22 +151,23 @@ fun Workplace(
             }
             Spacer(Modifier.height(if (headerCollapsed) 8.dp else 16.dp))
             when (selectedPanel) {
-                0 -> if (pdfWorkspace != null && hasPdfAnnotations) {
+                0 -> PaperDetailsPanel(paper, Modifier.fillMaxSize())
+                1 -> if (pdfWorkspace != null && hasPdfAnnotations) {
                     AnnotationList(pdfWorkspace, Modifier.fillMaxSize(), ideasOnly = null, headerCollapsed = headerCollapsed,
                         allowEditing = allowEditing)
                 } else {
                     NotesManager(notes, onAddNote, onDeleteNote, headerCollapsed = headerCollapsed)
                 }
-                1 -> if (paperAgent != null && pdfWorkspace != null) PaperAgentPanel(
+                2 -> if (paperAgent != null && pdfWorkspace != null) PaperAgentPanel(
                     paperAgent, pdfWorkspace, headerCollapsed = headerCollapsed,
-                    onOpenIdea = { id -> ideaToOpen = id; selectedPanel = 2 }
+                    onOpenIdea = { id -> ideaToOpen = id; selectedPanel = 3 }
                 )
                 else AiAgentsSection(
                     chatMessages = chatMessages,
                     onSendMessage = onSendMessage,
                     errorMessage = chatError,
                 )
-                2 -> Box(Modifier.fillMaxSize()) {
+                3 -> Box(Modifier.fillMaxSize()) {
                     IdeaOrganizer(
                         ideas = ideas,
                         onAddIdea = onAddIdea,
@@ -184,11 +189,11 @@ fun Workplace(
             paperAgent = paperAgent,
             studyTimeToday = studyTimeToday, totalStudyTime = totalStudyTime,
             onInspectAnnotation = {
-                selectedPanel = 0
+                selectedPanel = 1
             }, onAskAi = {
                 paperAgent?.newChat()
                 paperAgent?.askAbout(pdfWorkspace.state.textSelection, pdfWorkspace.state.pageIndex)
-                selectedPanel = 1
+                selectedPanel = 2
             }, onFocusModeChange = {
                 focusMode = it
                 onFocusModeChange(it)

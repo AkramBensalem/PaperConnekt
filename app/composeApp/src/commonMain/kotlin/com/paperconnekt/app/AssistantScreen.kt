@@ -71,6 +71,7 @@ fun AssistantScreen(
     secretStore: SecretStore? = null,
     initialZoteroTarget: ZoteroPdfTarget? = null,
     onInitialZoteroTargetConsumed: () -> Unit = {},
+    onPdfWorkspaceOpened: () -> Unit = {},
     onPdfWorkspaceClosed: () -> Unit = {},
 ) {
     val sessions by store.assistantSessions.collectAsState()
@@ -81,12 +82,14 @@ fun AssistantScreen(
     var openZoteroTarget by remember { mutableStateOf<ZoteroPdfTarget?>(null) }
     LaunchedEffect(initialPaper) {
         if (initialPaper != null) {
+            onPdfWorkspaceOpened()
             openPaper = initialPaper
             onInitialPaperConsumed()
         }
     }
     LaunchedEffect(initialZoteroTarget) {
         if (initialZoteroTarget != null) {
+            onPdfWorkspaceOpened()
             openZoteroTarget = initialZoteroTarget
             onInitialZoteroTargetConsumed()
         }
@@ -175,7 +178,10 @@ fun AssistantScreen(
                     modifier = Modifier.weight(1f),
                     session = selectedSession,
                     papers = papers,
-                    onOpenPaper = { openPaper = it },
+                    onOpenPaper = {
+                        onPdfWorkspaceOpened()
+                        openPaper = it
+                    },
                     onSessionUpdated = { updated ->
                         scope.launch { store.saveAssistantSession(updated) }
                     },
@@ -221,7 +227,10 @@ fun AssistantScreen(
                         modifier = Modifier.weight(1f),
                         session = selectedSession,
                         papers = papers,
-                        onOpenPaper = { openPaper = it },
+                        onOpenPaper = {
+                            onPdfWorkspaceOpened()
+                            openPaper = it
+                        },
                         onSessionUpdated = { updated ->
                             scope.launch { store.saveAssistantSession(updated) }
                         },

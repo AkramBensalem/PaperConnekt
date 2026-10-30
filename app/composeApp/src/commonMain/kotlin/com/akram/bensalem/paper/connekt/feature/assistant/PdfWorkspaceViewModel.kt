@@ -10,6 +10,7 @@ import com.akram.bensalem.paper.connekt.core.aiassistant.createReadingAgent
 import com.akram.bensalem.paper.connekt.core.settings.createApiKeysStore
 import com.akram.bensalem.paper.connekt.models.ZoteroConfig
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroAnnotation
+import com.paperconnekt.storage.PdfAttachmentStorage
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
@@ -146,6 +147,7 @@ class PdfWorkspaceViewModel(
     private val usageRecorder: suspend (String?, AiUsageEvent) -> Unit = { _, _ -> },
     private val openDocument: suspend (ByteArray) -> PdfDocument = ::openPdfDocument,
     private val localAnnotationStore: LocalPdfAnnotationStore? = null,
+    private val pdfCache: PdfAttachmentStorage? = null,
 ) : ViewModel() {
     var state by mutableStateOf(PdfWorkspaceState())
         private set
@@ -211,6 +213,26 @@ class PdfWorkspaceViewModel(
     private fun paperStorageKey(account: ZoteroConfig, target: ZoteroPdfTarget) =
         "${account.userId}/${account.groupId?.let { "groups/$it/" }.orEmpty()}${target.attachment.key}"
 
+    private suspend fun loadRemotePdf(account: ZoteroConfig, target: ZoteroPdfTarget): ByteArray {
+        val cacheKey = paperStorageKey(account, target)
+        pdfCache?.let { cache ->
+            try {
+                cache.readCachedPdf(cacheKey)?.let { return it }
+            } catch (exception: Exception) {
+                Napier.w("Could not read the cached Zotero PDF; downloading a fresh copy", exception)
+            }
+        }
+        val bytes = repository.download(account, target.attachment)
+        pdfCache?.let { cache ->
+            try {
+                cache.writeCachedPdf(cacheKey, bytes)
+            } catch (exception: Exception) {
+                Napier.w("Could not cache the downloaded Zotero PDF", exception)
+            }
+        }
+        return bytes
+    }
+
     fun updateConfig(value: ZoteroConfig?): Boolean {
         if (config == value) return false
         close()
@@ -234,7 +256,7 @@ class PdfWorkspaceViewModel(
         loadJob = viewModelScope.launch {
             var opened: PdfDocument? = null
             try {
-                val bytes = repository.download(account, target.attachment)
+                val bytes = loadRemotePdf(account, target)
                 if (token == session) pdfBytes = bytes
                 opened = openDocument(bytes)
                 ensureActive()

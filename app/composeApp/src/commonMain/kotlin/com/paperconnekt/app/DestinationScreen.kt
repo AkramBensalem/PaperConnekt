@@ -24,6 +24,7 @@ fun DestinationScreen(
     requestedZoteroTarget: ZoteroPdfTarget? = null,
     onZoteroRequestConsumed: () -> Unit = {},
     onZoteroTargetSelected: (ZoteroPdfTarget) -> Unit = {},
+    onPdfWorkspaceOpened: () -> Unit = {},
     onPdfWorkspaceClosed: () -> Unit = {},
 ) {
     when (destination) {
@@ -43,6 +44,7 @@ fun DestinationScreen(
             secretStore = secretStore,
             initialZoteroTarget = requestedZoteroTarget,
             onInitialZoteroTargetConsumed = onZoteroRequestConsumed,
+            onPdfWorkspaceOpened = onPdfWorkspaceOpened,
             onPdfWorkspaceClosed = onPdfWorkspaceClosed,
         )
         AppDestination.GRAPH -> GraphScreen(

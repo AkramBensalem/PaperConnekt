@@ -46,6 +46,9 @@ import io.ktor.client.request.get
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.parameter
 import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.mistral
+import com.paperconnekt.app.resources.openai
+import com.paperconnekt.app.resources.openalex
 import com.paperconnekt.app.resources.settings
 import com.paperconnekt.app.resources.zotero
 
@@ -233,6 +236,8 @@ fun SettingsScreen(
                             ProviderCredentialCard(
                                 providerName = "OpenAI",
                                 description = "Store an OpenAI API key locally for connected AI features.",
+                                providerIcon = Res.drawable.openai,
+                                providerIconBackground = MaterialTheme.colorScheme.onSurface,
                                 feedback = providerFeedback?.takeIf { it.provider == "OpenAI" }?.message,
                                 feedbackIsError = providerFeedback?.takeIf { it.provider == "OpenAI" }?.isError ?: true,
                                 configured = openAiConfigured,
@@ -283,6 +288,7 @@ fun SettingsScreen(
                             ProviderCredentialCard(
                                 providerName = "Mistral",
                                 description = "Store a Mistral API key locally for OCR and connected AI features.",
+                                providerIcon = Res.drawable.mistral,
                                 feedback = providerFeedback?.takeIf { it.provider == "Mistral" }?.message,
                                 feedbackIsError = providerFeedback?.takeIf { it.provider == "Mistral" }?.isError ?: true,
                                 configured = mistralConfigured,
@@ -463,6 +469,7 @@ fun SettingsScreen(
                         ProviderCredentialCard(
                             providerName = "OpenAlex",
                             description = "Optional personal key for OpenAlex discovery and graph requests.",
+                            providerIcon = Res.drawable.openalex,
                             feedback = providerFeedback?.takeIf { it.provider == "OpenAlex" }?.message,
                             feedbackIsError = providerFeedback?.takeIf { it.provider == "OpenAlex" }?.isError ?: true,
                             configured = openAlexConfigured,

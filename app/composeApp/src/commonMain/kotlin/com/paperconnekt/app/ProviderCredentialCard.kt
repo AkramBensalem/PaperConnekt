@@ -2,16 +2,20 @@ package com.paperconnekt.app
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -27,6 +31,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -56,6 +62,7 @@ internal fun ProviderCredentialCard(
     feedbackIsError: Boolean = true,
     enabled: Boolean = true,
     providerIcon: DrawableResource? = null,
+    providerIconBackground: Color? = null,
 ) {
     var revealed by remember { mutableStateOf(false) }
 
@@ -82,6 +89,7 @@ internal fun ProviderCredentialCard(
                         "$providerName logo"
                     },
                     providerIcon = providerIcon,
+                    providerIconBackground = providerIconBackground,
                 )
                 Spacer(Modifier.width(10.dp))
                 Column(
@@ -206,6 +214,7 @@ internal fun ProviderCredentialCard(
 private fun CredentialIcon(
     contentDescription: String,
     providerIcon: DrawableResource?,
+    providerIconBackground: Color?,
 ) {
     if (providerIcon == null) {
         Icon(
@@ -215,10 +224,25 @@ private fun CredentialIcon(
             modifier = Modifier.size(24.dp),
         )
     } else {
-        Image(
-            painter = painterResource(providerIcon),
-            contentDescription = contentDescription,
-            modifier = Modifier.size(24.dp),
-        )
+        Box(
+            modifier = Modifier
+                .size(width = 40.dp, height = 28.dp)
+                .then(
+                    if (providerIconBackground == null) {
+                        Modifier
+                    } else {
+                        Modifier
+                            .background(providerIconBackground, RoundedCornerShape(6.dp))
+                            .padding(4.dp)
+                    },
+                ),
+        ) {
+            Image(
+                painter = painterResource(providerIcon),
+                contentDescription = contentDescription,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }

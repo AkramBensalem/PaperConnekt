@@ -72,6 +72,8 @@ import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroCollect
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroGroup
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroItem
 import com.akram.bensalem.paper.connekt.feature.assistant.ZoteroPdfTarget
+import com.akram.bensalem.paper.connekt.feature.assistant.component.PaperDetailsPanel
+import com.akram.bensalem.paper.connekt.models.Paper as AssistantPaper
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.NonCancellable
@@ -122,6 +124,53 @@ private data class ZoteroLibraryPaper(
     val item: ZoteroItem,
     val attachment: ZoteroItem?,
 )
+
+private fun ZoteroLibraryPaper.toAssistantPaper(): AssistantPaper {
+    val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+    val authors = item.data.creators.mapNotNull { creator ->
+        creator.name ?: listOfNotNull(creator.firstName, creator.lastName)
+            .joinToString(" ")
+            .takeIf { it.isNotBlank() }
+    }
+    val tags = item.data.tags.map { it.tag }
+    return AssistantPaper(
+        id = "zotero:${item.key}",
+        title = item.data.title ?: attachment?.data?.filename ?: "Untitled Zotero item",
+        authors = authors,
+        abstract = item.data.abstractNote,
+        tags = tags,
+        publicationName = item.data.publicationTitle,
+        publicationDate = item.data.date,
+        volume = item.data.volume,
+        issue = item.data.issue,
+        pages = item.data.pages,
+        doi = item.data.doi,
+        url = item.data.url,
+        filePath = attachment?.data?.filename,
+        createdAt = now,
+        updatedAt = now,
+        visitedAt = now,
+    )
+}
+
+private fun Paper.toAssistantPaper(): AssistantPaper {
+    val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+    return AssistantPaper(
+        id = id,
+        title = title,
+        authors = authors,
+        abstract = abstractText,
+        tags = tags,
+        publicationName = source.takeIf { it.isNotBlank() && !it.equals("Local", ignoreCase = true) },
+        publicationDate = year?.toString(),
+        doi = doi,
+        url = sourceUrl,
+        filePath = pdfPath,
+        createdAt = now,
+        updatedAt = now,
+        visitedAt = now,
+    )
+}
 
 private const val LIBRARY_PAGE_SIZE = 10
 private const val ZOTERO_SYNC_IDLE = "IDLE"
@@ -198,6 +247,7 @@ fun LibraryScreen(
     var movePaper by remember { mutableStateOf<LibraryEntry?>(null) }
     var editPaper by remember { mutableStateOf<Paper?>(null) }
     var selectedPaperId by remember { mutableStateOf<String?>(null) }
+    var selectedZoteroPaperKey by remember { mutableStateOf<String?>(null) }
     var permanentlyDeletePaper by remember { mutableStateOf<Paper?>(null) }
     var expandedFolders by remember { mutableStateOf(savedLibraryState.expandedFolderIds.toSet()) }
     var storageError by remember { mutableStateOf<String?>(null) }
@@ -515,6 +565,8 @@ fun LibraryScreen(
                     onSourceChange = {
                         source = it
                         query = ""
+                        selectedPaperId = null
+                        selectedZoteroPaperKey = null
                     },
                     onNewFolder = { showCreateFolder = true },
                     onFindPaper = { showPaperSearch = true },
@@ -552,6 +604,11 @@ fun LibraryScreen(
                         }
                     },
                     onRefresh = { zoteroRefreshToken++ },
+                    onSelect = { selectedZoteroPaperKey = it.item.key },
+                    selectedPaper = selectedZoteroPaperKey?.let { key ->
+                        zoteroPapers.firstOrNull { it.item.key == key }
+                    },
+                    onCloseDetails = { selectedZoteroPaperKey = null },
                     onOpenPdf = { paper ->
                         paper.attachment?.let { attachment ->
                             onOpenZoteroPdf(
@@ -998,6 +1055,9 @@ private fun ZoteroLibraryContent(
     expandedCollectionIds: Set<String>,
     onToggleCollection: (String) -> Unit,
     onRefresh: () -> Unit,
+    onSelect: (ZoteroLibraryPaper) -> Unit,
+    selectedPaper: ZoteroLibraryPaper?,
+    onCloseDetails: () -> Unit,
     onOpenPdf: (ZoteroLibraryPaper) -> Unit,
 ) {
     val collectionEntries = collections.map { collection ->
@@ -1091,8 +1151,19 @@ private fun ZoteroLibraryContent(
                         page = page,
                         onPageChange = onPageChange,
                         onRefresh = onRefresh,
+                        onSelect = onSelect,
                         onOpenPdf = onOpenPdf,
                     )
+                    selectedPaper?.let { paper ->
+                        Dialog(onDismissRequest = onCloseDetails) {
+                            ZoteroPaperDetailsPane(
+                                modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f),
+                                paper = paper,
+                                onRead = { onOpenPdf(paper) },
+                                onClose = onCloseDetails,
+                            )
+                        }
+                    }
                 }
             } else {
                 Row(
@@ -1136,8 +1207,17 @@ private fun ZoteroLibraryContent(
                         page = page,
                         onPageChange = onPageChange,
                         onRefresh = onRefresh,
+                        onSelect = onSelect,
                         onOpenPdf = onOpenPdf,
                     )
+                    selectedPaper?.let { paper ->
+                        ZoteroPaperDetailsPane(
+                            modifier = Modifier.width(360.dp).fillMaxHeight(),
+                            paper = paper,
+                            onRead = { onOpenPdf(paper) },
+                            onClose = onCloseDetails,
+                        )
+                    }
                 }
             }
         }
@@ -1229,6 +1309,7 @@ private fun ZoteroPaperList(
     page: Int,
     onPageChange: (Int) -> Unit,
     onRefresh: () -> Unit,
+    onSelect: (ZoteroLibraryPaper) -> Unit,
     onOpenPdf: (ZoteroLibraryPaper) -> Unit,
 ) {
     Column(
@@ -1272,7 +1353,7 @@ private fun ZoteroPaperList(
                             papers.drop(currentPage * LIBRARY_PAGE_SIZE).take(LIBRARY_PAGE_SIZE),
                             key = { it.item.key },
                         ) { paper ->
-                            ZoteroPaperCard(paper, onOpenPdf)
+                            ZoteroPaperCard(paper, onSelect, onOpenPdf)
                         }
                     }
                     if (pageCount > 1) {
@@ -1291,9 +1372,11 @@ private fun ZoteroPaperList(
 @Composable
 private fun ZoteroPaperCard(
     paper: ZoteroLibraryPaper,
+    onSelect: (ZoteroLibraryPaper) -> Unit,
     onOpenPdf: (ZoteroLibraryPaper) -> Unit,
 ) {
     Card(
+        onClick = { onSelect(paper) },
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -2102,28 +2185,22 @@ private fun PaperDetailsPane(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            modifier = Modifier.verticalScroll(rememberScrollState()).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxSize().padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Item details", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 IconButton(onClick = onClose) { Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close details") }
             }
-            HorizontalDivider()
-            Icon(
-                painter = if (paper.pdfPath != null) painterResource(Res.drawable.filled_description) else painterResource(Res.drawable.filled_unpublished),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 6.dp),
-            )
-            Text(paper.title, style = MaterialTheme.typography.titleLarge)
-            Text(
-                paper.authors.ifEmpty { listOf("Unknown author") }.joinToString(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onEdit) { Text("Edit") }
+                OutlinedButton(onClick = onEdit) { Text("Edit details") }
+                if (paper.pdfPath != null) {
+                    Button(onClick = onRead) {
+                        Icon(painterResource(Res.drawable.filled_picture_as_pdf), contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Open PDF")
+                    }
+                }
             }
             key(paper.id) {
                 PdfAttachmentCard(
@@ -2132,14 +2209,63 @@ private fun PaperDetailsPane(
                     onOpen = onRead,
                 )
             }
-            HorizontalDivider()
-            DetailLine("Year", paper.year?.toString() ?: "—")
-            DetailLine("DOI", paper.doi ?: "—")
-            DetailLine("Attachment", if (paper.pdfPath != null) "PDF attached" else "No PDF")
-            DetailLine("Status", if (paper.completed) "Completed" else "To read")
-            paper.abstractText?.takeIf { it.isNotBlank() }?.let {
-                Text("Abstract", style = MaterialTheme.typography.labelLarge)
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(modifier = Modifier.weight(1f)) {
+                PaperDetailsPanel(
+                    paper = paper.toAssistantPaper(),
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZoteroPaperDetailsPane(
+    modifier: Modifier,
+    paper: ZoteroLibraryPaper,
+    onRead: () -> Unit,
+    onClose: () -> Unit,
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Zotero item details", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Connected library",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                IconButton(onClick = onClose) {
+                    Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close details")
+                }
+            }
+            if (paper.attachment != null) {
+                Button(onClick = onRead) {
+                    Icon(painterResource(Res.drawable.filled_picture_as_pdf), contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Open PDF")
+                }
+            } else {
+                Text(
+                    "No PDF attachment in Zotero",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                PaperDetailsPanel(
+                    paper = paper.toAssistantPaper(),
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
     }
