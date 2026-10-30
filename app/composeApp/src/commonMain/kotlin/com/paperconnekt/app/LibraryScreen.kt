@@ -40,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -59,7 +60,14 @@ import androidx.compose.ui.window.Dialog
 import com.paperconnekt.domain.model.LibraryEntry
 import com.paperconnekt.domain.model.LibraryEntryKind
 import com.paperconnekt.domain.model.Paper
+import com.paperconnekt.secrets.SecretKey
+import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.LocalResearchStore
+import com.akram.bensalem.paper.connekt.models.ZoteroConfig
+import com.akram.bensalem.paper.connekt.shared.zotero.KtorZoteroClient
+import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroCollection
+import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroGroup
+import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroItem
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import com.paperconnekt.app.resources.Res
@@ -89,16 +97,39 @@ private enum class LibraryView {
     ARCHIVE,
 }
 
+private enum class LibrarySource {
+    LOCAL,
+    ZOTERO,
+}
+
+private data class ZoteroLibraryPaper(
+    val item: ZoteroItem,
+    val attachment: ZoteroItem?,
+)
+
 @Composable
 fun LibraryScreen(
     store: LocalResearchStore,
+    secretStore: SecretStore,
     paddingValues: PaddingValues,
     onOpenPaper: (Paper) -> Unit = {},
     onOpenGraph: (Paper) -> Unit = {},
 ) {
     val entries by store.libraryEntries.collectAsState()
     val papers by store.papers.collectAsState()
+    val settings by store.settings.collectAsState()
     val scope = rememberCoroutineScope()
+    val zoteroClient = remember { KtorZoteroClient() }
+    var source by remember { mutableStateOf(LibrarySource.LOCAL) }
+    var zoteroCollections by remember { mutableStateOf<List<ZoteroCollection>>(emptyList()) }
+    var zoteroGroups by remember { mutableStateOf<List<ZoteroGroup>>(emptyList()) }
+    var zoteroPapers by remember { mutableStateOf<List<ZoteroLibraryPaper>>(emptyList()) }
+    var zoteroLoading by remember { mutableStateOf(false) }
+    var zoteroError by remember { mutableStateOf<String?>(null) }
+    var selectedZoteroCollectionKey by remember { mutableStateOf<String?>(null) }
+    var expandedZoteroCollectionIds by remember { mutableStateOf(emptySet<String>()) }
+    var selectedZoteroGroupId by remember { mutableStateOf<String?>(null) }
+    var zoteroRefreshToken by remember { mutableStateOf(0) }
     var selectedFolderId by remember { mutableStateOf<String?>(null) }
     var view by remember { mutableStateOf(LibraryView.ALL) }
     var query by remember { mutableStateOf("") }
@@ -114,6 +145,71 @@ fun LibraryScreen(
     var showPaperSearch by remember { mutableStateOf(false) }
     var showManualPaper by remember { mutableStateOf(false) }
     var showCollections by remember { mutableStateOf(false) }
+
+    LaunchedEffect(source, settings.zoteroEnabled, settings.zoteroUserId, settings.zoteroLibraryId) {
+        if (source != LibrarySource.ZOTERO) return@LaunchedEffect
+        zoteroError = null
+        if (!settings.zoteroEnabled) {
+            zoteroGroups = emptyList()
+            zoteroCollections = emptyList()
+            zoteroPapers = emptyList()
+            return@LaunchedEffect
+        }
+        val apiKey = secretStore.read(SecretKey.ZOTERO).orEmpty()
+        if (apiKey.isBlank() || settings.zoteroUserId.isBlank()) {
+            zoteroGroups = emptyList()
+            zoteroCollections = emptyList()
+            zoteroPapers = emptyList()
+            zoteroError = "Connect Zotero in Settings before browsing this library."
+            return@LaunchedEffect
+        }
+        try {
+            zoteroGroups = zoteroClient.listGroups(
+                ZoteroConfig(apiKey = apiKey, userId = settings.zoteroUserId),
+            )
+            selectedZoteroGroupId = settings.zoteroLibraryId
+                .takeIf { it.isNotBlank() && it != settings.zoteroUserId }
+                ?.takeIf { savedId -> zoteroGroups.any { it.id.toString() == savedId } }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            io.github.aakira.napier.Napier.e("Could not load Zotero groups", error)
+            zoteroGroups = emptyList()
+            zoteroError = error.message ?: "Could not load your Zotero groups."
+        }
+    }
+
+    LaunchedEffect(source, settings.zoteroEnabled, settings.zoteroUserId, selectedZoteroGroupId, zoteroRefreshToken) {
+        if (source != LibrarySource.ZOTERO) return@LaunchedEffect
+        selectedZoteroCollectionKey = null
+        expandedZoteroCollectionIds = emptySet()
+        val apiKey = secretStore.read(SecretKey.ZOTERO).orEmpty()
+        if (!settings.zoteroEnabled || apiKey.isBlank() || settings.zoteroUserId.isBlank()) return@LaunchedEffect
+        zoteroLoading = true
+        try {
+            val config = ZoteroConfig(
+                apiKey = apiKey,
+                userId = settings.zoteroUserId,
+                groupId = selectedZoteroGroupId,
+            )
+            val topLevelItems = zoteroClient.listLibraryItems(config)
+                .filter { it.data.itemType != "attachment" }
+            val attachmentsByParent = zoteroClient.listAttachments(config)
+                .filter { it.data.parentItem != null }
+                .groupBy { it.data.parentItem }
+            zoteroCollections = zoteroClient.listCollections(config)
+            zoteroPapers = topLevelItems.map { item ->
+                ZoteroLibraryPaper(item, attachmentsByParent[item.key].orEmpty().firstOrNull())
+            }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            io.github.aakira.napier.Napier.e("Could not load Zotero Library", error)
+            zoteroError = error.message ?: "Could not load your Zotero library."
+        } finally {
+            zoteroLoading = false
+        }
+    }
 
     suspend fun addPaper(paper: Paper) {
         if (store.papers.value.none { it.id == paper.id }) {
@@ -198,19 +294,51 @@ fun LibraryScreen(
         Scaffold(
             topBar = {
                 LibraryHeader(
-                    paperCount = activePapers.size,
-                    folderCount = folders.size,
-                    unfiledCount = unfiledCount,
-                    archiveCount = archivedPapers.size,
+                    source = source,
+                    paperCount = if (source == LibrarySource.LOCAL) activePapers.size else zoteroPapers.size,
+                    folderCount = if (source == LibrarySource.LOCAL) folders.size else zoteroCollections.size,
+                    unfiledCount = if (source == LibrarySource.LOCAL) unfiledCount else 0,
+                    archiveCount = if (source == LibrarySource.LOCAL) archivedPapers.size else 0,
                     query = query,
                     onQueryChange = { query = it },
+                    onSourceChange = {
+                        source = it
+                        query = ""
+                    },
                     onNewFolder = { showCreateFolder = true },
                     onFindPaper = { showPaperSearch = true },
                     onAddManually = { showManualPaper = true },
                 )
             },
         ) { contentPadding ->
-            if (compact) {
+            if (source == LibrarySource.ZOTERO) {
+                ZoteroLibraryContent(
+                    modifier = Modifier.fillMaxSize().padding(contentPadding),
+                    enabled = settings.zoteroEnabled,
+                    collections = zoteroCollections,
+                    papers = zoteroPapers,
+                    selectedCollectionKey = selectedZoteroCollectionKey,
+                    query = query,
+                    loading = zoteroLoading,
+                    error = zoteroError,
+                    groups = zoteroGroups,
+                    selectedGroupId = selectedZoteroGroupId,
+                    onSelectGroup = {
+                        selectedZoteroGroupId = it
+                        zoteroError = null
+                    },
+                    onSelectCollection = { selectedZoteroCollectionKey = it },
+                    expandedCollectionIds = expandedZoteroCollectionIds,
+                    onToggleCollection = { collectionKey ->
+                        expandedZoteroCollectionIds = if (collectionKey in expandedZoteroCollectionIds) {
+                            expandedZoteroCollectionIds - collectionKey
+                        } else {
+                            expandedZoteroCollectionIds + collectionKey
+                        }
+                    },
+                    onRefresh = { zoteroRefreshToken++ },
+                )
+            } else if (compact) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -620,13 +748,280 @@ private fun LibraryFolderList(
 }
 
 @Composable
+private fun ZoteroLibraryContent(
+    modifier: Modifier,
+    enabled: Boolean,
+    collections: List<ZoteroCollection>,
+    papers: List<ZoteroLibraryPaper>,
+    selectedCollectionKey: String?,
+    query: String,
+    loading: Boolean,
+    error: String?,
+    groups: List<ZoteroGroup>,
+    selectedGroupId: String?,
+    onSelectGroup: (String?) -> Unit,
+    onSelectCollection: (String?) -> Unit,
+    expandedCollectionIds: Set<String>,
+    onToggleCollection: (String) -> Unit,
+    onRefresh: () -> Unit,
+) {
+    val collectionEntries = collections.map { collection ->
+        LibraryEntry(
+            id = collection.key,
+            label = collection.data.name,
+            parentId = collection.data.parentCollectionKey,
+            kind = LibraryEntryKind.FOLDER,
+        )
+    }
+    val paperEntries = papers.flatMap { paper ->
+        val collectionKeys = paper.item.data.collections.ifEmpty { listOf<String?>(null) }
+        collectionKeys.map { collectionKey ->
+            LibraryEntry(
+                id = "zotero-paper-${paper.item.key}-${collectionKey ?: "unfiled"}",
+                paperId = paper.item.key,
+                parentId = collectionKey,
+                label = paper.item.data.title ?: "Untitled Zotero item",
+                kind = LibraryEntryKind.PAPER,
+            )
+        }
+    }
+    val paperById = papers.associateBy { it.item.key }
+    fun belongsToSelectedCollection(entry: LibraryEntry): Boolean {
+        var parentId = entry.parentId
+        while (parentId != null) {
+            if (parentId == selectedCollectionKey) return true
+            parentId = collectionEntries.firstOrNull { it.id == parentId }?.parentId
+        }
+        return false
+    }
+    val visiblePapers = paperEntries
+        .filter { selectedCollectionKey == null || it.parentId == selectedCollectionKey || belongsToSelectedCollection(it) }
+        .mapNotNull { it.paperId?.let(paperById::get) }
+        .distinctBy { it.item.key }
+        .filter { paper ->
+            query.isBlank() || listOfNotNull(
+                paper.item.data.title,
+                paper.item.data.doi,
+                paper.item.data.abstractNote,
+                paper.item.data.creators.joinToString(" ") { creator ->
+                    creator.name ?: listOfNotNull(creator.firstName, creator.lastName).joinToString(" ")
+                },
+            ).joinToString(" ").contains(query.trim(), ignoreCase = true)
+        }
+    val selectedGroupName = selectedGroupId?.let { id ->
+        groups.firstOrNull { it.id.toString() == id }?.data?.name
+    }
+    Column(
+        modifier = modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        ZoteroGroupSelector(
+            groups = groups,
+            selectedGroupName = selectedGroupName,
+            onSelectGroup = onSelectGroup,
+        )
+        BoxWithConstraints(modifier = Modifier.weight(1f)) {
+            val compact = maxWidth < 900.dp
+            if (compact) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LibraryFolderPane(
+                        modifier = Modifier.fillMaxWidth().height(250.dp),
+                        folders = collectionEntries,
+                        entries = collectionEntries + paperEntries,
+                        selectedFolderId = selectedCollectionKey,
+                        expandedFolders = expandedCollectionIds,
+                        onSelectFolder = onSelectCollection,
+                        onToggleFolder = onToggleCollection,
+                        onNewFolder = {},
+                        onArchive = {},
+                        archiveCount = 0,
+                        archiveSelected = false,
+                        onRename = {},
+                        onDelete = {},
+                        showActions = false,
+                        showCreateCollection = false,
+                        showArchive = false,
+                    )
+                    ZoteroPaperList(
+                        modifier = Modifier.weight(1f),
+                        papers = visiblePapers,
+                        loading = loading,
+                        enabled = enabled,
+                        error = error,
+                        onRefresh = onRefresh,
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(18.dp),
+                ) {
+                    LibraryFolderPane(
+                        modifier = Modifier.width(286.dp),
+                        folders = collectionEntries,
+                        entries = collectionEntries + paperEntries,
+                        selectedFolderId = selectedCollectionKey,
+                        expandedFolders = expandedCollectionIds,
+                        onSelectFolder = onSelectCollection,
+                        onToggleFolder = onToggleCollection,
+                        onNewFolder = {},
+                        onArchive = {},
+                        archiveCount = 0,
+                        archiveSelected = false,
+                        onRename = {},
+                        onDelete = {},
+                        showActions = false,
+                        showCreateCollection = false,
+                        showArchive = false,
+                    )
+                    ZoteroPaperList(
+                        modifier = Modifier.weight(1f),
+                        papers = visiblePapers,
+                        loading = loading,
+                        enabled = enabled,
+                        error = error,
+                        onRefresh = onRefresh,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZoteroGroupSelector(
+    groups: List<ZoteroGroup>,
+    selectedGroupName: String?,
+    onSelectGroup: (String?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        Button(onClick = { expanded = true }) {
+            Text(selectedGroupName ?: "My library")
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text("My library") },
+                onClick = {
+                    expanded = false
+                    onSelectGroup(null)
+                },
+            )
+            groups.forEach { group ->
+                DropdownMenuItem(
+                    text = { Text(group.data.name) },
+                    onClick = {
+                        expanded = false
+                        onSelectGroup(group.id.toString())
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZoteroPaperList(
+    modifier: Modifier,
+    papers: List<ZoteroLibraryPaper>,
+    loading: Boolean,
+    enabled: Boolean,
+    error: String?,
+    onRefresh: () -> Unit,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        when {
+            !enabled -> {
+                LibraryNotice("Enable Zotero in Settings to browse your connected library.")
+            }
+            loading -> {
+                androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+            error != null -> {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
+                        TextButton(onClick = onRefresh) { Text("Retry") }
+                    }
+                }
+            }
+            papers.isEmpty() -> {
+                LibraryNotice("No Zotero papers match this view.")
+            }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(papers, key = { it.item.key }) { paper ->
+                        ZoteroPaperCard(paper)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZoteroPaperCard(paper: ZoteroLibraryPaper) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                paper.item.data.title ?: "Untitled Zotero item",
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val authors = paper.item.data.creators.mapNotNull { creator ->
+                creator.name ?: listOfNotNull(creator.firstName, creator.lastName).joinToString(" ").takeIf { it.isNotBlank() }
+            }
+            if (authors.isNotEmpty()) {
+                Text(authors.joinToString(", "), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(
+                listOfNotNull(paper.item.data.publicationTitle, paper.item.data.date, paper.item.data.doi)
+                    .joinToString(" • ")
+                    .ifBlank { "Zotero item ${paper.item.key}" },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                if (paper.attachment != null) "PDF available in Zotero"
+                else "No PDF attachment",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (paper.attachment != null) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        }
+    }
+}
+
+@Composable
 private fun LibraryHeader(
+    source: LibrarySource,
     paperCount: Int,
     folderCount: Int,
     unfiledCount: Int,
     archiveCount: Int,
     query: String,
     onQueryChange: (String) -> Unit,
+    onSourceChange: (LibrarySource) -> Unit,
     onNewFolder: () -> Unit,
     onFindPaper: () -> Unit,
     onAddManually: () -> Unit,
@@ -634,47 +1029,74 @@ private fun LibraryHeader(
     var addMenuExpanded by remember { mutableStateOf(false) }
     WorkspaceHeader(
         title = "Library",
-        subtitle = "A home for your papers. A starting point for your next idea.",
+        subtitle = if (source == LibrarySource.LOCAL) {
+            "A home for your papers. A starting point for your next idea."
+        } else {
+            "Browse the papers and collections in your connected Zotero library."
+        },
         icon = Res.drawable.filled_folder_open,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
-        summaries = listOf(
-            "$paperCount saved paper${if (paperCount == 1) "" else "s"}",
-            "$folderCount collection${if (folderCount == 1) "" else "s"}",
-            "$unfiledCount unfiled",
-            "$archiveCount archived",
-        ),
-        actions = {
-            Box {
-                HeaderAction(
-                    label = "Add paper",
-                    icon = Res.drawable.filled_add,
-                    onClick = { addMenuExpanded = true },
-                )
-                DropdownMenu(
-                    expanded = addMenuExpanded,
-                    onDismissRequest = { addMenuExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Find on OpenAlex") },
-                        leadingIcon = { Icon(painterResource(Res.drawable.filled_search), contentDescription = null) },
-                        onClick = { addMenuExpanded = false; onFindPaper() },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Add manually") },
-                        leadingIcon = { Icon(painterResource(Res.drawable.filled_description), contentDescription = null) },
-                        onClick = { addMenuExpanded = false; onAddManually() },
-                    )
-                }
+        summaries = buildList {
+            add("$paperCount paper${if (paperCount == 1) "" else "s"}")
+            add("$folderCount collection${if (folderCount == 1) "" else "s"}")
+            if (source == LibrarySource.LOCAL) {
+                add("$unfiledCount unfiled")
+                add("$archiveCount archived")
             }
-            HeaderAction(
-                label = "New collection",
-                icon = Res.drawable.filled_create_new_folder,
-                onClick = onNewFolder,
-                primary = false,
-            )
+        },
+        actions = {
+            if (source == LibrarySource.LOCAL) {
+                Box {
+                    HeaderAction(
+                        label = "Add paper",
+                        icon = Res.drawable.filled_add,
+                        onClick = { addMenuExpanded = true },
+                    )
+                    DropdownMenu(
+                        expanded = addMenuExpanded,
+                        onDismissRequest = { addMenuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Find on OpenAlex") },
+                            leadingIcon = { Icon(painterResource(Res.drawable.filled_search), contentDescription = null) },
+                            onClick = { addMenuExpanded = false; onFindPaper() },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Add manually") },
+                            leadingIcon = { Icon(painterResource(Res.drawable.filled_description), contentDescription = null) },
+                            onClick = { addMenuExpanded = false; onAddManually() },
+                        )
+                    }
+                }
+                HeaderAction(
+                    label = "New collection",
+                    icon = Res.drawable.filled_create_new_folder,
+                    onClick = onNewFolder,
+                    primary = false,
+                )
+            }
         },
         tools = {
-            HeaderSearchField(query, onQueryChange, "Search by title, author or DOI")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                WorkspaceFilterChip(
+                    selected = source == LibrarySource.LOCAL,
+                    onClick = { onSourceChange(LibrarySource.LOCAL) },
+                    label = { Text("Local") },
+                )
+                WorkspaceFilterChip(
+                    selected = source == LibrarySource.ZOTERO,
+                    onClick = { onSourceChange(LibrarySource.ZOTERO) },
+                    label = { Text("Zotero") },
+                )
+                HeaderSearchField(
+                    query,
+                    onQueryChange,
+                    if (source == LibrarySource.LOCAL) "Search by title, author or DOI" else "Search your Zotero library",
+                )
+            }
         },
     )
 }
@@ -734,6 +1156,9 @@ private fun LibraryFolderPane(
     onNewSubcollection: (LibraryEntry) -> Unit = {},
     onRename: (LibraryEntry) -> Unit,
     onDelete: (LibraryEntry) -> Unit,
+    showActions: Boolean = true,
+    showCreateCollection: Boolean = true,
+    showArchive: Boolean = true,
 ) {
     Card(
         modifier = modifier.fillMaxSize(),
@@ -761,8 +1186,10 @@ private fun LibraryFolderPane(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = onNewFolder) {
-                    Icon(painterResource(Res.drawable.filled_create_new_folder), contentDescription = "Create collection")
+                if (showCreateCollection) {
+                    IconButton(onClick = onNewFolder) {
+                        Icon(painterResource(Res.drawable.filled_create_new_folder), contentDescription = "Create collection")
+                    }
                 }
             }
             LibraryRootRow(selected = selectedFolderId == null, onClick = { onSelectFolder(null) })
@@ -782,14 +1209,17 @@ private fun LibraryFolderPane(
                         onRename = onRename,
                         onDelete = onDelete,
                         onNewChild = onNewSubcollection,
+                        showActions = showActions,
                     )
                 }
             }
-            HorizontalDivider(
-                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-            )
-            ArchiveRow(count = archiveCount, selected = archiveSelected, onClick = onArchive)
+            if (showArchive) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+                )
+                ArchiveRow(count = archiveCount, selected = archiveSelected, onClick = onArchive)
+            }
         }
     }
 }
@@ -806,6 +1236,7 @@ private fun FolderTreeGroup(
     onRename: (LibraryEntry) -> Unit,
     onDelete: (LibraryEntry) -> Unit,
     onNewChild: (LibraryEntry) -> Unit,
+    showActions: Boolean = true,
 ) {
     Box(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -824,6 +1255,7 @@ private fun FolderTreeGroup(
                     onRename = onRename,
                     onDelete = onDelete,
                     onNewChild = onNewChild,
+                    showActions = showActions,
                 )
             }
         }
@@ -843,6 +1275,7 @@ private fun FolderTreeRow(
     onDelete: (LibraryEntry) -> Unit,
     onNewChild: (LibraryEntry) -> Unit = {},
     depth: Int = 0,
+    showActions: Boolean = true,
 ) {
     val children = allFolders.filter { it.parentId == folder.id }
     val paperCount = allEntries.count { it.kind == LibraryEntryKind.PAPER && it.parentId == folder.id }
@@ -926,11 +1359,13 @@ private fun FolderTreeRow(
                         )
                     }
                 }
-                FolderActions(
-                    onRename = { onRename(folder) },
-                    onDelete = { onDelete(folder) },
-                    onNewChild = { onNewChild(folder) },
-                )
+                if (showActions) {
+                    FolderActions(
+                        onRename = { onRename(folder) },
+                        onDelete = { onDelete(folder) },
+                        onNewChild = { onNewChild(folder) },
+                    )
+                }
             }
         }
         if (folder.id != selectedFolderId) {
@@ -970,6 +1405,7 @@ private fun FolderTreeRow(
                             onDelete = onDelete,
                             onNewChild = onNewChild,
                             depth = depth + 1,
+                            showActions = showActions,
                         )
                     }
                 }

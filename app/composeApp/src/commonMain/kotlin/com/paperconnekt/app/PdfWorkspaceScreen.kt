@@ -38,6 +38,7 @@ import com.akram.bensalem.paper.connekt.models.Paper as AssistantPaper
 import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.secrets.SecretKey
 import com.paperconnekt.secrets.SecretStore
+import com.akram.bensalem.paper.connekt.core.aiassistant.createReadingAgent
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
 
@@ -86,6 +87,7 @@ private fun LocalPaperWorkspace(
         PdfWorkspaceViewModel(
             mistralApiKey = { secretStore?.read(SecretKey.MISTRAL).orEmpty() },
             openAiApiKey = { secretStore?.read(SecretKey.OPENAI).orEmpty() },
+            readingAgent = { createReadingAgent(secretStore) },
             localAnnotationStore = StoredLocalPdfAnnotations(storage),
         )
     }

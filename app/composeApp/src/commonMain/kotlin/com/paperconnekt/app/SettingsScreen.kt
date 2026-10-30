@@ -43,7 +43,7 @@ import com.paperconnekt.storage.LocalResearchStore
 import kotlinx.coroutines.launch
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
-import io.ktor.client.request.header
+import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.parameter
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.settings
@@ -75,6 +75,7 @@ fun SettingsScreen(
     var secretLoadFailed by remember { mutableStateOf(false) }
     var reloadSecretsToken by remember { mutableStateOf(0) }
     var feedback by remember { mutableStateOf<SettingsFeedback?>(null) }
+    var providerFeedback by remember { mutableStateOf<ProviderFeedback?>(null) }
     val uriHandler = LocalUriHandler.current
     val httpClient = remember { HttpClient() }
 
@@ -232,23 +233,26 @@ fun SettingsScreen(
                             ProviderCredentialCard(
                                 providerName = "OpenAI",
                                 description = "Store an OpenAI API key locally for connected AI features.",
+                                feedback = providerFeedback?.takeIf { it.provider == "OpenAI" }?.message,
+                                feedbackIsError = providerFeedback?.takeIf { it.provider == "OpenAI" }?.isError ?: true,
                                 configured = openAiConfigured,
                                 draft = openAiDraft,
                                 onDraftChange = { openAiDraft = it },
                                 onSave = {
-                                    saveSecret(
+                                    validateAndSaveSecret(
                                         scope = scope,
                                         secretStore = secretStore,
                                         key = SecretKey.OPENAI,
                                         draft = openAiDraft,
                                         label = "OpenAI",
+                                        client = httpClient,
                                         onSuccess = {
                                             openAiConfigured = true
                                             openAiDraft = ""
-                                            feedback = SettingsFeedback.Success("OpenAI key saved locally.")
+                                            providerFeedback = ProviderFeedback("OpenAI", "OpenAI key saved locally.", false)
                                         },
                                         onFailure = {
-                                            feedback = SettingsFeedback.Error(it)
+                                            providerFeedback = ProviderFeedback("OpenAI", it, true)
                                         },
                                     )
                                 },
@@ -260,40 +264,45 @@ fun SettingsScreen(
                                         label = "OpenAI",
                                         onSuccess = {
                                             openAiConfigured = false
-                                            feedback = SettingsFeedback.Success("OpenAI was cleared locally.")
+                                            providerFeedback = ProviderFeedback("OpenAI", "OpenAI was cleared locally.", false)
                                         },
                                         onFailure = {
-                                            feedback = SettingsFeedback.Error(it)
+                                            providerFeedback = ProviderFeedback("OpenAI", it, true)
                                         },
-                                        onValidate = {
-                                            validateSecret(scope, secretStore, SecretKey.OPENAI, "OpenAI", httpClient) {
-                                                feedback = SettingsFeedback.Success("OpenAI key is valid.")
-                                            } { feedback = SettingsFeedback.Error(it) }
-                                        },
-                                        onOpenKeyPage = { uriHandler.openUri("https://platform.openai.com/api-keys") },
                                     )
                                 },
+                                onValidate = {
+                                    validateSecret(
+                                        scope, secretStore, SecretKey.OPENAI, "OpenAI", httpClient,
+                                        onSuccess = { providerFeedback = ProviderFeedback("OpenAI", "OpenAI key is valid.", false) },
+                                        onFailure = { providerFeedback = ProviderFeedback("OpenAI", it, true) },
+                                    )
+                                },
+                                onOpenKeyPage = { uriHandler.openUri("https://platform.openai.com/api-keys") },
                             )
                             ProviderCredentialCard(
                                 providerName = "Mistral",
                                 description = "Store a Mistral API key locally for OCR and connected AI features.",
+                                feedback = providerFeedback?.takeIf { it.provider == "Mistral" }?.message,
+                                feedbackIsError = providerFeedback?.takeIf { it.provider == "Mistral" }?.isError ?: true,
                                 configured = mistralConfigured,
                                 draft = mistralDraft,
                                 onDraftChange = { mistralDraft = it },
                                 onSave = {
-                                    saveSecret(
+                                    validateAndSaveSecret(
                                         scope = scope,
                                         secretStore = secretStore,
                                         key = SecretKey.MISTRAL,
                                         draft = mistralDraft,
                                         label = "Mistral",
+                                        client = httpClient,
                                         onSuccess = {
                                             mistralConfigured = true
                                             mistralDraft = ""
-                                            feedback = SettingsFeedback.Success("Mistral key saved locally.")
+                                            providerFeedback = ProviderFeedback("Mistral", "Mistral key saved locally.", false)
                                         },
                                         onFailure = {
-                                            feedback = SettingsFeedback.Error(it)
+                                            providerFeedback = ProviderFeedback("Mistral", it, true)
                                         },
                                     )
                                 },
@@ -305,19 +314,21 @@ fun SettingsScreen(
                                         label = "Mistral",
                                         onSuccess = {
                                             mistralConfigured = false
-                                            feedback = SettingsFeedback.Success("Mistral was cleared locally.")
+                                            providerFeedback = ProviderFeedback("Mistral", "Mistral was cleared locally.", false)
                                         },
                                         onFailure = {
-                                            feedback = SettingsFeedback.Error(it)
+                                            providerFeedback = ProviderFeedback("Mistral", it, true)
                                         },
-                                        onValidate = {
-                                            validateSecret(scope, secretStore, SecretKey.MISTRAL, "Mistral", httpClient) {
-                                                feedback = SettingsFeedback.Success("Mistral key is valid.")
-                                            } { feedback = SettingsFeedback.Error(it) }
-                                        },
-                                        onOpenKeyPage = { uriHandler.openUri("https://console.mistral.ai/api-keys") },
                                     )
                                 },
+                                onValidate = {
+                                    validateSecret(
+                                        scope, secretStore, SecretKey.MISTRAL, "Mistral", httpClient,
+                                        onSuccess = { providerFeedback = ProviderFeedback("Mistral", "Mistral key is valid.", false) },
+                                        onFailure = { providerFeedback = ProviderFeedback("Mistral", it, true) },
+                                    )
+                                },
+                                onOpenKeyPage = { uriHandler.openUri("https://console.mistral.ai/api-keys") },
                             )
                         }
                     }
@@ -391,24 +402,27 @@ fun SettingsScreen(
                         ProviderCredentialCard(
                             providerName = "Zotero",
                             description = "Store the optional Zotero API key on this device.",
+                            feedback = providerFeedback?.takeIf { it.provider == "Zotero" }?.message,
+                            feedbackIsError = providerFeedback?.takeIf { it.provider == "Zotero" }?.isError ?: true,
                             configured = zoteroConfigured,
                             draft = zoteroDraft,
                             providerIcon = Res.drawable.zotero,
                             onDraftChange = { zoteroDraft = it },
                             onSave = {
-                                saveSecret(
+                                validateAndSaveSecret(
                                     scope = scope,
                                     secretStore = secretStore,
                                     key = SecretKey.ZOTERO,
                                     draft = zoteroDraft,
                                     label = "Zotero",
+                                    client = httpClient,
                                     onSuccess = {
                                         zoteroConfigured = true
                                         zoteroDraft = ""
-                                        feedback = SettingsFeedback.Success("Zotero key saved locally.")
+                                        providerFeedback = ProviderFeedback("Zotero", "Zotero key saved locally.", false)
                                     },
                                     onFailure = {
-                                        feedback = SettingsFeedback.Error(it)
+                                        providerFeedback = ProviderFeedback("Zotero", it, true)
                                     },
                                 )
                             },
@@ -420,19 +434,21 @@ fun SettingsScreen(
                                     label = "Zotero",
                                     onSuccess = {
                                         zoteroConfigured = false
-                                        feedback = SettingsFeedback.Success("Zotero was cleared locally.")
+                                        providerFeedback = ProviderFeedback("Zotero", "Zotero was cleared locally.", false)
                                     },
                                     onFailure = {
-                                        feedback = SettingsFeedback.Error(it)
+                                        providerFeedback = ProviderFeedback("Zotero", it, true)
                                     },
-                                    onValidate = {
-                                        validateSecret(scope, secretStore, SecretKey.ZOTERO, "Zotero", httpClient) {
-                                            feedback = SettingsFeedback.Success("Zotero key is valid.")
-                                        } { feedback = SettingsFeedback.Error(it) }
-                                    },
-                                    onOpenKeyPage = { uriHandler.openUri("https://www.zotero.org/settings/keys") },
                                 )
                             },
+                            onValidate = {
+                                validateSecret(
+                                    scope, secretStore, SecretKey.ZOTERO, "Zotero", httpClient,
+                                    onSuccess = { providerFeedback = ProviderFeedback("Zotero", "Zotero key is valid.", false) },
+                                    onFailure = { providerFeedback = ProviderFeedback("Zotero", it, true) },
+                                )
+                            },
+                            onOpenKeyPage = { uriHandler.openUri("https://www.zotero.org/settings/keys") },
                         )
                     }
                 }
@@ -447,30 +463,34 @@ fun SettingsScreen(
                         ProviderCredentialCard(
                             providerName = "OpenAlex",
                             description = "Optional personal key for OpenAlex discovery and graph requests.",
+                            feedback = providerFeedback?.takeIf { it.provider == "OpenAlex" }?.message,
+                            feedbackIsError = providerFeedback?.takeIf { it.provider == "OpenAlex" }?.isError ?: true,
                             configured = openAlexConfigured,
                             draft = openAlexDraft,
                             onDraftChange = { openAlexDraft = it },
                             onSave = {
-                                saveSecret(scope, secretStore, SecretKey.OPENALEX, openAlexDraft, "OpenAlex",
+                                validateAndSaveSecret(scope, secretStore, SecretKey.OPENALEX, openAlexDraft, "OpenAlex", httpClient,
                                     onSuccess = {
                                         openAlexConfigured = true
                                         openAlexDraft = ""
-                                        feedback = SettingsFeedback.Success("OpenAlex key saved locally.")
+                                        providerFeedback = ProviderFeedback("OpenAlex", "OpenAlex key saved locally.", false)
                                     },
-                                    onFailure = { feedback = SettingsFeedback.Error(it) })
+                                    onFailure = { providerFeedback = ProviderFeedback("OpenAlex", it, true) })
                             },
                             onClear = {
                                 deleteSecret(scope, secretStore, SecretKey.OPENALEX, "OpenAlex",
                                     onSuccess = {
                                         openAlexConfigured = false
-                                        feedback = SettingsFeedback.Success("OpenAlex was cleared locally.")
+                                        providerFeedback = ProviderFeedback("OpenAlex", "OpenAlex was cleared locally.", false)
                                     },
-                                    onFailure = { feedback = SettingsFeedback.Error(it) })
+                                    onFailure = { providerFeedback = ProviderFeedback("OpenAlex", it, true) })
                             },
                             onValidate = {
-                                validateSecret(scope, secretStore, SecretKey.OPENALEX, "OpenAlex", httpClient) {
-                                    feedback = SettingsFeedback.Success("OpenAlex key is valid.")
-                                } { feedback = SettingsFeedback.Error(it) }
+                                validateSecret(
+                                    scope, secretStore, SecretKey.OPENALEX, "OpenAlex", httpClient,
+                                    onSuccess = { providerFeedback = ProviderFeedback("OpenAlex", "OpenAlex key is valid.", false) },
+                                    onFailure = { providerFeedback = ProviderFeedback("OpenAlex", it, true) },
+                                )
                             },
                             onOpenKeyPage = {
                                 uriHandler.openUri(
@@ -550,6 +570,12 @@ private sealed interface SettingsFeedback {
     data class Success(val message: String) : SettingsFeedback
     data class Error(val message: String) : SettingsFeedback
 }
+
+private data class ProviderFeedback(
+    val provider: String,
+    val message: String,
+    val isError: Boolean,
+)
 
 @Composable
 private fun SettingsHeader(
@@ -650,6 +676,41 @@ private fun ReadinessChip(
     )
 }
 
+private fun validateAndSaveSecret(
+    scope: kotlinx.coroutines.CoroutineScope,
+    secretStore: SecretStore,
+    key: SecretKey,
+    draft: String,
+    label: String,
+    client: HttpClient,
+    onSuccess: () -> Unit,
+    onFailure: (String) -> Unit,
+) {
+    // API keys are opaque tokens; clipboard copies can include line breaks or
+    // spaces from formatted text, so normalize that presentation noise.
+    val value = draft.filterNot(Char::isWhitespace)
+    if (value.isEmpty()) return
+    scope.launch {
+        try {
+            val response = requestKeyValidation(client, key, value)
+            if (response.status.value !in 200..299) {
+                if (response.status.value == 401 || response.status.value == 403) {
+                    onFailure("$label rejected the key (invalid or expired). It was not saved.")
+                } else {
+                    onFailure("$label key check returned HTTP ${response.status.value}. It was not saved.")
+                }
+                return@launch
+            }
+            secretStore.write(key, value)
+            onSuccess()
+        } catch (exception: kotlinx.coroutines.CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+            onFailure("Could not reach $label to check the key. It was not saved.")
+        }
+    }
+}
+
 private fun saveSecret(
     scope: kotlinx.coroutines.CoroutineScope,
     secretStore: SecretStore,
@@ -690,49 +751,55 @@ private fun deleteSecret(
         } catch (_: Exception) {
             onFailure("Could not clear the $label key locally. Try again.")
         }
+    }
+}
 
-        private fun validateSecret(
-            scope: kotlinx.coroutines.CoroutineScope,
-            secretStore: SecretStore,
-            key: SecretKey,
-            label: String,
-            client: HttpClient,
-            onSuccess: () -> Unit,
-            onFailure: (String) -> Unit,
-        ) {
-            scope.launch {
-                try {
-                    val value = secretStore.read(key)?.trim().orEmpty()
-                    if (value.isEmpty()) {
-                        onFailure("No $label key is saved locally.")
-                        return@launch
-                    }
-                    val response = when (key) {
-                        SecretKey.OPENAI -> client.get("https://api.openai.com/v1/models") {
-                            header("Authorization", "Bearer $value")
-                        }
-                        SecretKey.MISTRAL -> client.get("https://api.mistral.ai/v1/models") {
-                            header("Authorization", "Bearer $value")
-                        }
-                        SecretKey.ZOTERO -> client.get("https://api.zotero.org/keys/$value")
-                        SecretKey.OPENALEX -> client.get("https://api.openalex.org/works") {
-                            parameter("api_key", value)
-                            parameter("per-page", 1)
-                        }
-                    }
-                    if (response.status.value in 200..299) onSuccess()
-                    else if (response.status.value == 401 || response.status.value == 403) {
-                        onFailure("$label rejected the key (invalid or expired).")
-                    } else {
-                        onFailure("$label key check returned HTTP ${response.status.value}.")
-                    }
-                } catch (exception: kotlinx.coroutines.CancellationException) {
-                    throw exception
-                } catch (_: Exception) {
-                    onFailure("Could not reach $label to check the key.")
-                }
+private fun validateSecret(
+    scope: kotlinx.coroutines.CoroutineScope,
+    secretStore: SecretStore,
+    key: SecretKey,
+    label: String,
+    client: HttpClient,
+    onSuccess: () -> Unit,
+    onFailure: (String) -> Unit,
+) {
+    scope.launch {
+        try {
+            val value = secretStore.read(key)?.filterNot(Char::isWhitespace).orEmpty()
+            if (value.isEmpty()) {
+                onFailure("No $label key is saved locally.")
+                return@launch
             }
+            val response = requestKeyValidation(client, key, value)
+            if (response.status.value in 200..299) onSuccess()
+            else if (response.status.value == 401 || response.status.value == 403) {
+                onFailure("$label rejected the key (invalid or expired).")
+            } else {
+                onFailure("$label key check returned HTTP ${response.status.value}.")
+            }
+        } catch (exception: kotlinx.coroutines.CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+            onFailure("Could not reach $label to check the key.")
         }
+    }
+}
+
+private suspend fun requestKeyValidation(
+    client: HttpClient,
+    key: SecretKey,
+    value: String,
+) = when (key) {
+    SecretKey.OPENAI -> client.get("https://api.openai.com/v1/models") {
+        bearerAuth(value)
+    }
+    SecretKey.MISTRAL -> client.get("https://api.mistral.ai/v1/models") {
+        bearerAuth(value)
+    }
+    SecretKey.ZOTERO -> client.get("https://api.zotero.org/keys/$value")
+    SecretKey.OPENALEX -> client.get("https://api.openalex.org/works") {
+        parameter("api_key", value)
+        parameter("per-page", 1)
     }
 }
 

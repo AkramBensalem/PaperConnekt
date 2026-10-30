@@ -54,6 +54,7 @@ fun DestinationScreen(
         )
         AppDestination.LIBRARY -> LibraryScreen(
             store = store,
+            secretStore = secretStore,
             paddingValues = paddingValues,
             onOpenPaper = {
                 onPaperSelected(it)

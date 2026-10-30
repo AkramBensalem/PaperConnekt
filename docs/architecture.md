@@ -38,6 +38,11 @@ Focused PDF and graph-canvas workspaces retain their task-specific toolbars.
 On compact Library layouts, **Browse collections** opens the collection picker
 in a dismissible dialog so the header and folder tree do not crowd out papers.
 View filters and header actions wrap rather than truncating on narrow windows.
+When Zotero is configured, the Library header can switch between the local
+collection and a read-only Zotero browser; Zotero collections and PDF
+availability are loaded on demand without changing local Library data. The
+Zotero browser keeps the same nested collection hierarchy as the local Library
+and lets researchers switch between their personal library and available groups.
 
 The shared theme supplies blue interaction state layers rather than inheriting
 gray text colors for hover and ripple feedback. Hover is subtle; keyboard focus,

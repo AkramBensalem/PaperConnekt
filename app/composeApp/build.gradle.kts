@@ -33,6 +33,9 @@ kotlin {
             implementation(libs.markdown.renderer.m3)
             implementation(libs.markdown.renderer.coil3)
             implementation(libs.androidx.datastore)
+            api(libs.koog.agents)
+            api(libs.koog.agents.additions)
+            implementation(libs.koog.http.client.ktor)
         }
         androidMain.dependencies {
             implementation(libs.pdfbox.android)

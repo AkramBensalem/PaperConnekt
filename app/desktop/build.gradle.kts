@@ -23,6 +23,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines.swing)
 }
 
+configurations.configureEach {
+    resolutionStrategy.force("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
+}
+
 compose.desktop {
     application {
         mainClass = "com.paperconnekt.desktop.MainKt"

@@ -34,7 +34,8 @@ enum class AnnotationAiAction(val label: String, val instruction: String) {
 
 class PaperAgentViewModel(
     private val workspace: PdfWorkspaceViewModel,
-    private val agent: ResearchAgent = createResearchAgent(),
+    private val secretStore: SecretStore? = null,
+    private val agent: ResearchAgent = createResearchAgent(secretStore),
     private val ui: CoroutineContext = Dispatchers.Main,
     private val agentContext: CoroutineContext = Dispatchers.Default,
     private val store: PaperAgentChatStore = syncedPaperAgentChatStore(),
@@ -43,7 +44,6 @@ class PaperAgentViewModel(
     private val ideaBoard: AssistantViewModel? = null,
     private val usageRecorder: suspend (String?, AiUsageEvent) -> Unit = { _, _ -> },
     private val apiKeysStore: ApiKeysStore = createApiKeysStore(),
-    private val secretStore: SecretStore? = null,
 ) : ViewModel() {
     /** The open conversation. */
     var conversation by mutableStateOf(PaperAgentConversation())

@@ -2,6 +2,7 @@ package com.paperconnekt.app
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -32,6 +34,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.lock
+import com.paperconnekt.app.resources.filled_check_circle
+import com.paperconnekt.app.resources.outlined_open_in_new
 import com.paperconnekt.app.resources.visibility
 import com.paperconnekt.app.resources.visibility_off
 import org.jetbrains.compose.resources.DrawableResource
@@ -48,6 +52,8 @@ internal fun ProviderCredentialCard(
     onClear: () -> Unit,
     onValidate: () -> Unit,
     onOpenKeyPage: (() -> Unit)? = null,
+    feedback: String? = null,
+    feedbackIsError: Boolean = true,
     enabled: Boolean = true,
     providerIcon: DrawableResource? = null,
 ) {
@@ -133,12 +139,21 @@ internal fun ProviderCredentialCard(
                     }
                 },
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
                 Button(
                     enabled = enabled && draft.isNotBlank(),
                     onClick = onSave,
                 ) {
-                    Text("Save locally")
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(painterResource(Res.drawable.filled_check_circle), contentDescription = null)
+                        Text("Check & save")
+                    }
                 }
                 TextButton(
                     enabled = enabled && configured,
@@ -146,19 +161,36 @@ internal fun ProviderCredentialCard(
                 ) {
                     Text("Clear")
                 }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(
                     enabled = enabled && configured,
                     onClick = onValidate,
                 ) {
-                    Text("Check key")
-                }
-                onOpenKeyPage?.let { open ->
-                    TextButton(onClick = open) {
-                        Text("Get a key")
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(painterResource(Res.drawable.filled_check_circle), contentDescription = null)
+                        Text("Check key")
                     }
                 }
+                onOpenKeyPage?.let { open ->
+                    TextButton(
+                        onClick = open,
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(painterResource(Res.drawable.outlined_open_in_new), contentDescription = null)
+                            Text("Get a key")
+                        }
+                    }
+                }
+            }
+            feedback?.let { message ->
+                Text(
+                    text = message,
+                    color = if (feedbackIsError) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
 
             Text(
