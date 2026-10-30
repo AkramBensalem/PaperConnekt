@@ -40,40 +40,40 @@ class DesktopPdfAttachmentUi : PdfAttachmentUi {
             } finally {
                 dialog.dispose()
             }
+        }
+    }
 
-            override suspend fun choosePdfForUpload(): PdfUploadFile? = suspendCancellableCoroutine { continuation ->
-                EventQueue.invokeLater {
-                    if (!continuation.isActive) return@invokeLater
-                    val dialog = FileDialog(null as Frame?, "Upload PDF to Zotero", FileDialog.LOAD)
-                    continuation.invokeOnCancellation { EventQueue.invokeLater { dialog.dispose() } }
-                    try {
-                        dialog.setFilenameFilter { _, name -> name.endsWith(".pdf", ignoreCase = true) }
-                        dialog.isVisible = true
-                        val file = dialog.file?.let { File(dialog.directory, it) }
-                        if (continuation.isActive) {
-                            continuation.resume(
-                                file?.let {
-                                    val bytes = it.readBytes()
-                                    require(bytes.size >= 5 && bytes.copyOfRange(0, 5).decodeToString() == "%PDF-") {
-                                        "Select a valid PDF file."
-                                    }
-                                    PdfUploadFile(
-                                        name = it.name,
-                                        bytes = bytes,
-                                        mtime = it.lastModified(),
-                                        md5 = MessageDigest.getInstance("MD5")
-                                            .digest(bytes)
-                                            .joinToString("") { byte -> "%02x".format(byte) },
-                                    )
-                                },
+    override suspend fun choosePdfForUpload(): PdfUploadFile? = suspendCancellableCoroutine { continuation ->
+        EventQueue.invokeLater {
+            if (!continuation.isActive) return@invokeLater
+            val dialog = FileDialog(null as Frame?, "Upload PDF to Zotero", FileDialog.LOAD)
+            continuation.invokeOnCancellation { EventQueue.invokeLater { dialog.dispose() } }
+            try {
+                dialog.setFilenameFilter { _, name -> name.endsWith(".pdf", ignoreCase = true) }
+                dialog.isVisible = true
+                val file = dialog.file?.let { File(dialog.directory, it) }
+                if (continuation.isActive) {
+                    continuation.resume(
+                        file?.let {
+                            val bytes = it.readBytes()
+                            require(bytes.size >= 5 && bytes.copyOfRange(0, 5).decodeToString() == "%PDF-") {
+                                "Select a valid PDF file."
+                            }
+                            PdfUploadFile(
+                                name = it.name,
+                                bytes = bytes,
+                                mtime = it.lastModified(),
+                                md5 = MessageDigest.getInstance("MD5")
+                                    .digest(bytes)
+                                    .joinToString("") { byte -> "%02x".format(byte) },
                             )
-                        }
-                    } catch (exception: Exception) {
-                        if (continuation.isActive) continuation.resumeWithException(exception)
-                    } finally {
-                        dialog.dispose()
-                    }
+                        },
+                    )
                 }
+            } catch (exception: Exception) {
+                if (continuation.isActive) continuation.resumeWithException(exception)
+            } finally {
+                dialog.dispose()
             }
         }
     }

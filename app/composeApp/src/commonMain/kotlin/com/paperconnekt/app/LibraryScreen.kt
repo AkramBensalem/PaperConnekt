@@ -1459,7 +1459,6 @@ private fun ZoteroLibraryContent(
 }
 
 @Composable
-@Composable
 private fun ZoteroTrashPanel(
     items: List<ZoteroItem>,
     onRestore: (ZoteroItem) -> Unit,
