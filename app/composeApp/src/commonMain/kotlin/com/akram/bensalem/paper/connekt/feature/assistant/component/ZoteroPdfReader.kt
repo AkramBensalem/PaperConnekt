@@ -43,6 +43,7 @@ import com.paperconnekt.app.resources.filled_lightbulb
 import com.paperconnekt.app.resources.filled_line_weight
 import com.paperconnekt.app.resources.filled_link
 import com.paperconnekt.app.resources.filled_menu_book
+import com.paperconnekt.app.resources.filled_more_vert
 import com.paperconnekt.app.resources.filled_note_add
 import com.paperconnekt.app.resources.filled_notes
 import com.paperconnekt.app.resources.filled_pan_tool
@@ -411,7 +412,6 @@ fun ZoteroPdfReader(
         }
     }.focusable()) {
         val wide = maxWidth >= 900.dp
-        val labelModes = maxWidth >= 600.dp
         val compact = maxWidth < CompactReaderMaxWidth
         val density = LocalDensity.current
         val readerWidth = maxWidth
@@ -882,6 +882,18 @@ fun ZoteroPdfReader(
                         pdfMode = pdfMode,
                         zoomLabel = zoomLabel,
                         onViewOptions = { showViewSheet = true },
+                        canShowMarkdown = hasMarkdownStorage && state.draft == null,
+                        onShowPdf = viewModel::showPdf,
+                        onShowMarkdown = viewModel::showMarkdown,
+                        canCopyMarkdown = state.markdown.content != null,
+                        onCopyMarkdown = {
+                            state.markdown.content?.let {
+                                clipboard.setText(AnnotatedString(it))
+                                scope.launch { snackbar.showSnackbar("Markdown copied") }
+                            }
+                        },
+                        canRegenerate = state.markdown.content != null && !state.markdown.busy,
+                        onRegenerate = viewModel::regenerateMarkdown,
                     )
                 } else Surface(
                     modifier = Modifier
@@ -894,25 +906,6 @@ fun ZoteroPdfReader(
                 ) {
                     Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                        SingleChoiceSegmentedButtonRow(Modifier.padding(vertical = 2.dp).testTag("reader-view-mode")) {
-                            SegmentedButton(selected = pdfMode, onClick = viewModel::showPdf,
-                                shape = SegmentedButtonDefaults.itemShape(0, 2), enabled = hasDocument,
-                                modifier = Modifier.interactivePointer(enabled = hasDocument),
-                                icon = {
-                                    SegmentedButtonDefaults.Icon(active = pdfMode) {
-                                        Icon(painterResource(Res.drawable.filled_picture_as_pdf), if (labelModes) null else "Show PDF", Modifier.size(18.dp))
-                                    }
-                                }) { if (labelModes) Text("PDF") }
-                            SegmentedButton(selected = !pdfMode, onClick = viewModel::showMarkdown,
-                                shape = SegmentedButtonDefaults.itemShape(1, 2), enabled = hasMarkdownStorage && state.draft == null,
-                                modifier = Modifier.interactivePointer(enabled = hasMarkdownStorage && state.draft == null),
-                                icon = {
-                                    SegmentedButtonDefaults.Icon(active = !pdfMode) {
-                                        Icon(painterResource(Res.drawable.filled_article), if (labelModes) null else "Show Markdown", Modifier.size(18.dp))
-                                    }
-                                }) { if (labelModes) Text("Markdown") }
-                        }
-                        VerticalDivider(Modifier.height(20.dp).padding(horizontal = 8.dp))
                         IconButton(enabled = state.pageIndex > 0 && state.draft == null, onClick = { viewModel.goToPage((pageStart - step).coerceAtLeast(0)) }, modifier = Modifier.interactivePointer(enabled = state.pageIndex > 0 && state.draft == null)) { Icon(painterResource(Res.drawable.filled_chevron_left), "Previous page") }
                         TextButton(enabled = state.readerPageCount > 0 && state.draft == null, onClick = { showPagePicker = true }, modifier = Modifier.interactivePointer(enabled = state.readerPageCount > 0 && state.draft == null)) { Text("${state.pageIndex + 1} / ${state.readerPageCount}") }
                         IconButton(enabled = pageStart + step < state.readerPageCount && state.draft == null, onClick = { viewModel.goToPage(pageStart + step) }, modifier = Modifier.interactivePointer(enabled = pageStart + step < state.readerPageCount && state.draft == null)) { Icon(painterResource(Res.drawable.filled_chevron_right), "Next page") }
@@ -922,36 +915,54 @@ fun ZoteroPdfReader(
                         IconButton(enabled = state.zoom < 3f, onClick = { zoomAnchor.capture(atPointer = false); fitPage = false; viewModel.zoom(state.zoom + 0.25f) }, modifier = Modifier.interactivePointer(enabled = state.zoom < 3f)) { Icon(painterResource(Res.drawable.filled_zoom_in), "Zoom in") }
                         IconButton(enabled = !continuous && !spread, onClick = { fitPage = !fitPage; viewModel.zoom(1f) }, modifier = Modifier.interactivePointer(enabled = !continuous && !spread)) { Icon(painterResource(Res.drawable.filled_fit_screen), "Toggle fit page") }
                         VerticalDivider(Modifier.height(20.dp).padding(horizontal = 4.dp))
-                        SingleChoiceSegmentedButtonRow {
-                            SegmentedButton(selected = !spread, onClick = { spread = false },
-                                shape = SegmentedButtonDefaults.itemShape(0, 2), enabled = state.draft == null,
-                                modifier = Modifier.interactivePointer(enabled = state.draft == null),
-                                icon = {
-                                    SegmentedButtonDefaults.Icon(active = !spread) {
-                                        Icon(painterResource(Res.drawable.filled_description), "Single page layout", Modifier.size(18.dp))
-                                    }
-                                }) { Text("Single") }
-                            SegmentedButton(selected = spread, onClick = { spread = true; fitPage = false },
-                                shape = SegmentedButtonDefaults.itemShape(1, 2), enabled = state.draft == null,
-                                modifier = Modifier.interactivePointer(enabled = state.draft == null),
-                                icon = {
-                                    SegmentedButtonDefaults.Icon(active = spread) {
-                                        Icon(painterResource(Res.drawable.filled_auto_stories), "Two page layout", Modifier.size(18.dp))
-                                    }
-                                }) { Text("Two") }
-                        }
-                        ReaderToolChip(continuous, { continuous = !continuous; fitPage = false }, enabled = state.draft == null,
-                            label = { Text("Continuous") },
-                            leadingIcon = { Icon(painterResource(Res.drawable.filled_view_day), "Toggle continuous pages", Modifier.size(18.dp)) })
-                        if (!pdfMode) {
-                            VerticalDivider(Modifier.height(20.dp).padding(horizontal = 8.dp))
-                            val markdownText = state.markdown.content
-                            IconButton(enabled = markdownText != null, onClick = {
-                                markdownText?.let { clipboard.setText(AnnotatedString(it)); scope.launch { snackbar.showSnackbar("Markdown copied") } }
-                            }, modifier = Modifier.interactivePointer(enabled = markdownText != null)) { Icon(painterResource(Res.drawable.filled_content_copy), "Copy Markdown") }
-                            val canRegenerate = markdownText != null && !state.markdown.busy
-                            IconButton(enabled = canRegenerate, onClick = viewModel::regenerateMarkdown,
-                                modifier = Modifier.interactivePointer(enabled = canRegenerate)) { Icon(painterResource(Res.drawable.filled_refresh), "Convert again with $MISTRAL_OCR_MODEL_NAME") }
+                        ReaderLayoutMenu(
+                            spread = spread,
+                            continuous = continuous,
+                            enabled = state.draft == null,
+                            onSpreadChange = { spread = it; if (it) fitPage = false },
+                            onContinuousChange = { continuous = !continuous; fitPage = false },
+                            modifier = Modifier.widthIn(min = 132.dp, max = 156.dp),
+                        )
+                        Box {
+                            var menu by remember { mutableStateOf(false) }
+                            IconButton(onClick = { menu = true }, modifier = Modifier.interactivePointer()) {
+                                Icon(painterResource(Res.drawable.filled_more_vert), "More PDF viewer options")
+                            }
+                            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, shape = RoundedCornerShape(16.dp)) {
+                                DropdownMenuItem(
+                                    text = { Text(if (pdfMode) "Show Markdown" else "Show PDF") },
+                                    leadingIcon = {
+                                        Icon(
+                                            painterResource(if (pdfMode) Res.drawable.filled_article else Res.drawable.filled_picture_as_pdf),
+                                            null,
+                                        )
+                                    },
+                                    enabled = if (pdfMode) hasMarkdownStorage && state.draft == null else hasDocument,
+                                    onClick = { menu = false; if (pdfMode) viewModel.showMarkdown() else viewModel.showPdf() },
+                                    modifier = Modifier.interactivePointer(enabled = if (pdfMode) hasMarkdownStorage && state.draft == null else hasDocument),
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Copy Markdown") },
+                                    leadingIcon = { Icon(painterResource(Res.drawable.filled_content_copy), null) },
+                                    enabled = state.markdown.content != null,
+                                    onClick = {
+                                        menu = false
+                                        state.markdown.content?.let {
+                                            clipboard.setText(AnnotatedString(it))
+                                            scope.launch { snackbar.showSnackbar("Markdown copied") }
+                                        }
+                                    },
+                                    modifier = Modifier.interactivePointer(enabled = state.markdown.content != null),
+                                )
+                                val canRegenerate = state.markdown.content != null && !state.markdown.busy
+                                DropdownMenuItem(
+                                    text = { Text("Convert again") },
+                                    leadingIcon = { Icon(painterResource(Res.drawable.filled_refresh), null) },
+                                    enabled = canRegenerate,
+                                    onClick = { menu = false; viewModel.regenerateMarkdown() },
+                                    modifier = Modifier.interactivePointer(enabled = canRegenerate),
+                                )
+                            }
                         }
                     }
                 }
@@ -1044,14 +1055,8 @@ fun ZoteroPdfReader(
         )
     }
     if (showViewSheet) {
-        val markdownText = state.markdown.content
         val zoomTo: (Float) -> Unit = { value -> zoomAnchor.capture(atPointer = false); fitPage = false; viewModel.zoom(value) }
         CompactViewOptionsSheet(
-            pdfMode = pdfMode,
-            canShowPdf = hasDocument,
-            canShowMarkdown = hasMarkdownStorage && state.draft == null,
-            onShowPdf = viewModel::showPdf,
-            onShowMarkdown = viewModel::showMarkdown,
             zoomLabel = if (fitPage) "Fit page" else "${(state.zoom * 100).roundToInt()}%",
             canZoomOut = state.zoom > 0.5f,
             canZoomIn = state.zoom < 3f,
@@ -1066,13 +1071,6 @@ fun ZoteroPdfReader(
             onSpreadChange = { spread = it; if (it) fitPage = false },
             continuous = continuous,
             onContinuousChange = { continuous = !continuous; fitPage = false },
-            canCopyMarkdown = markdownText != null,
-            onCopyMarkdown = {
-                markdownText?.let { clipboard.setText(AnnotatedString(it)); scope.launch { snackbar.showSnackbar("Markdown copied") } }
-            },
-            canRegenerate = markdownText != null && !state.markdown.busy,
-            regenerateLabel = "Uses $MISTRAL_OCR_MODEL_NAME",
-            onRegenerate = viewModel::regenerateMarkdown,
             onDismiss = { showViewSheet = false },
         )
     }

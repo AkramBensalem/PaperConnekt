@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
@@ -244,6 +245,11 @@ fun LibraryScreen(
             LibraryView.entries.firstOrNull { it.name == savedLibraryState.view } ?: LibraryView.ALL,
         )
     }
+    var zoteroView by remember {
+        mutableStateOf(
+            LibraryView.entries.firstOrNull { it.name == savedLibraryState.view } ?: LibraryView.ALL,
+        )
+    }
     var query by remember { mutableStateOf(savedLibraryState.query) }
     var showCreateFolder by remember { mutableStateOf(false) }
     var renameFolder by remember { mutableStateOf<LibraryEntry?>(null) }
@@ -268,12 +274,15 @@ fun LibraryScreen(
     var zoteroDeleteTarget by remember { mutableStateOf<ZoteroCollection?>(null) }
     var showZoteroItemDialog by remember { mutableStateOf(false) }
     val pdfAttachments = LocalPdfAttachments.current
+    val selectedZoteroGroupName = selectedZoteroGroupId?.let { id ->
+        zoteroGroups.firstOrNull { it.id.toString() == id }?.data?.name
+    }
 
     LaunchedEffect(source, view, query, selectedFolderId) {
         localPage = 0
     }
 
-    LaunchedEffect(source, selectedZoteroGroupId, selectedZoteroCollectionKey, query, zoteroPapers.size) {
+    LaunchedEffect(source, selectedZoteroGroupId, selectedZoteroCollectionKey, zoteroView, query, zoteroPapers.size) {
         zoteroPage = 0
     }
     val latestLibraryUiState by androidx.compose.runtime.rememberUpdatedState(
@@ -284,7 +293,7 @@ fun LibraryScreen(
             expandedZoteroCollectionIds = expandedZoteroCollectionIds.toList(),
             selectedFolderId = selectedFolderId,
             expandedFolderIds = expandedFolders.toList(),
-            view = view.name,
+            view = if (source == LibrarySource.ZOTERO) zoteroView.name else view.name,
             query = query,
             showCollections = showCollections,
         ),
@@ -298,6 +307,7 @@ fun LibraryScreen(
         selectedFolderId,
         expandedFolders,
         view,
+        zoteroView,
         query,
         showCollections,
     ) {
@@ -655,8 +665,7 @@ fun LibraryScreen(
                     folderCount = if (source == LibrarySource.LOCAL) folders.size else zoteroCollections.size,
                     unfiledCount = if (source == LibrarySource.LOCAL) unfiledCount else 0,
                     archiveCount = if (source == LibrarySource.LOCAL) archivedPapers.size else 0,
-                    query = query,
-                    onQueryChange = { query = it },
+                    zoteroGroupName = selectedZoteroGroupName,
                     onSourceChange = {
                         source = it
                         query = ""
@@ -676,7 +685,16 @@ fun LibraryScreen(
                     collections = zoteroCollections,
                     papers = zoteroPapers,
                     selectedCollectionKey = selectedZoteroCollectionKey,
+                    view = zoteroView,
+                    onViewChange = {
+                        zoteroView = it
+                        if (it != LibraryView.ALL) {
+                            zoteroTrashVisible = false
+                            zoteroTrashItems = emptyList()
+                        }
+                    },
                     query = query,
+                    onQueryChange = { query = it },
                     loading = zoteroLoading,
                     error = zoteroError,
                     syncState = zoteroSyncState,
@@ -688,11 +706,13 @@ fun LibraryScreen(
                     onSelectGroup = {
                         selectedZoteroGroupId = it
                         zoteroError = null
+                        zoteroView = LibraryView.ALL
                         zoteroTrashVisible = false
                         zoteroTrashItems = emptyList()
                     },
                     onSelectCollection = {
                         selectedZoteroCollectionKey = it
+                        zoteroView = LibraryView.ALL
                         zoteroTrashVisible = false
                         zoteroTrashItems = emptyList()
                     },
@@ -746,6 +766,12 @@ fun LibraryScreen(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
+                    HeaderSearchField(
+                        query = query,
+                        onQueryChange = { query = it },
+                        label = "Search saved papers",
+                        modifier = Modifier.widthIn(max = 320.dp).align(Alignment.End),
+                    )
                     LibraryContextBar(
                         view = view,
                         selectedFolder = selectedFolder,
@@ -900,6 +926,12 @@ fun LibraryScreen(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
+                        HeaderSearchField(
+                            query = query,
+                            onQueryChange = { query = it },
+                            label = "Search saved papers",
+                            modifier = Modifier.widthIn(max = 320.dp).align(Alignment.End),
+                        )
                         LibraryContextBar(
                             view = view,
                             selectedFolder = selectedFolder,
@@ -1236,7 +1268,10 @@ private fun ZoteroLibraryContent(
     collections: List<ZoteroCollection>,
     papers: List<ZoteroLibraryPaper>,
     selectedCollectionKey: String?,
+    view: LibraryView,
+    onViewChange: (LibraryView) -> Unit,
     query: String,
+    onQueryChange: (String) -> Unit,
     loading: Boolean,
     error: String?,
     syncState: String,
@@ -1297,6 +1332,13 @@ private fun ZoteroLibraryContent(
         .filter { selectedCollectionKey == null || it.parentId == selectedCollectionKey || belongsToSelectedCollection(it) }
         .mapNotNull { it.paperId?.let(paperById::get) }
         .distinctBy { it.item.key }
+        .let { filtered ->
+            when (view) {
+                LibraryView.UNFILED -> filtered.filter { it.item.data.collections.isEmpty() }
+                LibraryView.RECENT -> filtered.takeLast(8)
+                else -> filtered
+            }
+        }
         .filter { paper ->
             query.isBlank() || listOfNotNull(
                 paper.item.data.title,
@@ -1342,7 +1384,10 @@ private fun ZoteroLibraryContent(
                         onSelectFolder = onSelectCollection,
                         onToggleFolder = onToggleCollection,
                         onNewFolder = { onCreateCollection(null) },
-                        onArchive = onShowTrash,
+                        onArchive = {
+                            onViewChange(LibraryView.ALL)
+                            onShowTrash()
+                        },
                         archiveCount = trashItems.size,
                         archiveSelected = trashVisible,
                         onNewSubcollection = { entry ->
@@ -1359,6 +1404,7 @@ private fun ZoteroLibraryContent(
                         showArchive = true,
                         archiveLabel = "Bin",
                         archiveSubtitle = "Deleted Zotero items",
+                        headerSubtitle = "Zotero library · ${selectedGroupName ?: "My library"}",
                         headerAction = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 ZoteroGroupSelector(
@@ -1373,6 +1419,10 @@ private fun ZoteroLibraryContent(
                     ZoteroPaperList(
                         modifier = Modifier.fillMaxWidth(),
                         papers = visiblePapers,
+                        view = view,
+                        onViewChange = onViewChange,
+                        query = query,
+                        onQueryChange = onQueryChange,
                         loading = loading,
                         enabled = enabled,
                         error = error,
@@ -1410,7 +1460,10 @@ private fun ZoteroLibraryContent(
                         onSelectFolder = onSelectCollection,
                         onToggleFolder = onToggleCollection,
                         onNewFolder = { onCreateCollection(null) },
-                        onArchive = onShowTrash,
+                        onArchive = {
+                            onViewChange(LibraryView.ALL)
+                            onShowTrash()
+                        },
                         archiveCount = trashItems.size,
                         archiveSelected = trashVisible,
                         onNewSubcollection = { entry ->
@@ -1427,6 +1480,7 @@ private fun ZoteroLibraryContent(
                         showArchive = true,
                         archiveLabel = "Bin",
                         archiveSubtitle = "Deleted Zotero items",
+                        headerSubtitle = "Zotero library · ${selectedGroupName ?: "My library"}",
                         headerAction = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 ZoteroGroupSelector(
@@ -1441,6 +1495,10 @@ private fun ZoteroLibraryContent(
                     ZoteroPaperList(
                         modifier = Modifier.weight(1f),
                         papers = visiblePapers,
+                        view = view,
+                        onViewChange = onViewChange,
+                        query = query,
+                        onQueryChange = onQueryChange,
                         loading = loading,
                         enabled = enabled,
                         error = error,
@@ -1470,39 +1528,81 @@ private fun ZoteroLibraryContent(
 @Composable
 private fun ZoteroTrashPanel(
     items: List<ZoteroItem>,
+    query: String,
     onRestore: (ZoteroItem) -> Unit,
 ) {
+    val visibleItems = items.filter { item ->
+        query.isBlank() || listOfNotNull(
+            item.data.title,
+            item.data.filename,
+            item.data.doi,
+            item.data.abstractNote,
+            item.data.creators.joinToString(" ") { creator ->
+                creator.name ?: listOfNotNull(creator.firstName, creator.lastName).joinToString(" ")
+            },
+        ).joinToString(" ").contains(query.trim(), ignoreCase = true)
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (visibleItems.isEmpty()) {
+            LibraryNotice(if (items.isEmpty()) "The Zotero bin is empty." else "No binned items match this search.")
+        } else {
+            visibleItems.forEach { item ->
+                ZoteroTrashCard(item, onRestore)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZoteroTrashCard(
+    item: ZoteroItem,
+    onRestore: (ZoteroItem) -> Unit,
+) {
+    val error = MaterialTheme.colorScheme.error
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+        ),
+        border = BorderStroke(1.dp, error.copy(alpha = 0.35f)),
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text("Zotero bin", style = MaterialTheme.typography.titleSmall)
-            if (items.isEmpty()) {
-                Text("The Zotero bin is empty.", style = MaterialTheme.typography.bodySmall)
-            } else {
-                items.take(8).forEach { item ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            item.data.title ?: item.data.filename ?: "Untitled item",
-                            modifier = Modifier.weight(1f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        TextButton(onClick = { onRestore(item) }) { Text("Restore") }
-                    }
-                }
-                if (items.size > 8) {
-                    Text(
-                        "${items.size - 8} more item(s) are in the Zotero bin.",
-                        style = MaterialTheme.typography.labelSmall,
-                    )
+            Row(verticalAlignment = Alignment.Top) {
+                Text(
+                    item.data.title ?: item.data.filename ?: "Untitled Zotero item",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = error.copy(alpha = 0.9f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                TextButton(onClick = { onRestore(item) }) {
+                    Text("Restore", color = error)
                 }
             }
+            val authors = item.data.creators.mapNotNull { creator ->
+                creator.name ?: listOfNotNull(creator.firstName, creator.lastName)
+                    .joinToString(" ")
+                    .takeIf { it.isNotBlank() }
+            }
+            if (authors.isNotEmpty()) {
+                Text(authors.joinToString(", "), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(
+                listOfNotNull(item.data.publicationTitle, item.data.date, item.data.doi)
+                    .joinToString(" • ")
+                    .ifBlank { "Zotero item ${item.key}" },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Binned Zotero item",
+                style = MaterialTheme.typography.labelMedium,
+                color = error.copy(alpha = 0.8f),
+            )
         }
     }
 }
@@ -1675,6 +1775,10 @@ private fun ZoteroSyncIndicator(
 private fun ZoteroPaperList(
     modifier: Modifier,
     papers: List<ZoteroLibraryPaper>,
+    view: LibraryView,
+    onViewChange: (LibraryView) -> Unit,
+    query: String,
+    onQueryChange: (String) -> Unit,
     loading: Boolean,
     enabled: Boolean,
     error: String?,
@@ -1691,9 +1795,29 @@ private fun ZoteroPaperList(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            LibraryContextBar(
+                view = view,
+                selectedFolder = null,
+                onViewChange = onViewChange,
+                showArchive = false,
+                modifier = Modifier.weight(1f),
+            )
+            HeaderSearchField(
+                query = query,
+                onQueryChange = onQueryChange,
+                label = "Search your Zotero library",
+                modifier = Modifier.widthIn(max = 320.dp),
+            )
+        }
         if (trashVisible) {
             ZoteroTrashPanel(
                 items = trashItems,
+                query = query,
                 onRestore = onRestoreTrash,
             )
             return@Column
@@ -1811,8 +1935,7 @@ private fun LibraryHeader(
     folderCount: Int,
     unfiledCount: Int,
     archiveCount: Int,
-    query: String,
-    onQueryChange: (String) -> Unit,
+    zoteroGroupName: String?,
     onSourceChange: (LibrarySource) -> Unit,
     onNewFolder: () -> Unit,
     onFindPaper: () -> Unit,
@@ -1822,9 +1945,9 @@ private fun LibraryHeader(
     WorkspaceHeader(
         title = "Library",
         subtitle = if (source == LibrarySource.LOCAL) {
-            "A home for your papers. A starting point for your next idea."
+            "Local library"
         } else {
-            "Browse the papers and collections in your connected Zotero library."
+            "Zotero library · ${zoteroGroupName ?: "My library"}"
         },
         icon = Res.drawable.filled_folder_open,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
@@ -1887,11 +2010,6 @@ private fun LibraryHeader(
                     onClick = { onSourceChange(LibrarySource.ZOTERO) },
                     label = { Text("Zotero") },
                 )
-                HeaderSearchField(
-                    query,
-                    onQueryChange,
-                    if (source == LibrarySource.LOCAL) "Search by title, author or DOI" else "Search your Zotero library",
-                )
             }
         },
     )
@@ -1903,9 +2021,11 @@ private fun LibraryContextBar(
     view: LibraryView,
     selectedFolder: LibraryEntry?,
     onViewChange: (LibraryView) -> Unit,
+    showArchive: Boolean = true,
+    modifier: Modifier = Modifier,
 ) {
     FlowRow(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -1924,12 +2044,14 @@ private fun LibraryContextBar(
             onClick = { onViewChange(LibraryView.RECENT) },
             label = { Text("Recent") },
         )
-        WorkspaceFilterChip(
-            selected = view == LibraryView.ARCHIVE,
-            onClick = { onViewChange(LibraryView.ARCHIVE) },
-            label = { Text("Archive") },
-            leadingIcon = { Icon(painterResource(Res.drawable.filled_archive), contentDescription = null) },
-        )
+        if (showArchive) {
+            WorkspaceFilterChip(
+                selected = view == LibraryView.ARCHIVE,
+                onClick = { onViewChange(LibraryView.ARCHIVE) },
+                label = { Text("Archive") },
+                leadingIcon = { Icon(painterResource(Res.drawable.filled_archive), contentDescription = null) },
+            )
+        }
         selectedFolder?.let {
             Text(" / ${it.label}", color = MaterialTheme.colorScheme.primary)
         }
@@ -1957,6 +2079,7 @@ private fun LibraryFolderPane(
     showArchive: Boolean = true,
     archiveLabel: String = "Archive",
     archiveSubtitle: String = "Deleted items",
+    headerSubtitle: String = "Local library",
     headerAction: (@Composable () -> Unit)? = null,
 ) {
     Card(
@@ -1978,7 +2101,7 @@ private fun LibraryFolderPane(
                 Column {
                     Text("Collections", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Build a calm reading space",
+                        headerSubtitle,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -2008,8 +2131,9 @@ private fun LibraryFolderPane(
                 )
             }
             if (showArchive) {
+                Spacer(Modifier.height(10.dp))
                 HorizontalDivider(
-                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(bottom = 4.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
                 )
                 ArchiveRow(

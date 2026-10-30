@@ -402,8 +402,16 @@ internal fun CompactReaderBottomBar(
     pdfMode: Boolean,
     zoomLabel: String,
     onViewOptions: () -> Unit,
+    canShowMarkdown: Boolean,
+    onShowPdf: () -> Unit,
+    onShowMarkdown: () -> Unit,
+    canCopyMarkdown: Boolean,
+    onCopyMarkdown: () -> Unit,
+    canRegenerate: Boolean,
+    onRegenerate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var menu by remember { mutableStateOf(false) }
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(28.dp),
@@ -430,6 +438,39 @@ internal fun CompactReaderBottomBar(
                 Text(zoomLabel)
                 Icon(painterResource(Res.drawable.filled_tune), "View options", Modifier.padding(start = 6.dp).size(18.dp))
             }
+            Box {
+                IconButton(onClick = { menu = true }, modifier = Modifier.interactivePointer()) {
+                    Icon(painterResource(Res.drawable.filled_more_vert), "More PDF viewer options")
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, shape = RoundedCornerShape(16.dp)) {
+                    DropdownMenuItem(
+                        text = { Text(if (pdfMode) "Show Markdown" else "Show PDF") },
+                        leadingIcon = {
+                            Icon(
+                                painterResource(if (pdfMode) Res.drawable.filled_article else Res.drawable.filled_picture_as_pdf),
+                                null,
+                            )
+                        },
+                        enabled = if (pdfMode) canShowMarkdown else true,
+                        onClick = { menu = false; if (pdfMode) onShowMarkdown() else onShowPdf() },
+                        modifier = Modifier.interactivePointer(enabled = if (pdfMode) canShowMarkdown else true),
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Copy Markdown") },
+                        leadingIcon = { Icon(painterResource(Res.drawable.filled_content_copy), null) },
+                        enabled = canCopyMarkdown,
+                        onClick = { menu = false; onCopyMarkdown() },
+                        modifier = Modifier.interactivePointer(enabled = canCopyMarkdown),
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Convert again") },
+                        leadingIcon = { Icon(painterResource(Res.drawable.filled_refresh), null) },
+                        enabled = canRegenerate,
+                        onClick = { menu = false; onRegenerate() },
+                        modifier = Modifier.interactivePointer(enabled = canRegenerate),
+                    )
+                }
+            }
         }
     }
 }
@@ -437,11 +478,6 @@ internal fun CompactReaderBottomBar(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CompactViewOptionsSheet(
-    pdfMode: Boolean,
-    canShowPdf: Boolean,
-    canShowMarkdown: Boolean,
-    onShowPdf: () -> Unit,
-    onShowMarkdown: () -> Unit,
     zoomLabel: String,
     canZoomOut: Boolean,
     canZoomIn: Boolean,
@@ -456,30 +492,12 @@ internal fun CompactViewOptionsSheet(
     onSpreadChange: (Boolean) -> Unit,
     continuous: Boolean,
     onContinuousChange: () -> Unit,
-    canCopyMarkdown: Boolean,
-    onCopyMarkdown: () -> Unit,
-    canRegenerate: Boolean,
-    regenerateLabel: String,
-    onRegenerate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val colors = MaterialTheme.colorScheme
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
             Text("View", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(16.dp))
-            SheetLabel("Document")
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().testTag("reader-view-mode")) {
-                SegmentedButton(selected = pdfMode, onClick = onShowPdf, enabled = canShowPdf,
-                    shape = SegmentedButtonDefaults.itemShape(0, 2), modifier = Modifier.interactivePointer(enabled = canShowPdf),
-                    icon = { SegmentedButtonDefaults.Icon(active = pdfMode) { Icon(painterResource(Res.drawable.filled_picture_as_pdf), null, Modifier.size(18.dp)) } }
-                ) { Text("PDF") }
-                SegmentedButton(selected = !pdfMode, onClick = onShowMarkdown, enabled = canShowMarkdown,
-                    shape = SegmentedButtonDefaults.itemShape(1, 2), modifier = Modifier.interactivePointer(enabled = canShowMarkdown),
-                    icon = { SegmentedButtonDefaults.Icon(active = !pdfMode) { Icon(painterResource(Res.drawable.filled_article), null, Modifier.size(18.dp)) } }
-                ) { Text("Markdown") }
-            }
-            Spacer(Modifier.height(20.dp))
             SheetLabel("Zoom")
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 FilledTonalIconButton(onClick = onZoomOut, enabled = canZoomOut, modifier = Modifier.interactivePointer(enabled = canZoomOut)) {
@@ -498,45 +516,73 @@ internal fun CompactViewOptionsSheet(
             }
             Spacer(Modifier.height(20.dp))
             SheetLabel("Layout")
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                SegmentedButton(selected = !spread, onClick = { onSpreadChange(false) }, enabled = layoutEnabled,
-                    shape = SegmentedButtonDefaults.itemShape(0, 2), modifier = Modifier.interactivePointer(enabled = layoutEnabled),
-                    icon = { SegmentedButtonDefaults.Icon(active = !spread) { Icon(painterResource(Res.drawable.filled_description), null, Modifier.size(18.dp)) } }
-                ) { Text("Single") }
-                SegmentedButton(selected = spread, onClick = { onSpreadChange(true) }, enabled = layoutEnabled,
-                    shape = SegmentedButtonDefaults.itemShape(1, 2), modifier = Modifier.interactivePointer(enabled = layoutEnabled),
-                    icon = { SegmentedButtonDefaults.Icon(active = spread) { Icon(painterResource(Res.drawable.filled_auto_stories), null, Modifier.size(18.dp)) } }
-                ) { Text("Two pages") }
-            }
-            ListItem(
-                headlineContent = { Text("Continuous scrolling") },
-                leadingContent = { Icon(painterResource(Res.drawable.filled_view_day), null) },
-                trailingContent = { Switch(checked = continuous, onCheckedChange = { onContinuousChange() }, enabled = layoutEnabled) },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                modifier = Modifier.clip(RoundedCornerShape(12.dp))
-                    .clickable(enabled = layoutEnabled, role = Role.Switch) { onContinuousChange() }
-                    .interactivePointer(enabled = layoutEnabled),
+            ReaderLayoutMenu(
+                spread = spread,
+                continuous = continuous,
+                enabled = layoutEnabled,
+                onSpreadChange = onSpreadChange,
+                onContinuousChange = onContinuousChange,
+                modifier = Modifier.fillMaxWidth(),
             )
-            if (!pdfMode) {
-                HorizontalDivider(Modifier.padding(vertical = 8.dp), color = colors.outlineVariant.copy(alpha = 0.5f))
-                ListItem(
-                    headlineContent = { Text("Copy Markdown") },
-                    leadingContent = { Icon(painterResource(Res.drawable.filled_content_copy), null) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier.clip(RoundedCornerShape(12.dp))
-                        .clickable(enabled = canCopyMarkdown) { onCopyMarkdown(); onDismiss() }
-                        .interactivePointer(enabled = canCopyMarkdown),
-                )
-                ListItem(
-                    headlineContent = { Text("Convert again") },
-                    supportingContent = { Text(regenerateLabel) },
-                    leadingContent = { Icon(painterResource(Res.drawable.filled_refresh), null) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier.clip(RoundedCornerShape(12.dp))
-                        .clickable(enabled = canRegenerate) { onRegenerate(); onDismiss() }
-                        .interactivePointer(enabled = canRegenerate),
-                )
-            }
+        }
+    }
+}
+
+@Composable
+internal fun ReaderLayoutMenu(
+    spread: Boolean,
+    continuous: Boolean,
+    enabled: Boolean,
+    onSpreadChange: (Boolean) -> Unit,
+    onContinuousChange: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val label = when {
+        continuous -> "Continuous"
+        spread -> "Two pages"
+        else -> "Single page"
+    }
+    val icon = when {
+        continuous -> Res.drawable.filled_view_day
+        spread -> Res.drawable.filled_auto_stories
+        else -> Res.drawable.filled_description
+    }
+    Box {
+        FilterChip(
+            selected = true,
+            onClick = { expanded = true },
+            enabled = enabled,
+            label = { Text(label) },
+            leadingIcon = { Icon(painterResource(icon), null, Modifier.size(18.dp)) },
+            trailingIcon = { Icon(painterResource(Res.drawable.filled_arrow_drop_down), "Choose page layout", Modifier.size(18.dp)) },
+            modifier = modifier.interactivePointer(enabled = enabled),
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, shape = RoundedCornerShape(16.dp)) {
+            DropdownMenuItem(
+                text = { Text("Single page") },
+                leadingIcon = { Icon(painterResource(Res.drawable.filled_description), null) },
+                trailingIcon = { if (!spread && !continuous) Icon(painterResource(Res.drawable.filled_check), null) },
+                enabled = enabled,
+                onClick = { expanded = false; onSpreadChange(false); if (continuous) onContinuousChange() },
+                modifier = Modifier.interactivePointer(enabled = enabled),
+            )
+            DropdownMenuItem(
+                text = { Text("Two pages") },
+                leadingIcon = { Icon(painterResource(Res.drawable.filled_auto_stories), null) },
+                trailingIcon = { if (spread && !continuous) Icon(painterResource(Res.drawable.filled_check), null) },
+                enabled = enabled,
+                onClick = { expanded = false; onSpreadChange(true); if (continuous) onContinuousChange() },
+                modifier = Modifier.interactivePointer(enabled = enabled),
+            )
+            DropdownMenuItem(
+                text = { Text("Continuous") },
+                leadingIcon = { Icon(painterResource(Res.drawable.filled_view_day), null) },
+                trailingIcon = { if (continuous) Icon(painterResource(Res.drawable.filled_check), null) },
+                enabled = enabled,
+                onClick = { expanded = false; if (!continuous) onContinuousChange() },
+                modifier = Modifier.interactivePointer(enabled = enabled),
+            )
         }
     }
 }
