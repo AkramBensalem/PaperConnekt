@@ -67,6 +67,9 @@ interface ZoteroClient {
     /** Moves an item (and its child attachments/notes) to the Zotero trash. */
     suspend fun trashItem(config: ZoteroConfig, itemKey: String, version: Int)
 
+    /** Restores an item from the Zotero trash. */
+    suspend fun restoreItem(config: ZoteroConfig, itemKey: String, version: Int)
+
     suspend fun setItemCollections(config: ZoteroConfig, itemKey: String, version: Int, collections: List<String>)
 
     /** Duplicates top-level metadata only, preserving fields not represented by the browsing model. */

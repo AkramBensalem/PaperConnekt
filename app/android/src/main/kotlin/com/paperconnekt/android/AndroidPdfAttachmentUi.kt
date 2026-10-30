@@ -2,6 +2,7 @@ package com.paperconnekt.android
 
 import android.app.Activity
 import android.content.ClipDescription
+import java.security.MessageDigest
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -11,6 +12,7 @@ import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import com.paperconnekt.app.PdfAttachmentUi
+import com.paperconnekt.app.PdfUploadFile
 import com.paperconnekt.storage.AndroidPdfAttachmentStorage
 
 class AndroidPdfAttachmentUi(
@@ -19,6 +21,20 @@ class AndroidPdfAttachmentUi(
 ) : PdfAttachmentUi {
     override val storage = AndroidPdfAttachmentStorage(activity)
     override suspend fun choosePdf(): String? = picker()
+
+    override suspend fun choosePdfForUpload(): PdfUploadFile? {
+        val source = picker() ?: return null
+        val imported = storage.importPdf(source)
+        val bytes = storage.readPdf(imported)
+        return PdfUploadFile(
+            name = imported.substringAfterLast('/').substringAfterLast('\\'),
+            bytes = bytes,
+            mtime = System.currentTimeMillis(),
+            md5 = MessageDigest.getInstance("MD5")
+                .digest(bytes)
+                .joinToString("") { byte -> "%02x".format(byte) },
+        )
+    }
 
     @Composable
     override fun dropTarget(

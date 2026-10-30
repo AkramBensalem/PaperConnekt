@@ -44,9 +44,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.painterResource
 
+data class PdfUploadFile(
+    val name: String,
+    val bytes: ByteArray,
+    val mtime: Long,
+    val md5: String,
+)
+
 interface PdfAttachmentUi {
     val storage: PdfAttachmentStorage
     suspend fun choosePdf(): String?
+    suspend fun choosePdfForUpload(): PdfUploadFile?
 
     @Composable
     fun dropTarget(

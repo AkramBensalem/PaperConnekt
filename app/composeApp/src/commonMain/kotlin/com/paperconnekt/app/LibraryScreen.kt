@@ -71,6 +71,9 @@ import com.akram.bensalem.paper.connekt.shared.zotero.KtorZoteroClient
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroCollection
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroGroup
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroItem
+import com.akram.bensalem.paper.connekt.shared.dto.request.zotero.ZoteroCreator
+import com.akram.bensalem.paper.connekt.shared.dto.request.zotero.ZoteroItemRequest
+import com.akram.bensalem.paper.connekt.shared.dto.request.zotero.ZoteroJournalArticleRequest
 import com.akram.bensalem.paper.connekt.feature.assistant.ZoteroPdfTarget
 import com.akram.bensalem.paper.connekt.feature.assistant.component.PaperDetailsPanel
 import com.akram.bensalem.paper.connekt.models.Paper as AssistantPaper
@@ -83,6 +86,8 @@ import kotlin.random.Random
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.filled_add
 import com.paperconnekt.app.resources.filled_archive
@@ -256,6 +261,14 @@ fun LibraryScreen(
     var showCollections by remember { mutableStateOf(savedLibraryState.showCollections) }
     var localPage by remember { mutableStateOf(0) }
     var zoteroPage by remember { mutableStateOf(0) }
+    var zoteroTrashItems by remember { mutableStateOf<List<ZoteroItem>>(emptyList()) }
+    var zoteroTrashVisible by remember { mutableStateOf(false) }
+    var showZoteroCollectionDialog by remember { mutableStateOf(false) }
+    var zoteroCollectionParent by remember { mutableStateOf<String?>(null) }
+    var zoteroRenameTarget by remember { mutableStateOf<ZoteroCollection?>(null) }
+    var zoteroDeleteTarget by remember { mutableStateOf<ZoteroCollection?>(null) }
+    var showZoteroItemDialog by remember { mutableStateOf(false) }
+    val pdfAttachments = LocalPdfAttachments.current
 
     LaunchedEffect(source, view, query, selectedFolderId) {
         localPage = 0
@@ -468,6 +481,83 @@ fun LibraryScreen(
         }
     }
 
+    fun runZoteroWrite(operation: suspend (ZoteroConfig) -> Unit) {
+        scope.launch {
+            try {
+                val apiKey = secretStore.read(SecretKey.ZOTERO).orEmpty()
+                require(apiKey.isNotBlank() && settings.zoteroUserId.isNotBlank()) {
+                    "Connect Zotero in Settings before making changes."
+                }
+                operation(
+                    ZoteroConfig(
+                        apiKey = apiKey,
+                        userId = settings.zoteroUserId,
+                        groupId = selectedZoteroGroupId,
+                    ),
+                )
+                zoteroRefreshToken++
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                io.github.aakira.napier.Napier.e("Could not save Zotero change", error)
+                zoteroError = error.message ?: "Could not save the Zotero change."
+            }
+        }
+    }
+
+    fun loadZoteroTrash() {
+        if (zoteroTrashVisible) return
+        runZoteroWrite { config ->
+            zoteroTrashItems = withContext(Dispatchers.Default) {
+                zoteroClient.listTrashItems(config)
+            }
+            zoteroTrashVisible = true
+        }
+    }
+
+    fun uploadZoteroPdf(paper: ZoteroLibraryPaper) {
+        runZoteroWrite { config ->
+            val file = pdfAttachments.choosePdfForUpload()
+            if (file != null) {
+                val attachmentKey = zoteroClient.importDocuments(
+                    config,
+                    listOf(
+                        com.akram.bensalem.paper.connekt.shared.dto.request.zotero.ZoteroImportDocumentRequest(
+                            filename = file.name,
+                            title = file.name,
+                            parentItem = paper.item.key,
+                        ),
+                    ),
+                )
+                val authorization = zoteroClient.uploadFileAuthorization(
+                    config,
+                    attachmentKey,
+                    file.name,
+                    file.bytes.size,
+                    file.mtime,
+                    file.md5,
+                )
+                if (authorization["exists"]?.jsonPrimitive?.intOrNull != 1) {
+                    fun field(name: String) = authorization[name]?.jsonPrimitive?.content
+                        ?: error("Zotero upload authorization did not return $name.")
+                    val uploadUrl = field("url")
+                    val contentType = field("contentType")
+                    val uploadBody = field("prefix").encodeToByteArray() +
+                        file.bytes +
+                        field("suffix").encodeToByteArray()
+                    zoteroClient.postFileS3(uploadUrl, contentType, uploadBody)
+                    zoteroClient.registerUploadedFile(
+                        config,
+                        attachmentKey,
+                        uploadUrl,
+                        contentType,
+                        field("uploadKey"),
+                    )
+                }
+            }
+        }
+    }
+
     suspend fun addPaper(paper: Paper) {
         if (store.papers.value.none { it.id == paper.id }) {
             store.savePaper(paper)
@@ -567,6 +657,8 @@ fun LibraryScreen(
                         query = ""
                         selectedPaperId = null
                         selectedZoteroPaperKey = null
+                        zoteroTrashVisible = false
+                        zoteroTrashItems = emptyList()
                     },
                     onNewFolder = { showCreateFolder = true },
                     onFindPaper = { showPaperSearch = true },
@@ -593,6 +685,8 @@ fun LibraryScreen(
                     onSelectGroup = {
                         selectedZoteroGroupId = it
                         zoteroError = null
+                        zoteroTrashVisible = false
+                        zoteroTrashItems = emptyList()
                     },
                     onSelectCollection = { selectedZoteroCollectionKey = it },
                     expandedCollectionIds = expandedZoteroCollectionIds,
@@ -620,6 +714,23 @@ fun LibraryScreen(
                             )
                         }
                     },
+                    onCreateCollection = { parent ->
+                        zoteroCollectionParent = parent
+                        showZoteroCollectionDialog = true
+                    },
+                    onCreateItem = { showZoteroItemDialog = true },
+                    onRenameCollection = { zoteroRenameTarget = it },
+                    onDeleteCollection = { zoteroDeleteTarget = it },
+                    onShowTrash = ::loadZoteroTrash,
+                    trashVisible = zoteroTrashVisible,
+                    trashItems = zoteroTrashItems,
+                    onRestoreTrash = { item ->
+                        runZoteroWrite { config ->
+                            zoteroClient.restoreItem(config, item.key, item.version ?: zoteroClient.fetchLibraryVersion(config))
+                            zoteroTrashItems = zoteroTrashItems.filterNot { it.key == item.key }
+                        }
+                    },
+                    onAttachPdf = ::uploadZoteroPdf,
                 )
             } else if (compact) {
                 Column(
@@ -848,6 +959,80 @@ fun LibraryScreen(
             onDismiss = { showPaperSearch = false },
         )
     }
+    if (showZoteroCollectionDialog) {
+        FolderNameDialog(
+            title = if (zoteroCollectionParent == null) "New Zotero collection" else "New Zotero subcollection",
+            confirmLabel = "Create",
+            onDismiss = {
+                showZoteroCollectionDialog = false
+                zoteroCollectionParent = null
+            },
+            onConfirm = { name ->
+                runZoteroWrite { config ->
+                    zoteroClient.createCollection(
+                        config,
+                        name,
+                        zoteroCollectionParent,
+                        zoteroClient.fetchLibraryVersion(config),
+                    )
+                }
+                showZoteroCollectionDialog = false
+                zoteroCollectionParent = null
+            },
+        )
+    }
+    if (showZoteroItemDialog) {
+        ZoteroCreateItemDialog(
+            collectionKey = selectedZoteroCollectionKey,
+            onDismiss = { showZoteroItemDialog = false },
+            onCreate = { request ->
+                runZoteroWrite { config -> zoteroClient.createItem(config, request) }
+                showZoteroItemDialog = false
+            },
+        )
+    }
+    zoteroRenameTarget?.let { target ->
+        FolderNameDialog(
+            title = "Rename Zotero collection",
+            initialValue = target.data.name,
+            confirmLabel = "Save",
+            onDismiss = { zoteroRenameTarget = null },
+            onConfirm = { name ->
+                runZoteroWrite { config ->
+                    zoteroClient.renameCollection(
+                        config,
+                        target.key,
+                        name,
+                        target.data.parentCollectionKey,
+                        target.version ?: zoteroClient.fetchLibraryVersion(config),
+                    )
+                }
+                zoteroRenameTarget = null
+            },
+        )
+    }
+    zoteroDeleteTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { zoteroDeleteTarget = null },
+            title = { Text("Delete ${target.data.name}?") },
+            text = { Text("This removes the collection from Zotero. Items remain in your library.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        runZoteroWrite { config ->
+                            zoteroClient.deleteCollection(
+                                config,
+                                target.key,
+                                target.version ?: zoteroClient.fetchLibraryVersion(config),
+                            )
+                        }
+                        zoteroDeleteTarget = null
+                    },
+                ) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { zoteroDeleteTarget = null }) { Text("Cancel") } },
+        )
+    }
     if (showManualPaper) {
         AddPaperDialog(
             onDismiss = { showManualPaper = false },
@@ -1059,6 +1244,15 @@ private fun ZoteroLibraryContent(
     selectedPaper: ZoteroLibraryPaper?,
     onCloseDetails: () -> Unit,
     onOpenPdf: (ZoteroLibraryPaper) -> Unit,
+    onCreateCollection: (String?) -> Unit,
+    onCreateItem: () -> Unit,
+    onRenameCollection: (ZoteroCollection) -> Unit,
+    onDeleteCollection: (ZoteroCollection) -> Unit,
+    onShowTrash: () -> Unit,
+    trashVisible: Boolean,
+    trashItems: List<ZoteroItem>,
+    onRestoreTrash: (ZoteroItem) -> Unit,
+    onAttachPdf: (ZoteroLibraryPaper) -> Unit,
 ) {
     val collectionEntries = collections.map { collection ->
         LibraryEntry(
@@ -1110,6 +1304,32 @@ private fun ZoteroLibraryContent(
         modifier = modifier.padding(horizontal = 24.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(onClick = { onCreateCollection(selectedCollectionKey) }, enabled = enabled && !loading) {
+                Icon(painterResource(Res.drawable.filled_create_new_folder), contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text(if (selectedCollectionKey == null) "New collection" else "New subcollection")
+            }
+            OutlinedButton(onClick = onCreateItem, enabled = enabled && !loading) {
+                Icon(painterResource(Res.drawable.filled_add), contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("New item")
+            }
+            OutlinedButton(onClick = onShowTrash, enabled = enabled && !loading && !trashVisible) {
+                Icon(painterResource(Res.drawable.filled_delete_outline), contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Bin")
+            }
+        }
+        if (trashVisible) {
+            ZoteroTrashPanel(
+                items = trashItems,
+                onRestore = onRestoreTrash,
+            )
+        }
         BoxWithConstraints(modifier = Modifier.weight(1f)) {
             val compact = maxWidth < 900.dp
             if (compact) {
@@ -1122,13 +1342,20 @@ private fun ZoteroLibraryContent(
                         expandedFolders = expandedCollectionIds,
                         onSelectFolder = onSelectCollection,
                         onToggleFolder = onToggleCollection,
-                        onNewFolder = {},
+                        onNewFolder = { onCreateCollection(null) },
                         onArchive = {},
                         archiveCount = 0,
                         archiveSelected = false,
-                        onRename = {},
-                        onDelete = {},
-                        showActions = false,
+                        onNewSubcollection = { entry ->
+                            collections.firstOrNull { it.key == entry.id }?.let { onCreateCollection(it.key) }
+                        },
+                        onRename = { entry ->
+                            collections.firstOrNull { it.key == entry.id }?.let(onRenameCollection)
+                        },
+                        onDelete = { entry ->
+                            collections.firstOrNull { it.key == entry.id }?.let(onDeleteCollection)
+                        },
+                        showActions = true,
                         showCreateCollection = false,
                         showArchive = false,
                         headerAction = {
@@ -1159,7 +1386,7 @@ private fun ZoteroLibraryContent(
                             ZoteroPaperDetailsPane(
                                 modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f),
                                 paper = paper,
-                                onRead = { onOpenPdf(paper) },
+                                onAttach = { onAttachPdf(paper) },
                                 onClose = onCloseDetails,
                             )
                         }
@@ -1178,13 +1405,20 @@ private fun ZoteroLibraryContent(
                         expandedFolders = expandedCollectionIds,
                         onSelectFolder = onSelectCollection,
                         onToggleFolder = onToggleCollection,
-                        onNewFolder = {},
+                        onNewFolder = { onCreateCollection(null) },
                         onArchive = {},
                         archiveCount = 0,
                         archiveSelected = false,
-                        onRename = {},
-                        onDelete = {},
-                        showActions = false,
+                        onNewSubcollection = { entry ->
+                            collections.firstOrNull { it.key == entry.id }?.let { onCreateCollection(it.key) }
+                        },
+                        onRename = { entry ->
+                            collections.firstOrNull { it.key == entry.id }?.let(onRenameCollection)
+                        },
+                        onDelete = { entry ->
+                            collections.firstOrNull { it.key == entry.id }?.let(onDeleteCollection)
+                        },
+                        showActions = true,
                         showCreateCollection = false,
                         showArchive = false,
                         headerAction = {
@@ -1214,7 +1448,7 @@ private fun ZoteroLibraryContent(
                         ZoteroPaperDetailsPane(
                             modifier = Modifier.width(360.dp).fillMaxHeight(),
                             paper = paper,
-                            onRead = { onOpenPdf(paper) },
+                            onAttach = { onAttachPdf(paper) },
                             onClose = onCloseDetails,
                         )
                     }
@@ -1222,6 +1456,136 @@ private fun ZoteroLibraryContent(
             }
         }
     }
+}
+
+@Composable
+@Composable
+private fun ZoteroTrashPanel(
+    items: List<ZoteroItem>,
+    onRestore: (ZoteroItem) -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Zotero bin", style = MaterialTheme.typography.titleSmall)
+            if (items.isEmpty()) {
+                Text("The Zotero bin is empty.", style = MaterialTheme.typography.bodySmall)
+            } else {
+                items.take(8).forEach { item ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            item.data.title ?: item.data.filename ?: "Untitled item",
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        TextButton(onClick = { onRestore(item) }) { Text("Restore") }
+                    }
+                }
+                if (items.size > 8) {
+                    Text(
+                        "${items.size - 8} more item(s) are in the Zotero bin.",
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZoteroCreateItemDialog(
+    collectionKey: String?,
+    onDismiss: () -> Unit,
+    onCreate: (ZoteroItemRequest) -> Unit,
+) {
+    var title by remember { mutableStateOf("") }
+    var authors by remember { mutableStateOf("") }
+    var publication by remember { mutableStateOf("") }
+    var date by remember { mutableStateOf("") }
+    var doi by remember { mutableStateOf("") }
+    var abstractText by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New Zotero item") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 480.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    if (collectionKey == null) "Create this item in your Zotero library."
+                    else "Create this item in the selected collection.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = authors,
+                    onValueChange = { authors = it },
+                    label = { Text("Authors (separated by ;)") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = publication,
+                    onValueChange = { publication = it },
+                    label = { Text("Journal or publication") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = date,
+                    onValueChange = { date = it },
+                    label = { Text("Date") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = doi,
+                    onValueChange = { doi = it },
+                    label = { Text("DOI") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = abstractText,
+                    onValueChange = { abstractText = it },
+                    label = { Text("Abstract") },
+                    minLines = 3,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = title.isNotBlank(),
+                onClick = {
+                    onCreate(
+                        ZoteroJournalArticleRequest(
+                            title = title.trim(),
+                            creators = authors.split(';')
+                                .mapNotNull { it.trim().takeIf(String::isNotBlank) }
+                                .map { ZoteroCreator("author", name = it) },
+                            publicationTitle = publication.trim().ifBlank { null },
+                            date = date.trim().ifBlank { null },
+                            DOI = doi.trim().ifBlank { null },
+                            abstractNote = abstractText.trim().ifBlank { null },
+                            collections = listOfNotNull(collectionKey),
+                        ),
+                    )
+                },
+            ) { Text("Create item") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable
@@ -2223,7 +2587,7 @@ private fun PaperDetailsPane(
 private fun ZoteroPaperDetailsPane(
     modifier: Modifier,
     paper: ZoteroLibraryPaper,
-    onRead: () -> Unit,
+    onAttach: () -> Unit,
     onClose: () -> Unit,
 ) {
     Card(
@@ -2248,18 +2612,12 @@ private fun ZoteroPaperDetailsPane(
                     Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close details")
                 }
             }
-            if (paper.attachment != null) {
-                Button(onClick = onRead) {
-                    Icon(painterResource(Res.drawable.filled_picture_as_pdf), contentDescription = null)
+            if (paper.attachment == null) {
+                OutlinedButton(onClick = onAttach) {
+                    Icon(painterResource(Res.drawable.filled_attach_file), contentDescription = null)
                     Spacer(Modifier.width(6.dp))
-                    Text("Open PDF")
+                    Text("Attach PDF to Zotero")
                 }
-            } else {
-                Text(
-                    "No PDF attachment in Zotero",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
             Box(modifier = Modifier.weight(1f)) {
                 PaperDetailsPanel(

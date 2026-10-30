@@ -370,6 +370,19 @@ class KtorZoteroClient() : ZoteroClient {
         }
     }
 
+    override suspend fun restoreItem(config: ZoteroConfig, itemKey: String, version: Int) {
+        defaultHttpClient(config).use { http ->
+            val response = http.patch("${config.base}/items/$itemKey") {
+                contentType(ContentType.Application.Json)
+                header("If-Unmodified-Since-Version", version)
+                setBody(buildJsonObject { put("deleted", false) })
+            }
+            if (response.status != HttpStatusCode.NoContent) {
+                throw ZoteroApiException("Could not restore item $itemKey from the trash.", response.status)
+            }
+        }
+    }
+
     override suspend fun setItemCollections(config: ZoteroConfig, itemKey: String, version: Int, collections: List<String>) {
         defaultHttpClient(config).use { http ->
             val response = http.patch("${config.base}/items/$itemKey") {
