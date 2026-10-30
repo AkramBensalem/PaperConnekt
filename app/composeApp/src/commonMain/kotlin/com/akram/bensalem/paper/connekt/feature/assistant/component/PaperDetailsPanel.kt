@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.sp
 fun PaperDetailsPanel(
     paper: Paper,
     modifier: Modifier = Modifier,
+    scrollable: Boolean = true,
 ) {
     var abstractExpanded by remember(paper.id) { mutableStateOf(false) }
     val abstract = paper.abstract?.takeIf { it.isNotBlank() }
@@ -65,7 +66,7 @@ fun PaperDetailsPanel(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

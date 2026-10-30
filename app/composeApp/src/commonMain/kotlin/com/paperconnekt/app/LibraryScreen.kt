@@ -2588,6 +2588,7 @@ private fun PaperDetailsPane(
                 PaperDetailsPanel(
                     paper = paper.toAssistantPaper(),
                     modifier = Modifier.fillMaxSize(),
+                    scrollable = false,
                 )
             }
         }
@@ -2638,6 +2639,7 @@ private fun ZoteroPaperDetailsPane(
                 PaperDetailsPanel(
                     paper = paper.toAssistantPaper(),
                     modifier = Modifier.fillMaxSize(),
+                    scrollable = false,
                 )
             }
         }
