@@ -35,7 +35,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -507,6 +506,7 @@ fun LibraryScreen(
 
     fun loadZoteroTrash() {
         if (zoteroTrashVisible) return
+        selectedZoteroPaperKey = null
         runZoteroWrite { config ->
             zoteroTrashItems = withContext(Dispatchers.Default) {
                 zoteroClient.listTrashItems(config)
@@ -642,8 +642,13 @@ fun LibraryScreen(
             .padding(paddingValues),
     ) {
         val compact = maxWidth < 900.dp
-        Scaffold(
-            topBar = {
+        val pageScrollState = rememberScrollState()
+        Box {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(pageScrollState),
+            ) {
                 LibraryHeader(
                     source = source,
                     paperCount = if (source == LibrarySource.LOCAL) activePapers.size else zoteroPapers.size,
@@ -664,11 +669,9 @@ fun LibraryScreen(
                     onFindPaper = { showPaperSearch = true },
                     onAddManually = { showManualPaper = true },
                 )
-            },
-        ) { contentPadding ->
             if (source == LibrarySource.ZOTERO) {
                 ZoteroLibraryContent(
-                    modifier = Modifier.fillMaxSize().padding(contentPadding),
+                    modifier = Modifier.fillMaxWidth(),
                     enabled = settings.zoteroEnabled,
                     collections = zoteroCollections,
                     papers = zoteroPapers,
@@ -688,7 +691,11 @@ fun LibraryScreen(
                         zoteroTrashVisible = false
                         zoteroTrashItems = emptyList()
                     },
-                    onSelectCollection = { selectedZoteroCollectionKey = it },
+                    onSelectCollection = {
+                        selectedZoteroCollectionKey = it
+                        zoteroTrashVisible = false
+                        zoteroTrashItems = emptyList()
+                    },
                     expandedCollectionIds = expandedZoteroCollectionIds,
                     onToggleCollection = { collectionKey ->
                         expandedZoteroCollectionIds = if (collectionKey in expandedZoteroCollectionIds) {
@@ -735,8 +742,7 @@ fun LibraryScreen(
             } else if (compact) {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(contentPadding)
+                        .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -809,7 +815,7 @@ fun LibraryScreen(
                         }
                     }
                     LibraryPaperList(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                         entries = if (view == LibraryView.ARCHIVE) archivedEntries else visiblePaperEntries,
                         page = localPage,
                         onPageChange = { localPage = it },
@@ -854,8 +860,7 @@ fun LibraryScreen(
             } else {
                 Row(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(contentPadding)
+                        .fillMaxWidth()
                         .padding(horizontal = 24.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
@@ -907,7 +912,7 @@ fun LibraryScreen(
                             LibraryNotice("$orphanCount saved item(s) have missing paper metadata.")
                         }
                         LibraryPaperList(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
                             entries = if (view == LibraryView.ARCHIVE) archivedEntries else visiblePaperEntries,
                             page = localPage,
                             onPageChange = { localPage = it },
@@ -939,7 +944,7 @@ fun LibraryScreen(
                     }
                     selectedPaper?.let { paper ->
                         PaperDetailsPane(
-                            modifier = Modifier.width(320.dp).fillMaxHeight(),
+                            modifier = Modifier.width(320.dp).heightIn(min = 520.dp),
                             paper = paper,
                             onRead = { if (paper.pdfPath != null) onOpenPaper(paper) },
                             onAttach = { path -> attachPdf(paper, path) },
@@ -949,6 +954,11 @@ fun LibraryScreen(
                     }
                 }
             }
+            }
+            PlatformVerticalScrollbar(
+                scrollState = pageScrollState,
+                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+            )
         }
     }
 
@@ -1188,7 +1198,7 @@ private fun LibraryFolderList(
                 TextButton(onClick = onNewFolder) { Text("New folder") }
             }
             LazyColumn(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.heightIn(max = 250.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 item {
@@ -1318,24 +1328,13 @@ private fun ZoteroLibraryContent(
                 Spacer(Modifier.width(6.dp))
                 Text("New item")
             }
-            OutlinedButton(onClick = onShowTrash, enabled = enabled && !loading && !trashVisible) {
-                Icon(painterResource(Res.drawable.filled_delete_outline), contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text("Bin")
-            }
         }
-        if (trashVisible) {
-            ZoteroTrashPanel(
-                items = trashItems,
-                onRestore = onRestoreTrash,
-            )
-        }
-        BoxWithConstraints(modifier = Modifier.weight(1f)) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val compact = maxWidth < 900.dp
             if (compact) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     LibraryFolderPane(
-                        modifier = Modifier.fillMaxWidth().height(250.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         folders = collectionEntries,
                         entries = collectionEntries + paperEntries,
                         selectedFolderId = selectedCollectionKey,
@@ -1343,9 +1342,9 @@ private fun ZoteroLibraryContent(
                         onSelectFolder = onSelectCollection,
                         onToggleFolder = onToggleCollection,
                         onNewFolder = { onCreateCollection(null) },
-                        onArchive = {},
-                        archiveCount = 0,
-                        archiveSelected = false,
+                        onArchive = onShowTrash,
+                        archiveCount = trashItems.size,
+                        archiveSelected = trashVisible,
                         onNewSubcollection = { entry ->
                             collections.firstOrNull { it.key == entry.id }?.let { onCreateCollection(it.key) }
                         },
@@ -1357,7 +1356,9 @@ private fun ZoteroLibraryContent(
                         },
                         showActions = true,
                         showCreateCollection = false,
-                        showArchive = false,
+                        showArchive = true,
+                        archiveLabel = "Bin",
+                        archiveSubtitle = "Deleted Zotero items",
                         headerAction = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 ZoteroGroupSelector(
@@ -1370,7 +1371,7 @@ private fun ZoteroLibraryContent(
                         },
                     )
                     ZoteroPaperList(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                         papers = visiblePapers,
                         loading = loading,
                         enabled = enabled,
@@ -1380,6 +1381,9 @@ private fun ZoteroLibraryContent(
                         onRefresh = onRefresh,
                         onSelect = onSelect,
                         onOpenPdf = onOpenPdf,
+                        trashVisible = trashVisible,
+                        trashItems = trashItems,
+                        onRestoreTrash = onRestoreTrash,
                     )
                     selectedPaper?.let { paper ->
                         Dialog(onDismissRequest = onCloseDetails) {
@@ -1394,7 +1398,7 @@ private fun ZoteroLibraryContent(
                 }
             } else {
                 Row(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
                     LibraryFolderPane(
@@ -1406,9 +1410,9 @@ private fun ZoteroLibraryContent(
                         onSelectFolder = onSelectCollection,
                         onToggleFolder = onToggleCollection,
                         onNewFolder = { onCreateCollection(null) },
-                        onArchive = {},
-                        archiveCount = 0,
-                        archiveSelected = false,
+                        onArchive = onShowTrash,
+                        archiveCount = trashItems.size,
+                        archiveSelected = trashVisible,
                         onNewSubcollection = { entry ->
                             collections.firstOrNull { it.key == entry.id }?.let { onCreateCollection(it.key) }
                         },
@@ -1420,7 +1424,9 @@ private fun ZoteroLibraryContent(
                         },
                         showActions = true,
                         showCreateCollection = false,
-                        showArchive = false,
+                        showArchive = true,
+                        archiveLabel = "Bin",
+                        archiveSubtitle = "Deleted Zotero items",
                         headerAction = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 ZoteroGroupSelector(
@@ -1443,10 +1449,13 @@ private fun ZoteroLibraryContent(
                         onRefresh = onRefresh,
                         onSelect = onSelect,
                         onOpenPdf = onOpenPdf,
+                        trashVisible = trashVisible,
+                        trashItems = trashItems,
+                        onRestoreTrash = onRestoreTrash,
                     )
                     selectedPaper?.let { paper ->
                         ZoteroPaperDetailsPane(
-                            modifier = Modifier.width(360.dp).fillMaxHeight(),
+                            modifier = Modifier.width(360.dp).heightIn(min = 520.dp),
                             paper = paper,
                             onAttach = { onAttachPdf(paper) },
                             onClose = onCloseDetails,
@@ -1674,11 +1683,21 @@ private fun ZoteroPaperList(
     onRefresh: () -> Unit,
     onSelect: (ZoteroLibraryPaper) -> Unit,
     onOpenPdf: (ZoteroLibraryPaper) -> Unit,
+    trashVisible: Boolean,
+    trashItems: List<ZoteroItem>,
+    onRestoreTrash: (ZoteroItem) -> Unit,
 ) {
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        if (trashVisible) {
+            ZoteroTrashPanel(
+                items = trashItems,
+                onRestore = onRestoreTrash,
+            )
+            return@Column
+        }
         when {
             !enabled -> {
                 LibraryNotice("Enable Zotero in Settings to browse your connected library.")
@@ -1707,17 +1726,9 @@ private fun ZoteroPaperList(
                 }
                 val pageCount = (papers.size + LIBRARY_PAGE_SIZE - 1) / LIBRARY_PAGE_SIZE
                 val currentPage = page.coerceIn(0, (pageCount - 1).coerceAtLeast(0))
-                Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        items(
-                            papers.drop(currentPage * LIBRARY_PAGE_SIZE).take(LIBRARY_PAGE_SIZE),
-                            key = { it.item.key },
-                        ) { paper ->
-                            ZoteroPaperCard(paper, onSelect, onOpenPdf)
-                        }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    papers.drop(currentPage * LIBRARY_PAGE_SIZE).take(LIBRARY_PAGE_SIZE).forEach { paper ->
+                        ZoteroPaperCard(paper, onSelect, onOpenPdf)
                     }
                     if (pageCount > 1) {
                         LibraryPager(
@@ -1944,19 +1955,19 @@ private fun LibraryFolderPane(
     showActions: Boolean = true,
     showCreateCollection: Boolean = true,
     showArchive: Boolean = true,
+    archiveLabel: String = "Archive",
+    archiveSubtitle: String = "Deleted items",
     headerAction: (@Composable () -> Unit)? = null,
 ) {
     Card(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
         ),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
+            modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
@@ -1981,32 +1992,33 @@ private fun LibraryFolderPane(
                 }
             }
             LibraryRootRow(selected = selectedFolderId == null, onClick = { onSelectFolder(null) })
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                item {
-                    FolderTreeGroup(
-                        folders = folders.filter { it.parentId == null },
-                        allFolders = folders,
-                        allEntries = entries,
-                        selectedFolderId = selectedFolderId,
-                        expandedFolders = expandedFolders,
-                        onSelectFolder = onSelectFolder,
-                        onToggleFolder = onToggleFolder,
-                        onRename = onRename,
-                        onDelete = onDelete,
-                        onNewChild = onNewSubcollection,
-                        showActions = showActions,
-                    )
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                FolderTreeGroup(
+                    folders = folders.filter { it.parentId == null },
+                    allFolders = folders,
+                    allEntries = entries,
+                    selectedFolderId = selectedFolderId,
+                    expandedFolders = expandedFolders,
+                    onSelectFolder = onSelectFolder,
+                    onToggleFolder = onToggleFolder,
+                    onRename = onRename,
+                    onDelete = onDelete,
+                    onNewChild = onNewSubcollection,
+                    showActions = showActions,
+                )
             }
             if (showArchive) {
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
                 )
-                ArchiveRow(count = archiveCount, selected = archiveSelected, onClick = onArchive)
+                ArchiveRow(
+                    count = archiveCount,
+                    selected = archiveSelected,
+                    onClick = onArchive,
+                    label = archiveLabel,
+                    subtitle = archiveSubtitle,
+                )
             }
         }
     }
@@ -2240,6 +2252,8 @@ private fun ArchiveRow(
     count: Int,
     selected: Boolean,
     onClick: () -> Unit,
+    label: String = "Archive",
+    subtitle: String = "Deleted items",
 ) {
     Surface(
         onClick = onClick,
@@ -2258,8 +2272,8 @@ private fun ArchiveRow(
                 tint = if (selected) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Column(modifier = Modifier.weight(1f)) {
-                Text("Archive", color = if (selected) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface)
-                Text("Deleted items", style = MaterialTheme.typography.labelSmall, color = if (selected) MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(label, color = if (selected) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface)
+                Text(subtitle, style = MaterialTheme.typography.labelSmall, color = if (selected) MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(count.toString(), style = MaterialTheme.typography.labelMedium, color = if (selected) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -2326,14 +2340,8 @@ private fun LibraryPaperList(
     val pageCount = (entries.size + LIBRARY_PAGE_SIZE - 1) / LIBRARY_PAGE_SIZE
     val currentPage = page.coerceIn(0, (pageCount - 1).coerceAtLeast(0))
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(
-                entries.drop(currentPage * LIBRARY_PAGE_SIZE).take(LIBRARY_PAGE_SIZE),
-                key = LibraryEntry::id,
-            ) { entry ->
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            entries.drop(currentPage * LIBRARY_PAGE_SIZE).take(LIBRARY_PAGE_SIZE).forEach { entry ->
                 val paper = entry.paperId?.let(paperById::get)
                 if (paper == null) {
                     LibraryNotice("The saved paper for “${entry.label}” is no longer available.")
@@ -2572,7 +2580,11 @@ private fun PaperDetailsPane(
                     onOpen = onRead,
                 )
             }
-            Box(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 360.dp),
+            ) {
                 PaperDetailsPanel(
                     paper = paper.toAssistantPaper(),
                     modifier = Modifier.fillMaxSize(),
@@ -2618,7 +2630,11 @@ private fun ZoteroPaperDetailsPane(
                     Text("Attach PDF to Zotero")
                 }
             }
-            Box(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 360.dp),
+            ) {
                 PaperDetailsPanel(
                     paper = paper.toAssistantPaper(),
                     modifier = Modifier.fillMaxSize(),
