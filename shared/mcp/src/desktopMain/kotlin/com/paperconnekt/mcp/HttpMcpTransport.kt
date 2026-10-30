@@ -44,7 +44,7 @@ class HttpMcpTransport(
         val pool = Executors.newFixedThreadPool(threads) { runnable ->
             Thread(runnable, "paperconnekt-mcp-http").apply { isDaemon = true }
         }
-        val created = HttpServer.create(InetSocketAddress(InetAddress.getLoopbackAddress(), port), 32)
+        val created = HttpServer.create(InetSocketAddress("127.0.0.1", port), 32)
         created.createContext("/") { exchange -> serve(exchange) }
         created.executor = pool
         created.start()
