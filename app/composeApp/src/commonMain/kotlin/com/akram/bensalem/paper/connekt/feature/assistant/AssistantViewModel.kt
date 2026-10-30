@@ -272,9 +272,8 @@ class AssistantViewModel(
         state = state.copy(chatMessages = emptyList())
         val selectedId = selectedPaperId
         viewModelScope.launch {
-            if (recordWorkspaceOpen(target) && selectedPaperId == selectedId) {
-                startStudyTimer(target)
-            }
+            recordWorkspaceOpen(target)
+            if (selectedPaperId == selectedId) startStudyTimer(target)
         }
     }
 
