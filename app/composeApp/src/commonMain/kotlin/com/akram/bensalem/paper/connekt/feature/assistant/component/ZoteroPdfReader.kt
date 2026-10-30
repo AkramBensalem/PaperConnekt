@@ -414,6 +414,7 @@ fun ZoteroPdfReader(
         val labelModes = maxWidth >= 600.dp
         val compact = maxWidth < CompactReaderMaxWidth
         val density = LocalDensity.current
+        val readerWidth = maxWidth
         val readAloudDragModifier = Modifier
             .offset { readAloudOffset }
             .onSizeChanged { readAloudSize = it }
@@ -974,7 +975,7 @@ fun ZoteroPdfReader(
         if (wide && sidebarVisible && !focusMode) {
             VerticalDivider()
             val minSidebarWidth = 280.dp
-            val maxSidebarWidth = (maxWidth / 2f).coerceAtLeast(minSidebarWidth)
+            val maxSidebarWidth = (readerWidth / 2f).coerceAtLeast(minSidebarWidth)
             val resolvedSidebarWidth = sidebarWidth.coerceIn(minSidebarWidth, maxSidebarWidth)
             Box(Modifier.width(resolvedSidebarWidth).fillMaxHeight()) {
                 Surface(
@@ -991,8 +992,8 @@ fun ZoteroPdfReader(
                         .align(Alignment.CenterStart)
                         .width(12.dp)
                         .fillMaxHeight()
-                        .pointerHoverIcon(PointerIcon.ColResize)
-                        .pointerInput(maxWidth) {
+                        .pointerHoverIcon(PointerIcon.Hand)
+                        .pointerInput(readerWidth) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
                                 val dragWidth = with(density) { dragAmount.x.toDp() }
