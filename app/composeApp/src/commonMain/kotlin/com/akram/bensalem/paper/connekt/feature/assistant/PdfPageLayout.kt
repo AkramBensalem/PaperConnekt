@@ -7,7 +7,7 @@ import kotlin.math.abs
  * Reading-order reconstruction for one PDF page.
  *
  * PDF text layers only contain positioned glyphs, so multi-column papers, superscript markers and
- * letter-spaced labels must be rebuilt geometrically before they can be read aloud:
+ * letter-spaced labels must be rebuilt geometrically for accurate text selection:
  * glyphs → baseline rows → words → recursive XY-cut (columns first, then bands) → paragraph blocks.
  */
 internal data class LayoutWord(val glyphs: List<PdfGlyph>, val text: String, val box: Rect, val row: Int)
@@ -23,7 +23,7 @@ internal data class LayoutBlock(val lines: List<LayoutLine>) {
     val size: Float = lines.flatMap { line -> line.words.flatMap { it.glyphs } }.map { it.bounds.height }.median()
     val glyphs: List<PdfGlyph> get() = lines.flatMap { line -> line.words.flatMap { it.glyphs } }
 
-    /** Lines joined for speech; end-of-line hyphenation ("differ-" + "ent") is repaired. */
+    /** Lines joined into readable text; end-of-line hyphenation ("differ-" + "ent") is repaired. */
     val text: String
         get() = buildString {
             lines.forEach { line ->

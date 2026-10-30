@@ -35,7 +35,7 @@ interface PdfMarkdownStore {
     /** Returns render-ready markdown (figure links resolved), or null when nothing is saved. */
     suspend fun load(key: String): String?
 
-    /** Saves [document] and returns render-ready markdown. Saving discards any previous reading script. */
+    /** Saves [document] and returns render-ready markdown. */
     suspend fun save(key: String, document: OcrDocument): String
 
     /** Portable source, with relative figure links and their bytes, never device-local file URLs. */
@@ -49,10 +49,6 @@ interface PdfMarkdownStore {
     /** OCR blocks saved with the Markdown, or null for conversions made before blocks were stored. */
     suspend fun loadLayout(key: String): OcrLayout? = null
 
-    /** AI-cleaned reading script (see [buildReadingScript]), or null when not prepared yet. */
-    suspend fun loadReadingScript(key: String): String? = null
-
-    suspend fun saveReadingScript(key: String, script: String) = Unit
 }
 
 expect fun defaultPdfMarkdownStore(): PdfMarkdownStore

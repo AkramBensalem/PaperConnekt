@@ -265,9 +265,6 @@ const val DEFAULT_AGENT_MAX_ITERATIONS = 60
 
 fun createResearchAgent(secretStore: SecretStore? = null): ResearchAgent = localResearchAgent(secretStore)
 
-fun createReadingAgent(secretStore: SecretStore? = null): ResearchAgent =
-    localResearchAgent(secretStore, ResearchAgentModels.GPT6_LUNA.id)
-
 enum class PaperAiTask { TRIAGE, RELEVANCE_SCORING }
 
 data class PaperTriageUsage(

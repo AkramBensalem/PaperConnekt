@@ -52,7 +52,8 @@ import com.paperconnekt.app.resources.filled_find_in_page
 import com.paperconnekt.app.resources.filled_fit_screen
 import com.paperconnekt.app.resources.filled_fullscreen
 import com.paperconnekt.app.resources.filled_fullscreen_exit
-import com.paperconnekt.app.resources.filled_headphones
+import com.paperconnekt.app.resources.filled_format_underlined
+import com.paperconnekt.app.resources.filled_highlight
 import com.paperconnekt.app.resources.filled_keyboard_arrow_down
 import com.paperconnekt.app.resources.filled_keyboard_arrow_up
 import com.paperconnekt.app.resources.filled_lightbulb
@@ -229,13 +230,11 @@ private fun CompactToolToggle(selected: Boolean, onClick: () -> Unit, icon: Pain
 internal fun CompactReaderToolRow(
     tool: String,
     onToolChange: (String) -> Unit,
-    readMode: Boolean,
-    onReadModeChange: () -> Unit,
     hasDraft: Boolean,
     inkDraft: Boolean,
     canSaveDrawing: Boolean,
     annotateEnabled: Boolean,
-    readingLocked: Boolean,
+    editingLocked: Boolean,
     colorHex: String,
     onOpenAnnotate: () -> Unit,
     onSaveDrawing: () -> Unit,
@@ -247,7 +246,10 @@ internal fun CompactReaderToolRow(
         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         CompactToolToggle(tool == "select", { onToolChange("select") }, painterResource(Res.drawable.filled_text_fields), "Select text", !hasDraft)
         CompactToolToggle(tool == "pan", { onToolChange("pan") }, painterResource(Res.drawable.filled_pan_tool), "Pan", !hasDraft)
-        CompactToolToggle(readMode, onReadModeChange, painterResource(Res.drawable.filled_headphones), "Read aloud", !hasDraft)
+        CompactToolToggle(tool == "highlight", { onToolChange(if (tool == "highlight") "select" else "highlight") },
+            painterResource(Res.drawable.filled_highlight), "Highlight", annotateEnabled && !hasDraft)
+        CompactToolToggle(tool == "underline", { onToolChange(if (tool == "underline") "select" else "underline") },
+            painterResource(Res.drawable.filled_format_underlined), "Underline", annotateEnabled && !hasDraft)
         VerticalDivider(Modifier.height(24.dp).padding(horizontal = 4.dp), color = colors.outlineVariant.copy(alpha = 0.6f))
         Surface(
             onClick = onOpenAnnotate,
@@ -272,12 +274,12 @@ internal fun CompactReaderToolRow(
             }
         }
         if (inkDraft) {
-            FilledIconButton(onClick = onSaveDrawing, enabled = canSaveDrawing && !readingLocked,
-                modifier = Modifier.size(40.dp).interactivePointer(enabled = canSaveDrawing && !readingLocked)) {
+            FilledIconButton(onClick = onSaveDrawing, enabled = canSaveDrawing && !editingLocked,
+                modifier = Modifier.size(40.dp).interactivePointer(enabled = canSaveDrawing && !editingLocked)) {
                 Icon(painterResource(Res.drawable.filled_check), "Save drawing", Modifier.size(20.dp))
             }
-            IconButton(onClick = onDiscardDrawing, enabled = !readingLocked,
-                modifier = Modifier.size(40.dp).interactivePointer(enabled = !readingLocked)) {
+            IconButton(onClick = onDiscardDrawing, enabled = !editingLocked,
+                modifier = Modifier.size(40.dp).interactivePointer(enabled = !editingLocked)) {
                 Icon(painterResource(Res.drawable.filled_close), "Discard drawing", Modifier.size(20.dp))
             }
         }

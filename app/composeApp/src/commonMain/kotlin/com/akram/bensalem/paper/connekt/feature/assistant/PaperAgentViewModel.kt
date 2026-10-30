@@ -177,9 +177,22 @@ class PaperAgentViewModel(
                     appendLine("Existing comment (always relevant; preserve or improve it according to the requested action):")
                     appendLine(existingComment.ifBlank { "(empty)" })
                     if (includePage) {
+                        val pages = workspace.state.markdown.pages
+                        val first = minOf(pageContextStart, pageContextEnd)
+                            .coerceIn(0, (pages.size - 1).coerceAtLeast(0))
+                        val last = maxOf(pageContextStart, pageContextEnd)
+                            .coerceIn(first, (pages.size - 1).coerceAtLeast(first))
                         appendLine()
-                        appendLine("Page ${pageIndex + 1} content:")
-                        appendLine(workspace.state.markdown.pages.getOrNull(pageIndex).orEmpty().take(16_000))
+                        appendLine("Pages ${first + 1}-${last + 1} content:")
+                        if (pages.isEmpty()) {
+                            appendLine("(Page content is not available yet.)")
+                        } else {
+                            pages.subList(first, last + 1)
+                                .mapIndexed { offset, content -> "Page ${first + offset + 1}:\n$content" }
+                                .joinToString("\n\n")
+                                .take(16_000)
+                                .let(::appendLine)
+                        }
                     }
                     if (includePaper) {
                         appendLine()

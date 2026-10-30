@@ -31,8 +31,6 @@ data class StudiedPaper(
 enum class AiUsageService(val label: String) {
     OCR("OCR"),
     CHAT("Chat"),
-    READING_AI("Reading AI"),
-    TTS("Speech"),
     LITERATURE_TRIAGE("Literature triage"),
     RELEVANCE_SCORING("Relevance scoring")
 }
@@ -47,7 +45,6 @@ object AiUsagePricing {
     const val GPT5_MINI_OUTPUT_PER_MILLION_TOKENS = 2.0
     const val MISTRAL_MEDIUM_31_INPUT_PER_MILLION_TOKENS = 0.50
     const val MISTRAL_MEDIUM_31_OUTPUT_PER_MILLION_TOKENS = 1.50
-    const val GOOGLE_STANDARD_TTS_PER_MILLION_CHARACTERS = 4.0
 }
 
 private fun textAiCostUsd(model: String, inputUnits: Long, outputUnits: Long): Double {
@@ -74,10 +71,8 @@ data class AiUsageEvent(
         get() = when (service) {
             AiUsageService.OCR -> inputUnits.coerceAtLeast(0L) *
                 if (cached) AiUsagePricing.MISTRAL_OCR_CACHED_PER_PAGE else AiUsagePricing.MISTRAL_OCR_PER_PAGE
-            AiUsageService.CHAT, AiUsageService.READING_AI, AiUsageService.LITERATURE_TRIAGE, AiUsageService.RELEVANCE_SCORING ->
+            AiUsageService.CHAT, AiUsageService.LITERATURE_TRIAGE, AiUsageService.RELEVANCE_SCORING ->
                 textAiCostUsd(model, inputUnits, outputUnits)
-            AiUsageService.TTS -> inputUnits.coerceAtLeast(0L) *
-                AiUsagePricing.GOOGLE_STANDARD_TTS_PER_MILLION_CHARACTERS / 1_000_000.0
         }
 }
 

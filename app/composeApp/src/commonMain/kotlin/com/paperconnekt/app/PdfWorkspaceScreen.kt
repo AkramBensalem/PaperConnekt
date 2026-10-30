@@ -44,7 +44,6 @@ import com.paperconnekt.domain.model.SavedPdfReadingPosition
 import com.paperconnekt.secrets.SecretKey
 import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.LocalResearchStore
-import com.akram.bensalem.paper.connekt.core.aiassistant.createReadingAgent
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -103,8 +102,6 @@ private fun LocalPaperWorkspace(
     val workspace = viewModel {
         PdfWorkspaceViewModel(
             mistralApiKey = { secretStore?.read(SecretKey.MISTRAL).orEmpty() },
-            openAiApiKey = { secretStore?.read(SecretKey.OPENAI).orEmpty() },
-            readingAgent = { createReadingAgent(secretStore) },
             localAnnotationStore = StoredLocalPdfAnnotations(storage),
         )
     }
@@ -292,8 +289,6 @@ private fun ZoteroPaperWorkspace(
     val workspace = viewModel {
         PdfWorkspaceViewModel(
             mistralApiKey = { secretStore?.read(SecretKey.MISTRAL).orEmpty() },
-            openAiApiKey = { secretStore?.read(SecretKey.OPENAI).orEmpty() },
-            readingAgent = { createReadingAgent(secretStore) },
             pdfCache = storage,
         )
     }

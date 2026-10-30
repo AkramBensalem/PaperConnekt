@@ -27,7 +27,6 @@ object ServerRoutes {
     const val ASSISTANT_MARKDOWN_FIGURE = "$API/assistant/markdown/figure"
     const val ASSISTANT_MARKDOWN_LAYOUT = "$API/assistant/markdown/layout"
     const val ASSISTANT_MARKDOWN_PENDING = "$API/assistant/markdown/pending"
-    const val ASSISTANT_MARKDOWN_READING = "$API/assistant/markdown/reading"
 
     const val GRAPH_SESSIONS = "$API/graph/sessions"
     const val GRAPH_RECENT_QUERIES = "$API/graph/recent-queries"

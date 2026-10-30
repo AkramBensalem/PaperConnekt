@@ -306,7 +306,7 @@ fun ResearchDashboard(
                 }
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
-                        "History is saved on this device for your Zotero account. AI costs are estimates: Mistral OCR \$4/1,000 pages (\$0.40/1,000 cached pages), GPT-6 Luna \$0.10/\$0.50 per million input/output tokens, GPT-5 Mini \$0.25/\$2.00, Mistral Medium \$0.50/\$1.50, and Google Standard speech \$4/million characters. Study time measures how long each PDF workspace stays open; it does not indicate attention or completion.",
+                        "History is saved on this device for your Zotero account. AI costs are estimates: Mistral OCR \$4/1,000 pages (\$0.40/1,000 cached pages), GPT-6 Luna \$0.10/\$0.50 per million input/output tokens, GPT-5 Mini \$0.25/\$2.00, and Mistral Medium \$0.50/\$1.50. Study time measures how long each PDF workspace stays open; it does not indicate attention or completion.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -391,9 +391,8 @@ private fun PaperCostDialog(paper: StudiedPaper, onDismiss: () -> Unit) {
                         Text(
                             if (events.isEmpty()) "No recorded usage" else when (service) {
                                 AiUsageService.OCR -> "$input pages processed"
-                                AiUsageService.CHAT, AiUsageService.READING_AI, AiUsageService.LITERATURE_TRIAGE, AiUsageService.RELEVANCE_SCORING ->
+                                AiUsageService.CHAT, AiUsageService.LITERATURE_TRIAGE, AiUsageService.RELEVANCE_SCORING ->
                                     "$input input / $output output tokens"
-                                AiUsageService.TTS -> "$input characters synthesized"
                             },
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -609,8 +608,6 @@ private fun AiCostChart(events: List<AiUsageEvent>, today: LocalDate, modifier: 
 private fun serviceColor(service: AiUsageService) = when (service) {
     AiUsageService.OCR -> MaterialTheme.colorScheme.primary
     AiUsageService.CHAT -> MaterialTheme.colorScheme.tertiary
-    AiUsageService.READING_AI -> MaterialTheme.colorScheme.secondary
-    AiUsageService.TTS -> MaterialTheme.colorScheme.error
     AiUsageService.LITERATURE_TRIAGE -> MaterialTheme.colorScheme.inversePrimary
     AiUsageService.RELEVANCE_SCORING -> MaterialTheme.colorScheme.secondaryContainer
 }

@@ -30,7 +30,6 @@ import com.akram.bensalem.paper.connekt.feature.assistant.PdfWorkspaceViewModel
 import com.akram.bensalem.paper.connekt.feature.assistant.PdfReadingPosition
 import com.akram.bensalem.paper.connekt.feature.assistant.PaperAgentViewModel
 import com.akram.bensalem.paper.connekt.feature.assistant.AssistantViewModel
-import com.akram.bensalem.paper.connekt.feature.assistant.ReadAloudController
 import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageEvent
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.akram.bensalem.paper.connekt.models.Paper
@@ -51,7 +50,6 @@ fun Workplace(
     ideasLoading: Boolean = false,
     ideaError: String? = null,
     pdfWorkspace: PdfWorkspaceViewModel? = null,
-    readAloud: ReadAloudController? = null,
     onExit: () -> Unit = {},
     onReadingPositionChanged: ((PdfReadingPosition, Float) -> Unit)? = null,
     onFocusModeChange: (Boolean) -> Unit = {},
@@ -185,7 +183,7 @@ fun Workplace(
     if (pdfWorkspace != null && (pdfWorkspace.state.target != null || pdfWorkspace.state.localTitle != null)) {
         ZoteroPdfReader(pdfWorkspace, focusMode, onExit = onExit,
             onReadingPositionChanged = onReadingPositionChanged,
-            supportingContent = supportingContent, readAloud = readAloud,
+            supportingContent = supportingContent,
             paperAgent = paperAgent,
             studyTimeToday = studyTimeToday, totalStudyTime = totalStudyTime,
             onInspectAnnotation = {
@@ -201,16 +199,6 @@ fun Workplace(
     } else {
         Column(Modifier.fillMaxSize()) {
             TextButton(onClick = onExit, modifier = Modifier.interactivePointer()) { Icon(painterResource(Res.drawable.filled_arrow_back), null); Text("Back to library") }
-            readAloud?.let { controller ->
-                ReadAloudControls(
-                    controller = controller,
-                    text = listOfNotNull(paper.title, paper.abstract).joinToString(". "),
-                    rootId = paper.id,
-                    exampleId = "paper-overview",
-                    label = "paper overview",
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
             BoxWithConstraints(Modifier.weight(1f)) {
                 if (maxWidth >= 900.dp) Row(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f)) { PdfViewer(paper) }

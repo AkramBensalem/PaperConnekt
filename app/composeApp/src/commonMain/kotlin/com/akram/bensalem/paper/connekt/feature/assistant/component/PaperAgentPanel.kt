@@ -269,27 +269,23 @@ private fun AgentComposer(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Context", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ContextChip(painterResource(Res.drawable.filled_description), "Page ${state.pageIndex + 1}/$pageCount")
+                Spacer(Modifier.weight(1f))
+                PageRangeSelector(agent, pageCount, state.pageIndex)
+            }
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                ContextChip(painterResource(Res.drawable.filled_description), "Now p. ${state.pageIndex + 1}")
-                PageRangeSelector(agent, pageCount)
-                FilterChip(
-                    selected = agent.includePaperContext,
-                    onClick = { agent.includePaperContext = !agent.includePaperContext },
-                    label = { Text("Full paper") },
-                    leadingIcon = { Icon(painterResource(Res.drawable.filled_article), null, Modifier.size(15.dp)) },
-                    trailingIcon = if (agent.includePaperContext) {
-                        { Icon(painterResource(Res.drawable.filled_check), null, Modifier.size(15.dp)) }
-                    } else null,
-                    modifier = Modifier.height(32.dp).interactivePointer(),
-                )
             }
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -324,7 +320,7 @@ private fun AgentComposer(
                 Surface(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp, max = 260.dp),
                     shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surface,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 ) {
                     if (agent.input.isBlank()) {
@@ -393,66 +389,226 @@ private fun AgentComposer(
 }
 
 @Composable
-private fun PageRangeSelector(agent: PaperAgentViewModel, pageCount: Int) {
+internal fun PageRangeSelector(
+    agent: PaperAgentViewModel,
+    pageCount: Int,
+    currentPage: Int,
+    targetLabel: String = "next question",
+) {
     var menu by remember { mutableStateOf(false) }
     var startText by remember { mutableStateOf("") }
     var endText by remember { mutableStateOf("") }
+    var draftEnabled by remember { mutableStateOf(true) }
+    var draftAllPaper by remember { mutableStateOf(false) }
     val start = agent.pageContextStart.coerceIn(0, pageCount - 1)
     val end = agent.pageContextEnd.coerceIn(start, pageCount - 1)
+    val contextEnabled = agent.includePageContext || agent.includePaperContext
+    val allPaper = agent.includePaperContext && !agent.includePageContext
     Box {
-        FilterChip(
-            selected = agent.includePageContext,
+        Surface(
             onClick = {
                 startText = (start + 1).toString()
                 endText = (end + 1).toString()
                 menu = true
             },
-            label = { Text("Pages ${start + 1}–${end + 1}") },
-            leadingIcon = { Icon(painterResource(Res.drawable.filled_description), null, Modifier.size(15.dp)) },
-            trailingIcon = { Icon(painterResource(Res.drawable.filled_expand_more), null, Modifier.size(15.dp)) },
-            modifier = Modifier.height(32.dp).interactivePointer(),
-        )
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            Column(Modifier.width(270.dp).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Focused page context", style = MaterialTheme.typography.titleSmall)
+            shape = RoundedCornerShape(9.dp),
+            color = when {
+                allPaper -> MaterialTheme.colorScheme.primaryContainer
+                agent.includePageContext -> MaterialTheme.colorScheme.primaryContainer
+                else -> MaterialTheme.colorScheme.surfaceVariant
+            },
+            contentColor = if (contextEnabled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                if (contextEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+            ),
+            modifier = Modifier.height(26.dp).interactivePointer(),
+        ) {
+            Row(
+                Modifier.padding(horizontal = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Icon(
+                    painterResource(if (contextEnabled) Res.drawable.filled_description else Res.drawable.filled_close),
+                    null,
+                    Modifier.size(12.dp),
+                )
+                Text(
+                    when {
+                        allPaper -> "All paper context"
+                        start == end && start == currentPage -> "Current page"
+                        start == end -> "Page ${start + 1}"
+                        else -> "Pages ${start + 1}–${end + 1}"
+                    }.let { if (contextEnabled) it else "No context" },
+                    style = MaterialTheme.typography.labelSmall,
+                )
+                if (contextEnabled) {
+                    Icon(painterResource(Res.drawable.filled_check), "Context enabled", Modifier.size(13.dp))
+                }
+                Icon(painterResource(Res.drawable.filled_expand_more), null, Modifier.size(13.dp))
+            }
+        }
+        DropdownMenu(
+            expanded = menu,
+            onDismissRequest = { menu = false },
+            shape = RoundedCornerShape(18.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp,
+        ) {
+            Column(
+                Modifier.width(292.dp).padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                LaunchedEffect(menu) {
+                    if (menu) {
+                        draftEnabled = contextEnabled
+                        draftAllPaper = allPaper
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Page context", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Choose the pages the agent should focus on.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(onClick = { menu = false }, modifier = Modifier.size(32.dp).interactivePointer()) {
+                        Icon(painterResource(Res.drawable.filled_close), "Close page context")
+                    }
+                }
+                Text("Quick range", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    AssistChip(
+                        onClick = {
+                            startText = (currentPage.coerceIn(0, pageCount - 1) + 1).toString()
+                            endText = startText
+                            draftEnabled = true
+                            draftAllPaper = false
+                        },
+                        label = { Text("Current") },
+                        modifier = Modifier.height(30.dp).interactivePointer(),
+                    )
+                    AssistChip(
+                        onClick = {
+                            val current = agent.pageContextStart.coerceIn(0, pageCount - 1)
+                            startText = (maxOf(0, current - 2) + 1).toString()
+                            endText = (minOf(pageCount - 1, current + 2) + 1).toString()
+                            draftEnabled = true
+                            draftAllPaper = false
+                        },
+                        label = { Text("Nearby ±2") },
+                        modifier = Modifier.height(30.dp).interactivePointer(),
+                    )
+                    AssistChip(
+                        onClick = {
+                            startText = "1"
+                            endText = pageCount.toString()
+                            draftEnabled = true
+                            draftAllPaper = true
+                        },
+                        label = { Text("All paper") },
+                        modifier = Modifier.height(30.dp).interactivePointer(),
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = startText,
-                        onValueChange = { startText = it.filter(Char::isDigit).take(5) },
-                        label = { Text("From") },
+                        onValueChange = {
+                            startText = it.filter(Char::isDigit).take(5)
+                            draftAllPaper = false
+                        },
+                        label = { Text("From page") },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
                     OutlinedTextField(
                         value = endText,
-                        onValueChange = { endText = it.filter(Char::isDigit).take(5) },
-                        label = { Text("To") },
+                        onValueChange = {
+                            endText = it.filter(Char::isDigit).take(5)
+                            draftAllPaper = false
+                        },
+                        label = { Text("To page") },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Include selected pages", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    Switch(checked = agent.includePageContext, onCheckedChange = { agent.includePageContext = it })
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(
+                        if (draftEnabled) MaterialTheme.colorScheme.surfaceContainerLow
+                        else MaterialTheme.colorScheme.surfaceVariant
+                    ).padding(start = 10.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            when {
+                                !draftEnabled -> "Context disabled"
+                                draftAllPaper -> "All paper context"
+                                else -> "Use page context"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                        Text(
+                            when {
+                                !draftEnabled -> "Turn this on to include the saved selection"
+                                draftAllPaper -> "The complete paper will be included"
+                                else -> "Include this range in the $targetLabel"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = draftEnabled,
+                        onCheckedChange = { draftEnabled = it },
+                    )
                 }
+                if (!draftEnabled) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.errorContainer)
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(painterResource(Res.drawable.filled_close), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onErrorContainer)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "No page or paper context will be included with the $targetLabel.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = { menu = false }, modifier = Modifier.interactivePointer()) { Text("Cancel") }
                     Button(
                         onClick = {
-                            val from = startText.toIntOrNull()?.coerceIn(1, pageCount)
-                            val to = endText.toIntOrNull()?.coerceIn(1, pageCount)
-                            if (from != null && to != null) {
-                                agent.pageContextStart = minOf(from, to) - 1
-                                agent.pageContextEnd = maxOf(from, to) - 1
-                                agent.includePageContext = true
+                            if (!draftEnabled) {
+                                agent.includePageContext = false
+                                agent.includePaperContext = false
                                 menu = false
+                            } else {
+                                val from = startText.toIntOrNull()?.coerceIn(1, pageCount)
+                                val to = endText.toIntOrNull()?.coerceIn(1, pageCount)
+                                if (from != null && to != null) {
+                                    val allPages = draftAllPaper || (from == 1 && to == pageCount)
+                                    agent.pageContextStart = minOf(from, to) - 1
+                                    agent.pageContextEnd = maxOf(from, to) - 1
+                                    agent.includePageContext = !allPages
+                                    agent.includePaperContext = allPages
+                                    menu = false
+                                }
                             }
                         },
-                        enabled = startText.toIntOrNull() != null && endText.toIntOrNull() != null,
+                        enabled = !draftEnabled || (startText.toIntOrNull() != null && endText.toIntOrNull() != null),
                         modifier = Modifier.interactivePointer(
-                            enabled = startText.toIntOrNull() != null && endText.toIntOrNull() != null
+                            enabled = !draftEnabled || (startText.toIntOrNull() != null && endText.toIntOrNull() != null)
                         ),
-                    ) { Text("Apply") }
+                    ) { Text(if (draftEnabled) "Save range" else "Save") }
                 }
             }
         }
@@ -461,10 +617,12 @@ private fun PageRangeSelector(agent: PaperAgentViewModel, pageCount: Int) {
 
 @Composable
 private fun ContextChip(icon: androidx.compose.ui.graphics.painter.Painter, label: String, error: Boolean = false) {
-    val color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-    Row(Modifier.clip(RoundedCornerShape(8.dp)).border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
-        .padding(horizontal = 6.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, Modifier.size(12.dp), tint = color)
+    val colors = MaterialTheme.colorScheme
+    val color = if (error) colors.onErrorContainer else colors.onSurface
+    val background = if (error) colors.errorContainer else colors.surfaceContainerHigh
+    Row(Modifier.clip(RoundedCornerShape(8.dp)).background(background).border(1.dp, if (error) colors.error else colors.outline, RoundedCornerShape(8.dp))
+        .padding(horizontal = 5.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(11.dp), tint = color)
         Spacer(Modifier.width(4.dp))
         Text(label, style = MaterialTheme.typography.labelSmall, color = color, maxLines = 1)
     }
