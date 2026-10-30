@@ -27,6 +27,7 @@ import com.akram.bensalem.paper.connekt.feature.assistant.ChatMessage
 import com.akram.bensalem.paper.connekt.feature.assistant.Idea
 import com.akram.bensalem.paper.connekt.feature.assistant.Note
 import com.akram.bensalem.paper.connekt.feature.assistant.PdfWorkspaceViewModel
+import com.akram.bensalem.paper.connekt.feature.assistant.PdfReadingPosition
 import com.akram.bensalem.paper.connekt.feature.assistant.PaperAgentViewModel
 import com.akram.bensalem.paper.connekt.feature.assistant.AssistantViewModel
 import com.akram.bensalem.paper.connekt.feature.assistant.ReadAloudController
@@ -51,6 +52,7 @@ fun Workplace(
     pdfWorkspace: PdfWorkspaceViewModel? = null,
     readAloud: ReadAloudController? = null,
     onExit: () -> Unit = {},
+    onReadingPositionChanged: ((PdfReadingPosition, Float) -> Unit)? = null,
     onFocusModeChange: (Boolean) -> Unit = {},
     ideaBoard: AssistantViewModel? = null,
     usageRecorder: suspend (String?, AiUsageEvent) -> Unit = { _, _ -> },
@@ -176,7 +178,9 @@ fun Workplace(
         }
     }
     if (pdfWorkspace != null && (pdfWorkspace.state.target != null || pdfWorkspace.state.localTitle != null)) {
-        ZoteroPdfReader(pdfWorkspace, focusMode, onExit = onExit, supportingContent = supportingContent, readAloud = readAloud,
+        ZoteroPdfReader(pdfWorkspace, focusMode, onExit = onExit,
+            onReadingPositionChanged = onReadingPositionChanged,
+            supportingContent = supportingContent, readAloud = readAloud,
             paperAgent = paperAgent,
             studyTimeToday = studyTimeToday, totalStudyTime = totalStudyTime,
             onInspectAnnotation = {

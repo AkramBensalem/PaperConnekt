@@ -34,15 +34,22 @@ clear-search controls. Primary actions retain the brand blue; backgrounds, cards
 borders, text, and secondary actions use coordinated cool blue/slate tones, with
 muted violet tertiary accents in both light and dark themes. Header entrance, button hover/press,
 and search focus use finite Compose animations (no continuous decorative motion).
-Focused PDF and graph-canvas workspaces retain their task-specific toolbars.
+Focused PDF and graph-canvas workspaces retain their task-specific toolbars and
+occupy the full page without the application navigation rail or bottom bar.
 On compact Library layouts, **Browse collections** opens the collection picker
 in a dismissible dialog so the header and folder tree do not crowd out papers.
 View filters and header actions wrap rather than truncating on narrow windows.
 When Zotero is configured, the Library header can switch between the local
-collection and a read-only Zotero browser; Zotero collections and PDF
+collection and a read-only Zotero browser; all top-level Zotero items are
+loaded, whether or not they have a PDF attachment. Zotero collections and PDF
 availability are loaded on demand without changing local Library data. The
-Zotero browser keeps the same nested collection hierarchy as the local Library
-and lets researchers switch between their personal library and available groups.
+Zotero browser keeps the same nested collection hierarchy as the local Library,
+places the compact personal/group switcher in the Collections header, and lets
+researchers open available PDFs in the shared reader. Zotero reader annotations
+use the existing version-safe synchronization path so edits remain in Zotero.
+The selected Library source, group, collection, folder, expansion state, filter,
+and search query are saved in `AppSettings`, so leaving and reopening the Library
+restores the previous browsing context.
 
 The shared theme supplies blue interaction state layers rather than inheriting
 gray text colors for hover and ripple feedback. Hover is subtle; keyboard focus,
@@ -92,8 +99,11 @@ during recomposition. Writes go through a temporary file
 and replacement, and a malformed snapshot is moved to `workspace.json.corrupt`
 before the user can explicitly retry with empty defaults. Read failures are
 shown instead of silently appearing as an empty Library. The snapshot contains papers,
-assistant sessions and messages, graphs, library entries, and `AppSettings`; it
-never contains provider secrets, which remain owned by `SecretStore`.
+assistant sessions and messages, graphs, library entries, `AppSettings`, and
+per-document PDF reading positions; it never contains provider secrets, which
+remain owned by `SecretStore`. Local and Zotero PDF positions use stable item or
+attachment keys and save the page, scroll fraction, and zoom, so reopening a
+document—even after restarting the app—returns to the last saved location.
 Incompatible schema changes must increment the snapshot version and add an explicit
 migration; additive fields with defaults remain backward compatible. Unsupported
 versions are preserved as corrupt backups rather than silently discarded.

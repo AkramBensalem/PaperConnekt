@@ -218,10 +218,16 @@ class PdfWorkspaceViewModel(
         return true
     }
 
-    fun open(target: ZoteroPdfTarget) {
+    fun open(target: ZoteroPdfTarget, initialPosition: PdfReadingPosition = PdfReadingPosition(), initialZoom: Float = 1f) {
         close()
         val account = config
-        state = PdfWorkspaceState(target = target, loading = account != null, needsRefresh = true,
+        state = PdfWorkspaceState(
+            target = target,
+            pageIndex = initialPosition.pageIndex.coerceAtLeast(0),
+            readingPosition = initialPosition.copy(fraction = initialPosition.fraction.coerceIn(0f, 1f)),
+            zoom = initialZoom.coerceIn(0.5f, 3f),
+            loading = account != null,
+            needsRefresh = true,
             error = if (account == null) "Configure Zotero before opening a PDF." else null)
         if (account == null) return
         val token = session
@@ -235,7 +241,16 @@ class PdfWorkspaceViewModel(
                 if (token != session) return@launch
                 document = opened
                 opened = null
-                state = state.copy(pageCount = document!!.pageCount, loading = false)
+                val pageIndex = initialPosition.pageIndex.coerceIn(0, document!!.pageCount - 1)
+                state = state.copy(
+                    pageCount = document!!.pageCount,
+                    pageIndex = pageIndex,
+                    readingPosition = initialPosition.copy(
+                        pageIndex = pageIndex,
+                        fraction = initialPosition.fraction.coerceIn(0f, 1f),
+                    ),
+                    loading = false,
+                )
                 renderPage()
                 refreshAnnotations()
             } catch (exception: Exception) {
@@ -252,10 +267,23 @@ class PdfWorkspaceViewModel(
     }
 
     /** Local files use the same renderer and text geometry, without Zotero annotation writes. */
-    fun openLocal(bytes: ByteArray, title: String, storageKey: String? = null) {
+    fun openLocal(
+        bytes: ByteArray,
+        title: String,
+        storageKey: String? = null,
+        initialPosition: PdfReadingPosition = PdfReadingPosition(),
+        initialZoom: Float = 1f,
+    ) {
         close()
         pdfBytes = bytes
-        state = PdfWorkspaceState(localTitle = title, localStorageKey = storageKey, loading = true)
+        state = PdfWorkspaceState(
+            localTitle = title,
+            localStorageKey = storageKey,
+            pageIndex = initialPosition.pageIndex.coerceAtLeast(0),
+            readingPosition = initialPosition.copy(fraction = initialPosition.fraction.coerceIn(0f, 1f)),
+            zoom = initialZoom.coerceIn(0.5f, 3f),
+            loading = true,
+        )
         val token = session
         loadJob = viewModelScope.launch {
             var opened: PdfDocument? = null
@@ -265,7 +293,16 @@ class PdfWorkspaceViewModel(
                 if (token != session) return@launch
                 document = opened
                 opened = null
-                state = state.copy(pageCount = requireNotNull(document).pageCount)
+                val pageCount = requireNotNull(document).pageCount
+                val pageIndex = initialPosition.pageIndex.coerceIn(0, pageCount - 1)
+                state = state.copy(
+                    pageCount = pageCount,
+                    pageIndex = pageIndex,
+                    readingPosition = initialPosition.copy(
+                        pageIndex = pageIndex,
+                        fraction = initialPosition.fraction.coerceIn(0f, 1f),
+                    ),
+                )
                 if (storageKey != null && localAnnotationStore != null) {
                     val annotations = validatedAnnotations(localAnnotationStore.load(storageKey))
                     ensureActive()
@@ -299,8 +336,8 @@ class PdfWorkspaceViewModel(
         val title = state.localTitle
         val bytes = pdfBytes
         when {
-            target != null -> open(target)
-            title != null && bytes != null -> openLocal(bytes, title, state.localStorageKey)
+            target != null -> open(target, state.readingPosition, state.zoom)
+            title != null && bytes != null -> openLocal(bytes, title, state.localStorageKey, state.readingPosition, state.zoom)
             else -> state = state.copy(error = "The PDF is no longer loaded. Close the workspace and reopen the item.")
         }
     }

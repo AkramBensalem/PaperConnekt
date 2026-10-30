@@ -53,6 +53,7 @@ import com.paperconnekt.domain.model.AssistantSession
 import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.storage.LocalResearchStore
 import com.paperconnekt.secrets.SecretStore
+import com.akram.bensalem.paper.connekt.feature.assistant.ZoteroPdfTarget
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -68,15 +69,26 @@ fun AssistantScreen(
     initialPaper: Paper? = null,
     onInitialPaperConsumed: () -> Unit = {},
     secretStore: SecretStore? = null,
+    initialZoteroTarget: ZoteroPdfTarget? = null,
+    onInitialZoteroTargetConsumed: () -> Unit = {},
+    onPdfWorkspaceClosed: () -> Unit = {},
 ) {
     val sessions by store.assistantSessions.collectAsState()
     val papers by store.papers.collectAsState()
+    val settings by store.settings.collectAsState()
     var selectedSessionId by remember { mutableStateOf<String?>(null) }
     var openPaper by remember { mutableStateOf<Paper?>(null) }
+    var openZoteroTarget by remember { mutableStateOf<ZoteroPdfTarget?>(null) }
     LaunchedEffect(initialPaper) {
         if (initialPaper != null) {
             openPaper = initialPaper
             onInitialPaperConsumed()
+        }
+    }
+    LaunchedEffect(initialZoteroTarget) {
+        if (initialZoteroTarget != null) {
+            openZoteroTarget = initialZoteroTarget
+            onInitialZoteroTargetConsumed()
         }
     }
     var isCreating by remember { mutableStateOf(false) }
@@ -88,9 +100,27 @@ fun AssistantScreen(
     if (openPaper != null) {
         PdfWorkspaceScreen(
             paper = openPaper!!,
+            store = store,
             paddingValues = paddingValues,
-            onBack = { openPaper = null },
+            onBack = {
+                openPaper = null
+                onPdfWorkspaceClosed()
+            },
             secretStore = secretStore,
+        )
+        return
+    }
+    if (openZoteroTarget != null) {
+        ZoteroPdfWorkspaceScreen(
+            target = openZoteroTarget!!,
+            store = store,
+            paddingValues = paddingValues,
+            secretStore = secretStore,
+            zoteroUserId = settings.zoteroUserId,
+            onBack = {
+                openZoteroTarget = null
+                onPdfWorkspaceClosed()
+            },
         )
         return
     }

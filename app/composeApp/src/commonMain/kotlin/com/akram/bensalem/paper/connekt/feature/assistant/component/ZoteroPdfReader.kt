@@ -215,6 +215,7 @@ fun ZoteroPdfReader(
     focusMode: Boolean = false,
     readAloud: ReadAloudController? = null,
     onExit: (() -> Unit)? = null,
+    onReadingPositionChanged: ((PdfReadingPosition, Float) -> Unit)? = null,
     supportingContent: (@Composable (allowEditing: Boolean) -> Unit)? = null,
     onInspectAnnotation: () -> Unit = {},
     onAskAi: (() -> Unit)? = null,
@@ -224,6 +225,9 @@ fun ZoteroPdfReader(
     totalStudyTime: Long = 0L
 ) {
     val state = viewModel.state
+    LaunchedEffect(state.target, state.localTitle, state.readingPosition, state.zoom) {
+        onReadingPositionChanged?.invoke(state.readingPosition, state.zoom)
+    }
     val pdfMode = state.viewMode == ReaderViewMode.Pdf
     val hasDocument = state.target != null || state.localTitle != null
     val hasMarkdownStorage = viewModel.paperStorageKey() != null

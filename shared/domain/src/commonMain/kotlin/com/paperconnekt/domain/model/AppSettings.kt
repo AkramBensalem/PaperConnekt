@@ -11,6 +11,8 @@ data class AppSettings(
     val zoteroLibraryId: String = "",
     val openAlexDiscoveryEnabled: Boolean = false,
     val selectedTheme: ThemePreference = ThemePreference.SYSTEM,
+    val libraryUiState: LibraryUiState = LibraryUiState(),
+    val pdfReadingPositions: Map<String, SavedPdfReadingPosition> = emptyMap(),
 )
 
 @Serializable
@@ -19,3 +21,23 @@ enum class ThemePreference {
     LIGHT,
     DARK,
 }
+
+@Serializable
+data class LibraryUiState(
+    val source: String = "LOCAL",
+    val selectedZoteroGroupId: String? = null,
+    val selectedZoteroCollectionKey: String? = null,
+    val expandedZoteroCollectionIds: List<String> = emptyList(),
+    val selectedFolderId: String? = null,
+    val expandedFolderIds: List<String> = emptyList(),
+    val view: String = "ALL",
+    val query: String = "",
+    val showCollections: Boolean = false,
+)
+
+@Serializable
+data class SavedPdfReadingPosition(
+    val pageIndex: Int = 0,
+    val fraction: Float = 0f,
+    val zoom: Float = 1f,
+)

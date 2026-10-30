@@ -6,6 +6,7 @@ import com.paperconnekt.domain.model.Paper
 import com.paperconnekt.domain.navigation.AppDestination
 import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.LocalResearchStore
+import com.akram.bensalem.paper.connekt.feature.assistant.ZoteroPdfTarget
 
 @Composable
 fun DestinationScreen(
@@ -20,6 +21,10 @@ fun DestinationScreen(
     onGraphSelected: (String) -> Unit = {},
     requestedGraphId: String? = null,
     onOpenGraph: (Paper) -> Unit = {},
+    requestedZoteroTarget: ZoteroPdfTarget? = null,
+    onZoteroRequestConsumed: () -> Unit = {},
+    onZoteroTargetSelected: (ZoteroPdfTarget) -> Unit = {},
+    onPdfWorkspaceClosed: () -> Unit = {},
 ) {
     when (destination) {
         AppDestination.DASHBOARD -> DashboardScreen(
@@ -36,6 +41,9 @@ fun DestinationScreen(
             initialPaper = requestedPaper,
             onInitialPaperConsumed = onPaperRequestConsumed,
             secretStore = secretStore,
+            initialZoteroTarget = requestedZoteroTarget,
+            onInitialZoteroTargetConsumed = onZoteroRequestConsumed,
+            onPdfWorkspaceClosed = onPdfWorkspaceClosed,
         )
         AppDestination.GRAPH -> GraphScreen(
             store = store,
@@ -60,6 +68,7 @@ fun DestinationScreen(
                 onPaperSelected(it)
             },
             onOpenGraph = onOpenGraph,
+            onOpenZoteroPdf = onZoteroTargetSelected,
         )
         AppDestination.SETTINGS -> SettingsScreen(store, secretStore, paddingValues)
         AppDestination.ONBOARDING -> Unit
