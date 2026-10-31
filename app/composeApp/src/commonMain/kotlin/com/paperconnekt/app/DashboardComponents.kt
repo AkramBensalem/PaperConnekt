@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.imePadding
@@ -19,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -27,6 +27,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.HorizontalDivider
@@ -44,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +53,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.contentDescription
@@ -69,6 +72,7 @@ import com.paperconnekt.app.resources.lightbulb
 import com.paperconnekt.domain.model.Paper
 import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageEvent
 import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageService
+import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageSummary
 import com.akram.bensalem.paper.connekt.feature.assistant.ResearchHistory
 import org.jetbrains.compose.resources.painterResource
 import kotlinx.datetime.Clock
@@ -77,6 +81,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
+import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.round
 
@@ -151,7 +156,6 @@ fun DashboardMetrics(
     authorCount: Int,
     aiEventCount: Int,
     aiCostUsd: Double,
-    compact: Boolean,
 ) {
     val metrics = listOf(
         "Saved papers" to paperCount,
@@ -161,10 +165,16 @@ fun DashboardMetrics(
         "AI operations" to aiEventCount,
         "Estimated AI cost" to formatDashboardUsd(aiCostUsd),
     )
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Research insights", style = MaterialTheme.typography.titleMedium)
-        if (compact) {
-            metrics.chunked(2).forEach { row ->
+    BoxWithConstraints {
+        val columns = when {
+            maxWidth < 520.dp -> 1
+            maxWidth < 820.dp -> 2
+            maxWidth < 1180.dp -> 3
+            else -> 6
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Research insights", style = MaterialTheme.typography.titleMedium)
+            metrics.chunked(columns).forEach { row ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -172,15 +182,9 @@ fun DashboardMetrics(
                     row.forEach { (label, value) ->
                         MetricCard(label, value.toString(), Modifier.weight(1f))
                     }
-                }
-            }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                metrics.forEach { (label, value) ->
-                    MetricCard(label, value.toString(), Modifier.weight(1f))
+                    repeat(columns - row.size) {
+                        Spacer(Modifier.weight(1f))
+                    }
                 }
             }
         }
@@ -204,6 +208,21 @@ private fun MetricCard(
     }
 }
 
+private enum class DashboardRange(val label: String, val dayCount: Int?) {
+    TODAY("Today", 1),
+    DAYS_7("7 days", 7),
+    DAYS_14("14 days", 14),
+    DAYS_30("30 days", 30),
+    DAYS_90("90 days", 90),
+    ALL("All time", null),
+    CUSTOM("Choose day", 1),
+}
+
+private enum class DashboardPieMetric(val label: String) {
+    TOKENS("Tokens"),
+    COST("Cost"),
+}
+
 @Composable
 fun DashboardAnalytics(
             history: ResearchHistory,
@@ -211,12 +230,20 @@ fun DashboardAnalytics(
             graphs: List<com.paperconnekt.domain.model.ResearchGraph>,
             historyLoading: Boolean,
             historyError: String?,
-            compact: Boolean,
         ) {
             val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+            var selectedRange by rememberSaveable { mutableStateOf(DashboardRange.DAYS_14) }
+            var selectedDay by rememberSaveable { mutableStateOf(today.toString()) }
+            var showDayDialog by rememberSaveable { mutableStateOf(false) }
+            var dayInput by rememberSaveable { mutableStateOf(today.toString()) }
+            val customDay = runCatching { LocalDate.parse(selectedDay) }.getOrNull() ?: today
+            val chartDays = dashboardDays(selectedRange, today, history, customDay)
             val usage = history.usage
-            val summary = history.usageSummary
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            val visibleUsage = usage.filter { usageDate(it) in chartDays.first()..chartDays.last() }
+            val summary = AiUsageSummary(visibleUsage)
+            BoxWithConstraints {
+                val stackCharts = maxWidth < 900.dp
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text("Workspace intelligence", style = MaterialTheme.typography.titleLarge)
@@ -228,69 +255,141 @@ fun DashboardAnalytics(
                     }
                     if (historyLoading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 }
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    DashboardRange.entries.forEach { range ->
+                        FilterChip(
+                            selected = selectedRange == range,
+                            onClick = {
+                                if (range == DashboardRange.CUSTOM) {
+                                    dayInput = selectedDay
+                                    showDayDialog = true
+                                } else {
+                                    selectedRange = range
+                                }
+                            },
+                            label = { Text(if (range == DashboardRange.CUSTOM && selectedRange == range) selectedDay else range.label) },
+                        )
+                    }
+                }
+                if (showDayDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showDayDialog = false },
+                        title = { Text("Choose a day") },
+                        text = {
+                            OutlinedTextField(
+                                value = dayInput,
+                                onValueChange = { dayInput = it },
+                                label = { Text("Date (YYYY-MM-DD)") },
+                                singleLine = true,
+                                isError = runCatching { LocalDate.parse(dayInput) }.isFailure,
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                enabled = runCatching { LocalDate.parse(dayInput) }.isSuccess,
+                                onClick = {
+                                    selectedDay = LocalDate.parse(dayInput).toString()
+                                    selectedRange = DashboardRange.CUSTOM
+                                    showDayDialog = false
+                                },
+                            ) {
+                                Text("Apply")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDayDialog = false }) {
+                                Text("Cancel")
+                            }
+                        },
+                    )
+                }
                 historyError?.let { DashboardStatusCard(it, isError = true) }
-                if (compact) {
-                    DashboardActivityChart(history.dailyOpens, today)
-                    DashboardCostChart(usage, today)
-                    DashboardTokenChart(usage)
-                    DashboardServiceChart(summary.byService)
+                if (stackCharts) {
+                    DashboardActivityChart(history.dailyOpens, chartDays)
+                    DashboardCostChart(usage, chartDays)
+                    DashboardTokenChart(visibleUsage)
+                    DashboardServiceChart(summary.byService, visibleUsage)
+                    DashboardPieChart(visibleUsage)
                     DashboardCollectionChart(papers, graphs)
                 } else {
                     Row(
-                        Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                        Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        DashboardActivityChart(history.dailyOpens, today, Modifier.weight(1f).fillMaxHeight())
-                        DashboardCostChart(usage, today, Modifier.weight(1f).fillMaxHeight())
+                        DashboardActivityChart(history.dailyOpens, chartDays, Modifier.weight(1f))
+                        DashboardCostChart(usage, chartDays, Modifier.weight(1f))
                     }
                     Row(
-                        Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                        Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        DashboardTokenChart(usage, Modifier.weight(1f).fillMaxHeight())
-                        DashboardServiceChart(summary.byService, Modifier.weight(1f).fillMaxHeight())
+                        DashboardTokenChart(visibleUsage, Modifier.weight(1f))
+                        DashboardServiceChart(summary.byService, visibleUsage, Modifier.weight(1f))
                     }
+                    DashboardPieChart(visibleUsage)
                     DashboardCollectionChart(papers, graphs)
                 }
-                DashboardModelTable(usage)
+                DashboardModelTable(visibleUsage)
+                }
             }
         }
 
         @Composable
         private fun DashboardActivityChart(
             dailyOpens: Map<String, Int>,
-            today: LocalDate,
+            days: List<LocalDate>,
             modifier: Modifier = Modifier,
         ) {
-            val days = (13 downTo 0).map { today - DatePeriod(days = it) }
             val values = days.map { dailyOpens[it.toString()] ?: 0 }
             val peak = values.maxOrNull()?.coerceAtLeast(1) ?: 1
-            DashboardChartCard("Research rhythm", "${values.sum()} workspace opens in the last 14 days", modifier) {
+            DashboardChartCard("Research rhythm", "${values.sum()} workspace opens in ${rangeLabel(days)}", modifier) {
                 DashboardBarPlot(
                     values = values.map(Int::toFloat),
                     maxValue = peak.toFloat(),
                     color = MaterialTheme.colorScheme.primary,
                     description = days.zip(values).joinToString { "${it.first}: ${it.second} opens" },
                 )
-                ChartRangeLabel(days.first().toString(), "Today")
+                ChartRangeLabel(days.first().toString(), days.last().toString())
             }
         }
 
         @Composable
         private fun DashboardCostChart(
             events: List<AiUsageEvent>,
-            today: LocalDate,
+            days: List<LocalDate>,
             modifier: Modifier = Modifier,
         ) {
-            val days = (13 downTo 0).map { today - DatePeriod(days = it) }
-            val values = days.map { day -> events.filter { usageDate(it) == day }.sumOf { it.estimatedCostUsd } }
-            DashboardChartCard("AI cost trend", "Estimated USD over the last 14 days · ${formatDashboardUsd(values.sum())}", modifier) {
-                DashboardLinePlot(
-                    values = values,
-                    color = MaterialTheme.colorScheme.tertiary,
-                    description = days.zip(values).joinToString { "${it.first}: ${formatDashboardUsd(it.second)}" },
+            val serviceSeries = AiUsageService.entries.map { service ->
+                DashboardLineSeries(
+                    label = service.label,
+                    color = serviceColor(service),
+                    values = days.map { day ->
+                        events
+                            .filter { usageDate(it) == day && it.service == service }
+                            .sumOf { it.estimatedCostUsd }
+                    },
                 )
-                ChartRangeLabel(days.first().toString(), "Today")
+            }
+            val globalValues = days.map { day ->
+                events.filter { usageDate(it) == day }.sumOf { it.estimatedCostUsd }
+            }
+            val total = globalValues.sum()
+            val series = serviceSeries + DashboardLineSeries(
+                label = "Global",
+                color = MaterialTheme.colorScheme.onSurface,
+                values = globalValues,
+                dashed = true,
+            )
+            DashboardChartCard("AI cost trend", "Estimated USD over ${rangeLabel(days)} · ${formatDashboardUsd(total)} total", modifier) {
+                DashboardLinePlot(
+                    series = series,
+                    description = days.zip(globalValues).joinToString { "${it.first}: ${formatDashboardUsd(it.second)}" },
+                )
+                DashboardLineLegend(series)
+                ChartRangeLabel(days.first().toString(), days.last().toString())
             }
         }
 
@@ -314,6 +413,7 @@ fun DashboardAnalytics(
         @Composable
         private fun DashboardServiceChart(
             values: Map<AiUsageService, Double>,
+            events: List<AiUsageEvent>,
             modifier: Modifier = Modifier,
         ) {
             val total = values.values.sum()
@@ -322,21 +422,190 @@ fun DashboardAnalytics(
                     AiUsageService.entries.forEach { service ->
                         val value = values[service] ?: 0.0
                         val fraction = if (total > 0.0) value / total else 0.0
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(service.label, Modifier.width(132.dp), style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            LinearProgressIndicator(
-                                progress = { fraction.toFloat() },
-                                modifier = Modifier.weight(1f),
-                                color = serviceColor(service),
-                                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                            )
-                            Text(formatDashboardUsd(value), style = MaterialTheme.typography.labelSmall)
+                        val serviceEvents = events.filter { it.service == service }
+                        val units = serviceEvents.sumOf { it.inputUnits.coerceAtLeast(0L) }
+                        val usageLabel = when (service) {
+                            AiUsageService.OCR -> "${formatCompactNumber(units)} pages"
+                            else -> "${formatCompactNumber(units)} input"
+                        }
+                        BoxWithConstraints {
+                            if (maxWidth < 460.dp) {
+                                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(service.label, style = MaterialTheme.typography.labelMedium)
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(formatDashboardUsd(value), style = MaterialTheme.typography.labelSmall)
+                                            Text(usageLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                    LinearProgressIndicator(
+                                        progress = { fraction.toFloat() },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        color = serviceColor(service),
+                                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    )
+                                }
+                            } else {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text(
+                                        service.label,
+                                        Modifier.widthIn(min = 72.dp, max = 132.dp),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    LinearProgressIndicator(
+                                        progress = { fraction.toFloat() },
+                                        modifier = Modifier.weight(1f),
+                                        color = serviceColor(service),
+                                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    )
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(formatDashboardUsd(value), style = MaterialTheme.typography.labelSmall)
+                                        Text(usageLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            }
                         }
                     }
                     if (total == 0.0) Text("No AI usage recorded yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
+
+        @Composable
+        private fun DashboardPieChart(
+            events: List<AiUsageEvent>,
+            modifier: Modifier = Modifier,
+        ) {
+            var metric by rememberSaveable { mutableStateOf(DashboardPieMetric.TOKENS) }
+            val values = AiUsageService.entries.map { service ->
+                service to events
+                    .filter { it.service == service }
+                    .sumOf {
+                        when (metric) {
+                            DashboardPieMetric.TOKENS -> (it.inputUnits.coerceAtLeast(0L) + it.outputUnits.coerceAtLeast(0L)).toDouble()
+                            DashboardPieMetric.COST -> it.estimatedCostUsd
+                        }
+                    }
+            }.filter { it.second > 0.0 }
+            val total = values.sumOf { it.second }
+            val coloredValues = values.map { (service, value) ->
+                Triple(service, value, serviceColor(service))
+            }
+            DashboardChartCard(
+                "AI usage share",
+                if (metric == DashboardPieMetric.TOKENS) {
+                    "${formatCompactNumber(total.toLong())} tracked units"
+                } else {
+                    "${formatDashboardUsd(total)} estimated cost"
+                },
+                modifier,
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    DashboardPieMetric.entries.forEach { option ->
+                        FilterChip(
+                            selected = metric == option,
+                            onClick = { metric = option },
+                            label = { Text(option.label) },
+                        )
+                    }
+                }
+                if (values.isEmpty()) {
+                    Text(
+                        "No AI usage recorded for this period.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                } else {
+                    BoxWithConstraints {
+                        val stackContent = maxWidth < 520.dp
+                        if (stackContent) {
+                            Column(
+                                Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                DashboardPie(values, coloredValues, total)
+                                DashboardPieLegend(coloredValues, total)
+                            }
+                        } else {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                DashboardPie(values, coloredValues, total)
+                                DashboardPieLegend(coloredValues, total, Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+@Composable
+private fun DashboardPie(
+    values: List<Pair<AiUsageService, Double>>,
+    coloredValues: List<Triple<AiUsageService, Double, androidx.compose.ui.graphics.Color>>,
+    total: Double,
+) {
+    Canvas(Modifier.size(170.dp).semantics {
+        contentDescription = values.joinToString { (service, value) ->
+            "${service.label}: ${formatDashboardPercent(value / total)}"
+        }
+    }) {
+        var startAngle = -90f
+        coloredValues.forEach { (_, value, color) ->
+            val sweep = (value / total * 360.0).toFloat()
+            drawArc(
+                color = color,
+                startAngle = startAngle,
+                sweepAngle = sweep,
+                useCenter = true,
+            )
+            startAngle += sweep
+        }
+    }
+}
+
+@Composable
+private fun DashboardPieLegend(
+    coloredValues: List<Triple<AiUsageService, Double, androidx.compose.ui.graphics.Color>>,
+    total: Double,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier,
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        coloredValues.forEach { (service, value, color) ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Canvas(Modifier.size(10.dp)) {
+                    drawCircle(color, radius = size.minDimension / 2f)
+                }
+                Text(
+                    service.label,
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    formatDashboardPercent(value / total),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+        }
+    }
+}
 
         @Composable
         private fun DashboardCollectionChart(
@@ -395,7 +664,12 @@ fun DashboardAnalytics(
             modifier: Modifier = Modifier,
             content: @Composable ColumnScope.() -> Unit,
         ) {
-            OutlinedCard(modifier.fillMaxWidth()) {
+            OutlinedCard(
+                modifier.fillMaxWidth(),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
+            ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = {
                     Text(title, style = MaterialTheme.typography.titleMedium)
                     Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -435,29 +709,88 @@ fun DashboardAnalytics(
 
         @Composable
         private fun DashboardLinePlot(
-            values: List<Double>,
-            color: androidx.compose.ui.graphics.Color,
+            series: List<DashboardLineSeries>,
             description: String,
         ) {
             val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
             Canvas(Modifier.fillMaxWidth().height(150.dp).semantics { contentDescription = description }) {
-                val peak = values.maxOrNull()?.coerceAtLeast(0.0000001) ?: 0.0000001
-                val step = size.width / values.lastIndex.coerceAtLeast(1)
-                val path = Path()
-                values.forEachIndexed { index, value ->
-                    val point = Offset(index * step, size.height - (value / peak).toFloat() * size.height)
-                    if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
-                }
+                val peak = series.flatMap { it.values }.maxOrNull()?.coerceAtLeast(0.0000001) ?: 0.0000001
+                val pointCount = series.maxOfOrNull { it.values.size } ?: 0
+                val step = size.width / (pointCount - 1).coerceAtLeast(1)
                 repeat(4) { index ->
                     val y = size.height * index / 3f
                     drawLine(gridColor, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
                 }
-                drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx()))
-                values.forEachIndexed { index, value ->
-                    drawCircle(color, radius = 3.dp.toPx(), center = Offset(index * step, size.height - (value / peak).toFloat() * size.height))
+                series.forEach { line ->
+                    val path = Path()
+                    line.values.forEachIndexed { index, value ->
+                        val point = Offset(index * step, size.height - (value / peak).toFloat() * size.height)
+                        if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
+                    }
+                    drawPath(
+                        path,
+                        line.color,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            width = if (line.dashed) 2.dp.toPx() else 3.dp.toPx(),
+                            pathEffect = if (line.dashed) {
+                                PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 7.dp.toPx()))
+                            } else {
+                                null
+                            },
+                        ),
+                    )
+                    if (!line.dashed) {
+                        line.values.forEachIndexed { index, value ->
+                            drawCircle(
+                                line.color,
+                                radius = 2.5.dp.toPx(),
+                                center = Offset(index * step, size.height - (value / peak).toFloat() * size.height),
+                            )
+                        }
+                    }
                 }
             }
         }
+
+        @Composable
+        private fun DashboardLineLegend(series: List<DashboardLineSeries>) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                series.chunked(2).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        row.forEach { line ->
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Canvas(Modifier.width(20.dp).height(8.dp)) {
+                                    drawLine(
+                                        color = line.color,
+                                        start = Offset(0f, size.height / 2f),
+                                        end = Offset(size.width, size.height / 2f),
+                                        strokeWidth = 2.dp.toPx(),
+                                        pathEffect = if (line.dashed) {
+                                            PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))
+                                        } else {
+                                            null
+                                        },
+                                    )
+                                }
+                                Text(line.label, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+
+        private data class DashboardLineSeries(
+            val label: String,
+            val color: androidx.compose.ui.graphics.Color,
+            val values: List<Double>,
+            val dashed: Boolean = false,
+        )
 
         @Composable
         private fun TokenBar(label: String, value: Long, total: Long, color: androidx.compose.ui.graphics.Color) {
@@ -490,10 +823,40 @@ private fun usageDate(event: AiUsageEvent): LocalDate =
 private fun serviceColor(service: AiUsageService) = when (service) {
     AiUsageService.OCR -> MaterialTheme.colorScheme.primary
     AiUsageService.CHAT -> MaterialTheme.colorScheme.tertiary
-    AiUsageService.LITERATURE_TRIAGE -> MaterialTheme.colorScheme.inversePrimary
-    AiUsageService.RELEVANCE_SCORING -> MaterialTheme.colorScheme.secondaryContainer
-    AiUsageService.EMBEDDINGS -> MaterialTheme.colorScheme.outline
+    AiUsageService.LITERATURE_TRIAGE -> MaterialTheme.colorScheme.secondary
+    AiUsageService.RELEVANCE_SCORING -> MaterialTheme.colorScheme.error
+    AiUsageService.EMBEDDINGS -> MaterialTheme.colorScheme.inversePrimary
 }
+
+private fun dashboardDays(
+    range: DashboardRange,
+    today: LocalDate,
+    history: ResearchHistory,
+    customDay: LocalDate,
+): List<LocalDate> {
+    if (range == DashboardRange.CUSTOM) return listOf(customDay)
+    val count = range.dayCount
+    if (count == null) {
+        val historyDates = history.usage.map(::usageDate) +
+            history.dailyOpens.keys.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
+        val earliest = historyDates.minOrNull() ?: today
+        val cutoff = today - DatePeriod(days = 89)
+        val start = if (earliest < cutoff) cutoff else earliest
+        val days = mutableListOf<LocalDate>()
+        var cursor = start
+        while (cursor <= today) {
+            days += cursor
+            cursor = cursor + DatePeriod(days = 1)
+        }
+        return days
+    }
+    return (0 until count).map { offset -> today - DatePeriod(days = count - offset - 1) }
+}
+
+private fun rangeLabel(days: List<LocalDate>): String =
+    if (days.size == 1) "on ${days.first()}"
+    else if (days.size <= 14) "the last ${days.size} days"
+    else "${days.first()} – ${days.last()}"
 
 private fun formatCompactNumber(value: Long): String = when {
     value >= 1_000_000L -> "${round(value / 100_000.0) / 10.0}M"
@@ -503,9 +866,12 @@ private fun formatCompactNumber(value: Long): String = when {
 
 private fun formatDashboardUsd(value: Double): String {
     if (value > 0.0 && value < 0.0001) return "<\$0.0001"
-    val scaled = round(value.coerceAtLeast(0.0) * 100.0).toLong()
-    return "\$${scaled / 100}.${(scaled % 100).toString().padStart(2, '0')}"
+    val scaled = round(value.coerceAtLeast(0.0) * 10_000.0).toLong()
+    return "\$${scaled / 10_000}.${(scaled % 10_000).toString().padStart(4, '0')}"
 }
+
+private fun formatDashboardPercent(value: Double): String =
+    "${round(value.coerceIn(0.0, 1.0) * 1000.0) / 10.0}%"
 
 @Composable
 fun DashboardPaperCard(

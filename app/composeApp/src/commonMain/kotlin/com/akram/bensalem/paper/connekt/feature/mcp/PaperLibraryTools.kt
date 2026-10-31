@@ -14,6 +14,8 @@ import com.akram.bensalem.paper.connekt.feature.assistant.agentMarkdown
 import com.akram.bensalem.paper.connekt.feature.assistant.defaultPdfMarkdownStore
 import com.akram.bensalem.paper.connekt.feature.assistant.markdownPages
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroItem
+import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroCollection
+import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroGroup
 import com.paperconnekt.knowledge.ChunkKind
 import com.paperconnekt.knowledge.EmbeddingProvider
 import com.paperconnekt.knowledge.KnowledgeFormat
@@ -50,9 +52,20 @@ data class LibraryPaper(
     val abstract: String?,
     val tags: List<String>,
     val source: String,
+    val zoteroGroup: String? = null,
+    val collections: List<String> = emptyList(),
+    val collectionKeys: List<String> = emptyList(),
     /** Key of the converted Markdown in [PdfMarkdownStore]; null when the item has no PDF. */
     val markdownKey: String?,
     val archived: Boolean = false,
+)
+
+data class ZoteroLibraryContext(
+    val accountKey: String,
+    val selectedGroupId: String?,
+    val selectedGroupName: String?,
+    val groups: List<ZoteroGroup>,
+    val collections: List<ZoteroCollection>,
 )
 
 /**
@@ -92,6 +105,23 @@ class PaperLibrary(
             )
         }
         return (local + zotero()).filter { includeArchived || !it.archived }
+    }
+
+    suspend fun zoteroContext(): ZoteroLibraryContext {
+        val cache = store.settings.value.zoteroLibraryCache
+        val groups = decodeCacheList<ZoteroGroup>(cache.groupsJson)
+        val collections = decodeCacheList<ZoteroCollection>(cache.collectionsJson)
+        val selectedGroupId = cache.accountKey.split(':').getOrNull(2)
+            ?.takeIf { it.isNotBlank() && it != "personal" }
+        return ZoteroLibraryContext(
+            accountKey = cache.accountKey,
+            selectedGroupId = selectedGroupId,
+            selectedGroupName = selectedGroupId?.toIntOrNull()?.let { id ->
+                groups.firstOrNull { it.id == id }?.data?.name
+            },
+            groups = groups,
+            collections = collections,
+        )
     }
 
     suspend fun paper(id: String): LibraryPaper = papers(includeArchived = true).firstOrNull { it.id == id.trim() }
@@ -147,6 +177,11 @@ class PaperLibrary(
         val parts = accountKey.split(':')
         val userId = parts.getOrNull(0).orEmpty()
         val groupId = parts.getOrNull(2)?.takeIf { it.isNotBlank() && it != "personal" }
+        val cache = store.settings.value.zoteroLibraryCache
+        val groups = decodeCacheList<ZoteroGroup>(cache.groupsJson)
+        val groupName = groupId?.toIntOrNull()?.let { id -> groups.firstOrNull { it.id == id }?.data?.name }
+        val collectionNames = decodeCacheList<ZoteroCollection>(cache.collectionsJson)
+            .associate { it.key to it.data.name }
         val items = zoteroJson.decodeFromString<List<ZoteroItem>>(itemsJson)
         val attachments = attachmentsJson.takeIf(String::isNotBlank)
             ?.let { zoteroJson.decodeFromString<List<ZoteroItem>>(it) }.orEmpty()
@@ -166,11 +201,19 @@ class PaperLibrary(
                 abstract = data.abstractNote,
                 tags = data.tags.map { it.tag },
                 source = "Zotero",
+                zoteroGroup = groupName,
+                collections = data.collections.mapNotNull(collectionNames::get),
+                collectionKeys = data.collections,
                 markdownKey = userId.takeIf(String::isNotBlank)
                     ?.let { "$it/${groupId?.let { id -> "groups/$id/" }.orEmpty()}${attachment.key}" },
             )
         }
     }
+
+    private inline fun <reified T> decodeCacheList(value: String): List<T> =
+        value.takeIf(String::isNotBlank)
+            ?.let { runCatching { zoteroJson.decodeFromString<List<T>>(it) }.getOrNull() }
+            .orEmpty()
 
     private companion object {
         val zoteroJson = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -200,7 +243,7 @@ fun paperLibraryTools(library: PaperLibrary, ideas: IdeaNoteStore? = null): List
     add(AgentTool(
         "list_papers",
         "List the papers in the user's PaperConnekt library with their IDs, optionally filtered by words in the title, " +
-            "authors, tags or abstract. Use the IDs with the other tools.",
+            "authors, tags, abstract, Zotero group or Zotero collection. Use the IDs with the other tools.",
         listOf(
             AgentToolParameter("query", "Words to filter by. Leave empty to list everything.", STRING, false),
             AgentToolParameter("max_results", "Number of papers, 1-50. Defaults to 20.", INTEGER, false),
@@ -222,9 +265,94 @@ fun paperLibraryTools(library: PaperLibrary, ideas: IdeaNoteStore? = null): List
                     library.pages(paper) != null -> "text ready"
                     else -> "not converted"
                 }
-                appendLine("- [${paper.id}] ${paper.title} — ${paper.byline()} · ${paper.source} · $text")
+                val location = listOfNotNull(
+                    paper.zoteroGroup?.let { "group: $it" },
+                    paper.collections.takeIf { it.isNotEmpty() }?.let { "collections: ${it.joinToString()}" },
+                ).joinToString(" · ")
+                appendLine("- [${paper.id}] ${paper.title} — ${paper.byline()} · ${paper.source}" +
+                    if (location.isNotBlank()) " · $location" else "" +
+                    " · $text")
             }
         }.trimEnd()
+    })
+    add(AgentTool(
+        "list_zotero_context",
+        "Show the cached Zotero account, available Zotero groups and collections, and the group currently selected in " +
+            "PaperConnekt's Library. Use this before answering questions about a Zotero group or collection.",
+    ) {
+        val context = library.zoteroContext()
+        if (context.accountKey.isBlank()) {
+            "No Zotero library is connected or cached in PaperConnekt."
+        } else {
+            buildString {
+                appendLine("Zotero cache: ${context.accountKey}")
+                appendLine(
+                    "Selected group: ${context.selectedGroupName ?: context.selectedGroupId ?: "personal library"}",
+                )
+                val zoteroPapers = library.papers().filter { it.source.equals("Zotero", ignoreCase = true) }
+                appendLine("Cached Zotero papers in the selected library: ${zoteroPapers.size}")
+                if (context.groups.isNotEmpty()) {
+                    appendLine("Groups:")
+                    context.groups.forEach { appendLine("- ${it.data.name} [${it.id}]") }
+                }
+                if (context.collections.isNotEmpty()) {
+                    appendLine("Collections in the selected library:")
+                    context.collections.forEach { collection ->
+                        appendLine("- ${collection.data.name} [${collection.key}]")
+                    }
+                } else {
+                    appendLine("No cached collections in the selected Zotero library.")
+                }
+                appendLine("Use list_zotero_papers to list papers from the selected Zotero library, optionally filtered by collection.")
+            }.trimEnd()
+        }
+    })
+    add(AgentTool(
+        "list_zotero_papers",
+        "List the papers currently cached from the Zotero library selected in PaperConnekt's Library. Use this for " +
+            "requests for papers in a Zotero group; the selected group is already part of the cached library context.",
+        listOf(
+            AgentToolParameter(
+                "collection",
+                "Optional Zotero collection name or key to filter by.",
+                STRING,
+                false,
+            ),
+            AgentToolParameter("max_results", "Number of papers, 1-100. Defaults to 50.", INTEGER, false),
+        ),
+    ) { args ->
+        val context = library.zoteroContext()
+        val selected = context.selectedGroupName ?: context.selectedGroupId ?: "personal library"
+        val collectionQuery = args.string("collection")?.trim()?.lowercase()?.takeIf(String::isNotBlank)
+        val limit = (args.int("max_results") ?: 50).coerceIn(1, 100)
+        val papers = library.papers()
+            .filter { it.source.equals("Zotero", ignoreCase = true) }
+            .filter { paper ->
+                collectionQuery == null ||
+                    paper.collections.any { it.lowercase().contains(collectionQuery) } ||
+                    paper.collectionKeys.any { it.lowercase() == collectionQuery }
+            }
+        if (papers.isEmpty()) {
+            if (context.accountKey.isBlank()) {
+                "No Zotero library is connected or cached in PaperConnekt."
+            } else {
+                "No cached Zotero papers were found in the selected $selected."
+            }
+        } else {
+            buildString {
+                appendLine(
+                    "${papers.size} paper(s) in the selected Zotero $selected" +
+                        (collectionQuery?.let { " collection matching \"$it\"" } ?: "") +
+                        "${if (papers.size > limit) ", showing $limit" else ""}:",
+                )
+                papers.take(limit).forEach { paper ->
+                    val collections = paper.collections.takeIf { it.isNotEmpty() }
+                        ?.let { " · collections: ${it.joinToString()}" }
+                        .orEmpty()
+                    appendLine("- [${paper.id}] ${paper.title} — ${paper.byline()}$collections")
+                }
+            }.trimEnd()
+        }
     })
     add(library.paperTool("get_paper", "Get a paper's metadata, abstract and section overview.") { paper, _ ->
         buildString {
@@ -390,7 +518,10 @@ private fun LibraryPaper.matchScore(terms: List<String>): Int = terms.sumOf { te
     (if (term in title.lowercase()) 3 else 0) +
         (if (authors.any { term in it.lowercase() }) 2 else 0) +
         (if (tags.any { term in it.lowercase() } || doi?.lowercase()?.contains(term) == true) 2 else 0) +
-        (if (abstract?.lowercase()?.contains(term) == true) 1 else 0)
+        (if (abstract?.lowercase()?.contains(term) == true) 1 else 0) +
+        (if (source.lowercase().contains(term)) 2 else 0) +
+        (if (zoteroGroup?.lowercase()?.contains(term) == true) 4 else 0) +
+        (if (collections.any { term in it.lowercase() } || collectionKeys.any { term == it.lowercase() }) 4 else 0)
 }
 
 private fun LibraryPaper.byline(): String {

@@ -37,6 +37,7 @@ import com.paperconnekt.storage.OpenAlexPaperSearchProvider
 import com.paperconnekt.secrets.SecretKey
 import com.paperconnekt.secrets.SecretStore
 import com.akram.bensalem.paper.connekt.feature.assistant.AssistantRepository
+import com.akram.bensalem.paper.connekt.feature.assistant.LOCAL_RESEARCH_ACCOUNT
 import com.akram.bensalem.paper.connekt.feature.assistant.ResearchHistory
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.launch
@@ -80,7 +81,8 @@ fun DashboardScreen(
         historyLoading = true
         historyError = null
         try {
-            researchHistory = AssistantRepository().loadUsageHistory(settings.zoteroUserId.trim().ifEmpty { null })
+            val account = settings.zoteroUserId.trim().ifEmpty { LOCAL_RESEARCH_ACCOUNT }
+            researchHistory = AssistantRepository().loadUsageHistory(account)
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (exception: Exception) {
@@ -122,7 +124,7 @@ fun DashboardScreen(
             .fillMaxSize()
             .padding(paddingValues),
     ) {
-        val compact = maxWidth < 720.dp
+        val compact = maxWidth < 900.dp
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
@@ -163,7 +165,6 @@ fun DashboardScreen(
                     authorCount = papers.flatMap { it.authors }.distinct().size,
                     aiEventCount = researchHistory.usage.size,
                     aiCostUsd = researchHistory.usageSummary.totalCostUsd,
-                    compact = compact,
                 )
             }
             item {
@@ -173,7 +174,6 @@ fun DashboardScreen(
                     graphs = graphs,
                     historyLoading = historyLoading,
                     historyError = historyError,
-                    compact = compact,
                 )
             }
         }

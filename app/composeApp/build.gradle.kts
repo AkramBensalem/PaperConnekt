@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose.multiplatform)
@@ -8,7 +8,12 @@ plugins {
 
 kotlin {
     jvmToolchain(17)
-    androidTarget()
+    androidLibrary {
+        namespace = "com.paperconnekt.app"
+        compileSdk = 37
+        minSdk = 26
+        androidResources.enable = true
+    }
     jvm("desktop")
 
     sourceSets {
@@ -35,6 +40,8 @@ kotlin {
             implementation(libs.markdown.renderer.core)
             implementation(libs.markdown.renderer.m3)
             implementation(libs.markdown.renderer.coil3)
+            implementation(libs.lets.plot.kotlin)
+            implementation(libs.lets.plot.compose)
             implementation(libs.androidx.datastore)
             api(libs.koog.agents)
             api(libs.koog.agents.additions)
@@ -65,13 +72,4 @@ kotlin {
 compose.resources {
     publicResClass = true
     packageOfResClass = "com.paperconnekt.app.resources"
-}
-
-android {
-    namespace = "com.paperconnekt.app"
-    compileSdk = 35
-
-    defaultConfig {
-        minSdk = 26
-    }
 }

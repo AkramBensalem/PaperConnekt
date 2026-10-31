@@ -1,25 +1,21 @@
 plugins {
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.kotlin.multiplatform)
 }
 
 kotlin {
     jvmToolchain(17)
-    androidTarget()
+    androidLibrary {
+        namespace = "com.paperconnekt.shared.secrets"
+        compileSdk = 37
+        minSdk = 26
+        androidResources.enable = true
+    }
     jvm("desktop")
 
     sourceSets {
         commonMain.dependencies {
             api(project(":shared:domain"))
         }
-    }
-}
-
-android {
-    namespace = "com.paperconnekt.shared.secrets"
-    compileSdk = 35
-
-    defaultConfig {
-        minSdk = 26
     }
 }

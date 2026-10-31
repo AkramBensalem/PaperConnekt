@@ -246,7 +246,7 @@ private fun chatTypography(base: TextStyle) = markdownTypography(
 
 /** Compact, chat-friendly Markdown with LaTeX math, used for research agent replies. */
 @Composable
-internal fun ChatMarkdown(
+fun ChatMarkdown(
     text: String,
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.onSurface,
@@ -293,6 +293,14 @@ internal fun ChatMarkdown(
                 ?.getTextInNode(model.content)?.toString()?.trim()
             if (language == MATH_FENCE_LANGUAGE) {
                 MarkdownCodeFence(model.content, model.node, model.typography.code) { code, _, _ -> MathBlock(code, base, color) }
+            } else if (language == DIAGRAM_FENCE_LANGUAGE) {
+                MarkdownCodeFence(model.content, model.node, model.typography.code) { code, _, _ ->
+                    DiagramBlock(code, model.typography.code)
+                }
+            } else if (language == PLOT_FENCE_LANGUAGE) {
+                MarkdownCodeFence(model.content, model.node, model.typography.code) { code, _, _ ->
+                    PlotBlock(code, model.typography.code)
+                }
             } else MarkdownCodeFence(model.content, model.node, model.typography.code)
         }),
     )

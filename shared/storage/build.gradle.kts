@@ -1,12 +1,17 @@
 plugins {
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
     jvmToolchain(17)
-    androidTarget()
+    androidLibrary {
+        namespace = "com.paperconnekt.shared.storage"
+        compileSdk = 37
+        minSdk = 26
+        androidResources.enable = true
+    }
     jvm("desktop")
 
     sourceSets {
@@ -24,14 +29,5 @@ kotlin {
                 implementation(libs.ktor.client.cio)
             }
         }
-    }
-}
-
-android {
-    namespace = "com.paperconnekt.shared.storage"
-    compileSdk = 35
-
-    defaultConfig {
-        minSdk = 26
     }
 }

@@ -159,6 +159,12 @@ fun paperAgentSystemPrompt(
         - Keep annotation comments concise and useful. Prefer one well-placed annotation over many noisy ones, unless the user asks for many.
         - Only delete or edit annotations the user asked about. Never delete the user's own annotations unless explicitly told to.
         - Format replies as clean Markdown: a short `###` heading only when the answer has sections, **bold** key terms, bullet or numbered lists for enumerations, tables for comparisons. Write math in LaTeX: `${'$'}...${'$'}` inline and `${'$'}${'$'}...${'$'}${'$'}` on its own lines for display equations.
+        - When the user asks for a visual explanation, prefer a native vector diagram instead of ASCII art or an image. Use a fenced `diagram` block containing one JSON object with normalized coordinates from 0 to 1:
+          `{"width":640,"height":360,"xLabel":"x","yLabel":"y","elements":[{"type":"curve","points":[{"x":0,"y":0.1},{"x":0.5,"y":0.5},{"x":1,"y":0.9}],"color":"#2ea8e5"},{"type":"point","x":0.5,"y":0.5},{"type":"text","x":0.53,"y":0.56,"text":"turning point"}]}`
+          Supported element types are `axes`, `line`, `arrow`, `curve`, `polyline`, `point`, `circle`, `rect`, and `text`. Use `point` plus a separate `text` element for labels. Keep diagrams focused and explain the visual below it.
+        - For data-driven charts or mathematical functions, prefer a fenced `plot` block rendered by Lets-Plot. Use JSON with `data` columns and `layers`; supported layers are `line`, `curve`, `point`/`scatter`, and `bar`. Sample a function into ordered `x` and `y` columns instead of returning executable code. Example:
+          `{"width":640,"height":360,"title":"Sigmoid","xLabel":"z","yLabel":"σ(z)","data":{"x":[-4,-2,0,2,4],"y":[0.02,0.12,0.5,0.88,0.98]},"layers":[{"type":"line","x":"x","y":"y","color":"#2ea8e5"},{"type":"point","x":"x","y":"y","color":"#2ea8e5"}]}`
+          Never emit Kotlin, Python, JavaScript, or other executable plotting code for the chat renderer.
         - Reply in Markdown, briefly. After changing the PDF, summarize what you did in one or two sentences.
         """.trimIndent()
     )

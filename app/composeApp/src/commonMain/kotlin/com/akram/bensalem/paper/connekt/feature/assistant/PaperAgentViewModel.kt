@@ -245,7 +245,7 @@ class PaperAgentViewModel(
                 val answer = withContext(agentContext) {
                     agent.respond(request)
                 }.trim()
-                recordAgentUsage(request, answer, AiUsageService.CHAT, usagePaperId(target))
+                recordAgentUsage(request, answer, AiUsageService.CHAT, usagePaperId(target, workspace.paperStorageKey()))
                 onResult(answer.ifBlank { "No comment was generated." })
             } catch (exception: CancellationException) {
                 throw exception
@@ -532,7 +532,7 @@ class PaperAgentViewModel(
     private fun embeddingUsage(embedder: EmbeddingProvider): suspend (List<String>) -> Unit = { texts ->
         withContext(ui) {
             usageRecorder(
-                usagePaperId(workspace.state.target),
+                usagePaperId(workspace.state.target, workspace.paperStorageKey()),
                 AiUsageEvent(
                     service = AiUsageService.EMBEDDINGS,
                     timestamp = nowMillis(),
@@ -556,7 +556,7 @@ class PaperAgentViewModel(
         request: AgentRequest,
         response: String,
         service: AiUsageService,
-        paperId: String? = usagePaperId(workspace.state.target),
+        paperId: String? = usagePaperId(workspace.state.target, workspace.paperStorageKey()),
         tokens: Pair<Long, Long>? = null,
     ) {
         val input = buildString {
@@ -610,6 +610,7 @@ Return only the note/comment content, without a preamble, quotation marks, or la
     }
 }
 
-internal fun usagePaperId(target: ZoteroPdfTarget?): String? =
+internal fun usagePaperId(target: ZoteroPdfTarget?, localStorageKey: String? = null): String? =
     target?.groupId?.let { "group:$it:${target.attachment.key}" }
         ?: target?.attachment?.key?.let { "personal:$it" }
+        ?: localStorageKey?.let { "local:$it" }

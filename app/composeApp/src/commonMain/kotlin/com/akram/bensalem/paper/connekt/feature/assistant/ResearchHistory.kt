@@ -104,7 +104,8 @@ data class AiUsageSummary(
 data class ResearchHistory(
     val papers: List<StudiedPaper> = emptyList(),
     val dailyOpens: Map<String, Int> = emptyMap(),
-    val graphUsage: Map<String, List<AiUsageEvent>> = emptyMap()
+    val graphUsage: Map<String, List<AiUsageEvent>> = emptyMap(),
+    val unassignedUsage: List<AiUsageEvent> = emptyList(),
 ) {
     fun record(target: ZoteroPdfTarget, timestamp: Long): ResearchHistory {
         val opened = StudiedPaper(target, timestamp, timestamp)
@@ -151,13 +152,16 @@ data class ResearchHistory(
 
     fun recordUsage(paperId: String?, event: AiUsageEvent): ResearchHistory {
         if (paperId == null) return this
+        if (papers.none { it.id == paperId }) {
+            return copy(unassignedUsage = unassignedUsage + event)
+        }
         return copy(papers = papers.map { paper ->
             if (paper.id == paperId) paper.copy(usage = paper.usage + event) else paper
         })
     }
 
     val usage: List<AiUsageEvent>
-        get() = papers.flatMap { it.usage } + graphUsage.values.flatten()
+        get() = papers.flatMap { it.usage } + unassignedUsage + graphUsage.values.flatten()
 
     val usageSummary: AiUsageSummary
         get() = AiUsageSummary(usage)
