@@ -1117,6 +1117,7 @@ fun LibraryScreen(
                     }
                 }
             }
+            Spacer(Modifier.height(if (compact) 96.dp else 0.dp))
             }
             PlatformVerticalScrollbar(
                 scrollState = pageScrollState,

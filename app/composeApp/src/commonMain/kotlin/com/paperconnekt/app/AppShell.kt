@@ -49,10 +49,22 @@ fun AppShell(
     secretStore: SecretStore,
     startDestination: AppDestination,
     menuState: AppMenuState,
+    hideMobileNavigation: Boolean = false,
+    onDestinationChanged: (AppDestination) -> Unit = {},
+    onFocusedWorkspaceChanged: (Boolean) -> Unit = {},
 ) {
     val pdfNavigation = remember { PdfNavigationGuard() }
     CompositionLocalProvider(LocalPdfNavigationGuard provides pdfNavigation) {
-        AppShellContent(store, secretStore, startDestination, pdfNavigation, menuState)
+        AppShellContent(
+            store,
+            secretStore,
+            startDestination,
+            pdfNavigation,
+            menuState,
+            hideMobileNavigation,
+            onDestinationChanged,
+            onFocusedWorkspaceChanged,
+        )
     }
 }
 
@@ -63,6 +75,9 @@ private fun AppShellContent(
     startDestination: AppDestination,
     pdfNavigation: PdfNavigationGuard,
     menuState: AppMenuState,
+    hideMobileNavigation: Boolean,
+    onDestinationChanged: (AppDestination) -> Unit,
+    onFocusedWorkspaceChanged: (Boolean) -> Unit,
 ) {
     var destination by remember { mutableStateOf(startDestination) }
     var requestedPaper by remember { mutableStateOf<Paper?>(null) }
@@ -72,6 +87,19 @@ private fun AppShellContent(
     var requestedGraphId by remember { mutableStateOf<String?>(null) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var showAddPaper by remember { mutableStateOf(false) }
+
+    SideEffect {
+        onDestinationChanged(destination)
+        onFocusedWorkspaceChanged(pdfWorkspaceFocused || destination == AppDestination.ASSISTANT_CHAT)
+    }
+
+    fun setAssistantConversationFocused(focused: Boolean) {
+        if (focused) {
+            destination = AppDestination.ASSISTANT_CHAT
+        } else if (destination == AppDestination.ASSISTANT_CHAT) {
+            destination = AppDestination.ASSISTANT
+        }
+    }
 
     fun openPdfFrom(source: AppDestination, paper: Paper? = null, zoteroTarget: ZoteroPdfTarget? = null) {
         pdfReturnDestination = source
@@ -198,6 +226,7 @@ private fun AppShellContent(
                     pdfWorkspaceFocused = true
                 },
                 onPdfWorkspaceClosed = ::closePdfWorkspace,
+                onAssistantConversationFocusedChanged = ::setAssistantConversationFocused,
                 onGraphSelected = { requestedGraphId = it },
                 requestedGraphId = requestedGraphId,
                 onOpenGraph = ::openPaperGraph,
@@ -225,43 +254,46 @@ private fun AppShellContent(
                     if (!pdfWorkspaceFocused) pdfReturnDestination = destination
                     pdfWorkspaceFocused = true
                 },
+                onAssistantConversationFocusedChanged = ::setAssistantConversationFocused,
                 onGraphSelected = { requestedGraphId = it },
                 requestedGraphId = requestedGraphId,
                 onOpenGraph = ::openPaperGraph,
             )
         } else if (maxWidth >= 840.dp) {
             Row(modifier = Modifier.fillMaxSize()) {
-                NavigationRail(
-                    modifier = Modifier.border(
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    ),
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    header = {
-                        Column(
-                            modifier = Modifier.padding(vertical = 20.dp),
-                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                        ) {
-                            Image(
-                                painter = painterResource(Res.drawable.paperconnekt_brand),
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
+                if (destination != AppDestination.ASSISTANT_CHAT) {
+                    NavigationRail(
+                        modifier = Modifier.border(
+                            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        ),
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        header = {
+                            Column(
+                                modifier = Modifier.padding(vertical = 20.dp),
+                                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                            ) {
+                                Image(
+                                    painter = painterResource(Res.drawable.paperconnekt_brand),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp),
+                                )
+                            }
+                        },
+                    ) {
+                        navigationItems.forEach { (item, label) ->
+                            NavigationRailItem(
+                                selected = destination == item,
+                                onClick = { if (destination != item) pdfNavigation.navigate { destination = item } },
+                                icon = {
+                                    NavigationIcon(
+                                        glyph = label.first,
+                                        contentDescription = label.second,
+                                    )
+                                },
+                                label = { Text(label.second) },
+                                alwaysShowLabel = true,
                             )
                         }
-                    },
-                ) {
-                    navigationItems.forEach { (item, label) ->
-                        NavigationRailItem(
-                            selected = destination == item,
-                            onClick = { if (destination != item) pdfNavigation.navigate { destination = item } },
-                            icon = {
-                                NavigationIcon(
-                                    glyph = label.first,
-                                    contentDescription = label.second,
-                                )
-                            },
-                            label = { Text(label.second) },
-                            alwaysShowLabel = true,
-                        )
                     }
                 }
                 Column(
@@ -289,6 +321,7 @@ private fun AppShellContent(
                             if (!pdfWorkspaceFocused) pdfReturnDestination = destination
                             pdfWorkspaceFocused = true
                         },
+                        onAssistantConversationFocusedChanged = ::setAssistantConversationFocused,
                         onGraphSelected = { requestedGraphId = it },
                         requestedGraphId = requestedGraphId,
                         onOpenGraph = ::openPaperGraph,
@@ -298,21 +331,27 @@ private fun AppShellContent(
         } else {
             Scaffold(
                 bottomBar = {
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    ) {
-                        navigationItems.forEach { (item, label) ->
-                            NavigationBarItem(
-                                selected = destination == item,
-                                onClick = { if (destination != item) pdfNavigation.navigate { destination = item } },
-                                icon = {
-                                    NavigationIcon(
-                                        glyph = label.first,
-                                        contentDescription = label.second,
-                                    )
-                                },
-                                label = { Text(label.second) },
-                            )
+                    if (!hideMobileNavigation && destination != AppDestination.ASSISTANT_CHAT) {
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        ) {
+                            navigationItems.forEach { (item, label) ->
+                                NavigationBarItem(
+                                    selected = destination == item,
+                                    onClick = {
+                                        if (destination != item) {
+                                            pdfNavigation.navigate { destination = item }
+                                        }
+                                    },
+                                    icon = {
+                                        NavigationIcon(
+                                            glyph = label.first,
+                                            contentDescription = label.second,
+                                        )
+                                    },
+                                    label = { Text(label.second) },
+                                )
+                            }
                         }
                     }
                 },
@@ -337,6 +376,7 @@ private fun AppShellContent(
                         if (!pdfWorkspaceFocused) pdfReturnDestination = destination
                         pdfWorkspaceFocused = true
                     },
+                    onAssistantConversationFocusedChanged = ::setAssistantConversationFocused,
                     onGraphSelected = { requestedGraphId = it },
                     requestedGraphId = requestedGraphId,
                     onOpenGraph = ::openPaperGraph,

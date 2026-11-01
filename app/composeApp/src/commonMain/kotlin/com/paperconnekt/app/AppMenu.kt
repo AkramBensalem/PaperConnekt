@@ -1,20 +1,24 @@
 package com.paperconnekt.app
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateContentSize
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -25,8 +29,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.filled_close
+import com.paperconnekt.app.resources.menu
 import io.github.aakira.napier.Napier
+import org.jetbrains.compose.resources.painterResource
 
 enum class AppMenuGroup(val title: String) {
     FILE("File"), VIEW("View"), HELP("Help"), ABOUT("About"),
@@ -83,38 +92,206 @@ class AppMenuState(private val onExit: () -> Unit = {}) {
 }
 
 @Composable
-internal fun MobileAppMenu(state: AppMenuState) {
-    var expanded by remember { mutableStateOf(false) }
+internal fun MobileAppMenu(
+    drawerOpen: Boolean,
+    onDrawerOpenChange: (Boolean) -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("PaperConnekt", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-        Box {
-            TextButton(onClick = { expanded = true }) { Text("Menu") }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                AppMenuGroup.entries.forEach { group ->
-                    if (group != AppMenuGroup.FILE) HorizontalDivider()
+        IconButton(
+            onClick = { onDrawerOpenChange(!drawerOpen) },
+            modifier = Modifier.padding(end = 4.dp),
+        ) {
+            Icon(
+                painter = painterResource(if (drawerOpen) Res.drawable.filled_close else Res.drawable.menu),
+                contentDescription = if (drawerOpen) "Close navigation" else "Open navigation",
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+        ) {
+            Text("PaperConnekt", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Research workspace",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+internal fun MobileAppDrawer(
+    state: AppMenuState,
+    drawerWidth: Dp,
+    onDismiss: () -> Unit,
+) {
+    var manageExpanded by remember { mutableStateOf(true) }
+    var appearanceExpanded by remember { mutableStateOf(true) }
+    var supportExpanded by remember { mutableStateOf(true) }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .animateContentSize(),
+        shape = RoundedCornerShape(0.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = drawerWidth)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("PaperConnekt", style = MaterialTheme.typography.titleLarge)
                     Text(
-                        group.title,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.labelSmall,
+                        "Quick actions and support",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    AppMenuAction.entries.filter {
-                        it.group == group && it != AppMenuAction.QUIT && it != AppMenuAction.SHORTCUTS
-                    }.forEach { action ->
-                        DropdownMenuItem(
-                            text = { Text(action.title) },
-                            enabled = !action.requiresWorkspace || state.workspaceReady,
-                            onClick = {
-                                expanded = false
-                                state.perform(action)
-                            },
-                        )
-                    }
                 }
             }
+
+            DrawerSection(
+                title = "Appearance",
+                expanded = appearanceExpanded,
+                onToggle = { appearanceExpanded = !appearanceExpanded },
+            ) {
+                listOf(
+                    AppMenuAction.THEME_SYSTEM,
+                    AppMenuAction.THEME_LIGHT,
+                    AppMenuAction.THEME_DARK,
+                ).forEach { action ->
+                    DrawerAction(
+                        action = action,
+                        enabled = !action.requiresWorkspace || state.workspaceReady,
+                        onClick = {
+                            onDismiss()
+                            state.perform(action)
+                        },
+                    )
+                }
+            }
+
+            DrawerSection(
+                title = "Help & about",
+                expanded = supportExpanded,
+                onToggle = { supportExpanded = !supportExpanded },
+            ) {
+                AppMenuAction.entries.filter {
+                    (it.group == AppMenuGroup.HELP || it.group == AppMenuGroup.ABOUT) &&
+                        it != AppMenuAction.SHORTCUTS &&
+                        it != AppMenuAction.ABOUT_DEVELOPER
+                }.forEach { action ->
+                    DrawerAction(
+                        action = action,
+                        title = when (action) {
+                            AppMenuAction.ABOUT_APP -> "About us"
+                            AppMenuAction.CONTACT -> "Contact us"
+                            else -> action.title
+                        },
+                        enabled = !action.requiresWorkspace || state.workspaceReady,
+                        onClick = { state.perform(action) },
+                    )
+                }
+            }
+
+            DrawerSection(
+                title = "Manage",
+                expanded = manageExpanded,
+                onToggle = { manageExpanded = !manageExpanded },
+            ) {
+                listOf(AppMenuAction.ADD_PAPER, AppMenuAction.SETTINGS).forEach { action ->
+                    DrawerAction(
+                        action = action,
+                        enabled = !action.requiresWorkspace || state.workspaceReady,
+                        onClick = {
+                            onDismiss()
+                            state.perform(action)
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DrawerSection(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggle)
+                .padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                if (expanded) "−" else "+",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (expanded) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun DrawerAction(
+    action: AppMenuAction,
+    title: String = action.title,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    selected: Boolean = false,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+    ) {
+        TextButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                title,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }
@@ -215,9 +392,10 @@ private fun informationContent(action: AppMenuAction): InformationContent = when
         "View releases",
     )
     AppMenuAction.ABOUT_APP -> InformationContent(
-        "PaperConnekt is a local-first Kotlin Multiplatform research workspace for reading, " +
-            "organising, connecting, and discussing scientific literature.\n\n" +
-            "No mandatory account or remote backend is required. Optional providers extend the local workspace.",
+        "PaperConnekt is a local-first research workspace created by Akram Bensalem. " +
+            "It helps researchers organise papers, connect ideas, and discuss scientific literature.\n\n" +
+            "The project is built with Kotlin Multiplatform and Compose Multiplatform. " +
+            "No mandatory account or remote backend is required.",
         "https://github.com/AkramBensalem/PaperConnekt",
         "View project",
     )
@@ -228,10 +406,10 @@ private fun informationContent(action: AppMenuAction): InformationContent = when
         "Developer profile",
     )
     AppMenuAction.CONTACT -> InformationContent(
-        "For questions, feedback, or collaboration, visit the developer's public GitHub profile. " +
-            "For reproducible bugs, use Help > Report an issue.",
+        "For questions, feedback, or collaboration, contact Akram Bensalem through the public GitHub profile. " +
+            "For reproducible bugs, use Report an issue.",
         "https://github.com/AkramBensalem",
-        "Contact through GitHub",
+        "Contact us through GitHub",
     )
     AppMenuAction.ACKNOWLEDGEMENTS -> InformationContent(
         "Built with Kotlin Multiplatform and Compose Multiplatform, alongside the open-source " +

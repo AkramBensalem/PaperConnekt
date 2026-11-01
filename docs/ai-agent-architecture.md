@@ -142,7 +142,18 @@ Planned additions:
 `Routed(intent)`, `Retrieval(query, results[score, method])`, `ToolStarted/Finished`, `TextDelta`, `ReasoningDelta?`, `Citation(chunkId)`, `Usage(tokens, cost)`, and `Completed/Failed`.
 `PaperAgentViewModel` collects the flow on Main. The chat bubble streams. The Sources panel lists retrieved chunks, and clicking one jumps to its page and flashes its bbox.
 
-### 2.5 Concurrency model
+### 2.5 Visual explanations in chat
+
+Chat Markdown supports three complementary visual formats:
+
+- LaTeX for equations.
+- Equations remain selectable and copyable as their original LaTeX while rendering as native math images.
+- `diagram` fences for lightweight conceptual drawings rendered with shared Compose Canvas primitives.
+- `plot` fences for data-driven charts rendered by the shared Compose Canvas renderer. The model emits validated JSON data columns and an allowlisted set of layers (`line`, `curve`, `point`, `scatter`, and `bar`); it never emits executable plotting code.
+
+This keeps mathematical plots interactive and vector-based while retaining a smaller renderer for diagrams that are not statistical charts. The plot and diagram renderers both use shared Compose primitives, so the same declarative output works on Android and Desktop/JVM; iOS is intentionally out of scope for the current implementation.
+
+### 2.6 Concurrency model
 
 - One `CoroutineScope` per run, a child of `viewModelScope`. Cancellation (Stop) cancels the whole tree.
 - `Dispatchers.Default` handles indexing, BM25, and cosine. `Dispatchers.IO` handles files and HTTP. `Dispatchers.Main` handles only UI tools.
@@ -150,7 +161,7 @@ Planned additions:
 - Knowledge stores are immutable snapshots that are swapped atomically (`MutableStateFlow`), so readers never lock.
 - MCP requests run on the server's own scope and share the same immutable index snapshots.
 
-### 2.6 App as an MCP server (implemented)
+### 2.7 App as an MCP server (implemented)
 
 MCP clients (Claude Desktop, VS Code Copilot, Cursor, CLIs) can use the researcher's library with the same retrieval
 the in-app agent uses: find papers, then read only the passages a task needs, with paper, page and chunk citations.

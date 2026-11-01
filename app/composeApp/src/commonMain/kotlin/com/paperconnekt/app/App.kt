@@ -3,8 +3,14 @@ package com.paperconnekt.app
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -19,6 +25,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import com.akram.bensalem.paper.connekt.feature.mcp.LocalMcpHost
@@ -43,6 +53,9 @@ fun PaperConnektApp(
     mcpHost: McpHost? = null,
 ) {
     val store = rememberResearchStore(workspaceStorage)
+    var mobileDrawerOpen by remember { mutableStateOf(false) }
+    var currentDestination by remember { mutableStateOf<AppDestination?>(null) }
+    var focusedWorkspaceOpen by remember { mutableStateOf(false) }
     var initializationError by remember(store) { mutableStateOf<String?>(null) }
     var attempt by remember(store) { mutableStateOf(0) }
     LaunchedEffect(store, attempt) {
@@ -74,7 +87,6 @@ fun PaperConnektApp(
     } else {
         AppDestination.ONBOARDING
     }
-
     CompositionLocalProvider(LocalPdfAttachments provides pdfAttachments, LocalMcpHost provides mcpHost) {
         PaperConnektTheme(preference = settings.selectedTheme) {
             Surface(
@@ -82,32 +94,155 @@ fun PaperConnektApp(
                 color = androidx.compose.material3.MaterialTheme.colorScheme.background,
             ) {
                 Column(Modifier.fillMaxSize()) {
-                    if (showMobileMenu) MobileAppMenu(menuState)
-                    Box(Modifier.weight(1f).fillMaxSize()) {
-                        if (initialized) {
-                            AppShell(
+                    if (showMobileMenu) {
+                        BoxWithConstraints(
+                            modifier = Modifier.weight(1f).fillMaxSize(),
+                        ) {
+                            val appScale by animateFloatAsState(
+                                targetValue = if (mobileDrawerOpen) 0.5f else 1f,
+                            )
+                            val drawerWidth = (maxWidth * 0.5f).coerceIn(176.dp, 280.dp)
+                            val shrunkenAppMargin = if (mobileDrawerOpen) 12.dp else 0.dp
+
+                            if (mobileDrawerOpen) {
+                                MobileAppDrawer(
+                                    state = menuState,
+                                    drawerWidth = drawerWidth,
+                                    onDismiss = { mobileDrawerOpen = false },
+                                )
+                            }
+
+                            Surface(
+                                modifier = Modifier
+                                    .padding(
+                                        end = shrunkenAppMargin,
+                                        bottom = shrunkenAppMargin,
+                                    )
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        transformOrigin = TransformOrigin(1f, 1f)
+                                        scaleX = appScale
+                                        scaleY = appScale
+                                        shadowElevation = if (mobileDrawerOpen) 24.dp.toPx() else 0f
+                                        shape = if (mobileDrawerOpen) {
+                                            RoundedCornerShape(28.dp)
+                                        } else {
+                                            RectangleShape
+                                        }
+                                        clip = mobileDrawerOpen
+                                    },
+                                shape = if (mobileDrawerOpen) {
+                                    RoundedCornerShape(28.dp)
+                                } else {
+                                    RectangleShape
+                                },
+                                tonalElevation = if (mobileDrawerOpen) 8.dp else 0.dp,
+                            ) {
+                                Box(Modifier.fillMaxSize()) {
+                                    Column(Modifier.fillMaxSize()) {
+                                        if (!mobileDrawerOpen &&
+                                            currentDestination !in setOf(
+                                                AppDestination.GRAPH,
+                                                AppDestination.GRAPH_CANVAS,
+                                                AppDestination.ASSISTANT_CHAT,
+                                            ) &&
+                                            !focusedWorkspaceOpen
+                                        ) {
+                                            MobileAppMenu(
+                                                drawerOpen = false,
+                                                onDrawerOpenChange = { mobileDrawerOpen = it },
+                                            )
+                                        }
+                                        Box(Modifier.weight(1f).fillMaxSize()) {
+                                            AppContent(
+                                                initialized = initialized,
+                                                initializationError = initializationError,
+                                                attempt = { attempt++ },
+                                                store = store,
+                                                secretStore = secretStore,
+                                                startDestination = startDestination,
+                                                menuState = menuState,
+                                                hideMobileNavigation = mobileDrawerOpen,
+                                                onDestinationChanged = { currentDestination = it },
+                                                onFocusedWorkspaceChanged = { focusedWorkspaceOpen = it },
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            if (mobileDrawerOpen) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(
+                                            end = shrunkenAppMargin,
+                                            bottom = shrunkenAppMargin,
+                                        )
+                                        .fillMaxWidth(appScale)
+                                        .fillMaxHeight(appScale)
+                                        .border(
+                                            width = 2.dp,
+                                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                                            shape = RoundedCornerShape(14.dp),
+                                        )
+                                        .clickable(onClick = { mobileDrawerOpen = false }),
+                                    )
+                            }
+                        }
+                    } else {
+                        Box(Modifier.weight(1f).fillMaxSize()) {
+                            AppContent(
+                                initialized = initialized,
+                                initializationError = initializationError,
+                                attempt = { attempt++ },
                                 store = store,
                                 secretStore = secretStore,
                                 startDestination = startDestination,
                                 menuState = menuState,
                             )
-                        } else {
-                            Column(
-                                modifier = Modifier.fillMaxSize().padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center,
-                            ) {
-                                if (initializationError == null) {
-                                    CircularProgressIndicator()
-                                } else {
-                                    Text(initializationError.orEmpty())
-                                    Button(onClick = { attempt++ }) { Text("Retry") }
-                                }
-                            }
                         }
                     }
                 }
                 AppMenuDialogs(menuState, menuDialogHost)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppContent(
+    initialized: Boolean,
+    initializationError: String?,
+    attempt: () -> Unit,
+    store: PersistentResearchStore,
+    secretStore: SecretStore,
+    startDestination: AppDestination,
+    menuState: AppMenuState,
+    hideMobileNavigation: Boolean = false,
+    onDestinationChanged: (AppDestination) -> Unit = {},
+    onFocusedWorkspaceChanged: (Boolean) -> Unit = {},
+) {
+    if (initialized) {
+        AppShell(
+            store = store,
+            secretStore = secretStore,
+            startDestination = startDestination,
+            menuState = menuState,
+            hideMobileNavigation = hideMobileNavigation,
+            onDestinationChanged = onDestinationChanged,
+            onFocusedWorkspaceChanged = onFocusedWorkspaceChanged,
+        )
+    } else {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            if (initializationError == null) {
+                CircularProgressIndicator()
+            } else {
+                Text(initializationError)
+                Button(onClick = attempt) { Text("Retry") }
             }
         }
     }

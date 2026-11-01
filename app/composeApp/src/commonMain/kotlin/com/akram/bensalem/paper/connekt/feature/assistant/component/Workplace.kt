@@ -2,6 +2,7 @@ package com.akram.bensalem.paper.connekt.feature.assistant.component
 
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.filled_arrow_back
+import com.paperconnekt.app.resources.filled_arrow_forward
 import com.paperconnekt.app.resources.filled_lightbulb
 import com.paperconnekt.app.resources.filled_note
 import com.paperconnekt.app.resources.filled_smart_toy
@@ -10,7 +11,6 @@ import com.akram.bensalem.bistosh.core.designsystem.component.interactivePointer
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -24,7 +24,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.rememberScrollState
 import com.akram.bensalem.paper.connekt.feature.assistant.ChatMessage
 import com.akram.bensalem.paper.connekt.feature.assistant.Idea
 import com.akram.bensalem.paper.connekt.feature.assistant.Note
@@ -124,34 +123,87 @@ fun Workplace(
                     color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
-                    Row(
-                        Modifier.padding(4.dp).horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        val detailPanels = listOf(
-                            "Details" to painterResource(Res.drawable.filled_article),
-                        ) + panels
-                        detailPanels.forEachIndexed { index, (title, icon) ->
-                            val selected = selectedPanel == index
-                            val label = if (index == 1 && hasPdfAnnotations) "Annotations" else title
-                            Surface(
-                                selected = selected,
-                                onClick = { selectedPanel = index },
-                                modifier = (if (compactTabs) Modifier.width(64.dp) else Modifier.weight(1f))
-                                    .interactivePointer(),
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                                contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                    val detailPanels = listOf(
+                        "Details" to painterResource(Res.drawable.filled_article),
+                    ) + panels
+                    if (compactTabs) {
+                        Row(
+                            Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            IconButton(
+                                onClick = { selectedPanel = (selectedPanel - 1).coerceAtLeast(0) },
+                                enabled = selectedPanel > 0,
+                                modifier = Modifier.interactivePointer()
                             ) {
-                                Column(
-                                    Modifier.padding(horizontal = 4.dp, vertical = 10.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                Icon(
+                                    painterResource(Res.drawable.filled_arrow_back),
+                                    contentDescription = "Previous panel"
+                                )
+                            }
+                            val (title, icon) = detailPanels[selectedPanel]
+                            val label = if (selectedPanel == 1 && hasPdfAnnotations) "Annotations" else title
+                            Surface(
+                                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(icon, if (headerCollapsed) label else null, Modifier.size(20.dp))
-                                    AnimatedVisibility(visible = !headerCollapsed && !compactTabs) {
-                                        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis)
+                                    Icon(icon, label, Modifier.size(20.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        label,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = {
+                                    selectedPanel = (selectedPanel + 1).coerceAtMost(detailPanels.lastIndex)
+                                },
+                                enabled = selectedPanel < detailPanels.lastIndex,
+                                modifier = Modifier.interactivePointer()
+                            ) {
+                                Icon(
+                                    painterResource(Res.drawable.filled_arrow_forward),
+                                    contentDescription = "Next panel"
+                                )
+                            }
+                        }
+                    } else {
+                        Row(
+                            Modifier.padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            detailPanels.forEachIndexed { index, (title, icon) ->
+                                val selected = selectedPanel == index
+                                val label = if (index == 1 && hasPdfAnnotations) "Annotations" else title
+                                Surface(
+                                    selected = selected,
+                                    onClick = { selectedPanel = index },
+                                    modifier = Modifier.weight(1f).interactivePointer(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                    contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                ) {
+                                    Column(
+                                        Modifier.padding(horizontal = 4.dp, vertical = 10.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(icon, if (headerCollapsed) label else null, Modifier.size(20.dp))
+                                        AnimatedVisibility(visible = !headerCollapsed) {
+                                            Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis)
+                                        }
                                     }
                                 }
                             }

@@ -37,6 +37,7 @@ import com.paperconnekt.storage.OpenAlexPaperSearchProvider
 import com.paperconnekt.secrets.SecretKey
 import com.paperconnekt.secrets.SecretStore
 import com.akram.bensalem.paper.connekt.feature.assistant.AssistantRepository
+import com.akram.bensalem.paper.connekt.feature.assistant.LOCAL_RESEARCH_ACCOUNT
 import com.akram.bensalem.paper.connekt.feature.assistant.ResearchHistory
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.launch
@@ -80,7 +81,10 @@ fun DashboardScreen(
         historyLoading = true
         historyError = null
         try {
-            researchHistory = AssistantRepository().loadUsageHistory(settings.zoteroUserId.trim().ifEmpty { null })
+            val account = settings.zoteroUserId.trim().ifEmpty { LOCAL_RESEARCH_ACCOUNT }
+            val repository = AssistantRepository()
+            repository.recordWorkspaceOpen(kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
+            researchHistory = repository.loadUsageHistory(account)
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (exception: Exception) {
@@ -122,16 +126,17 @@ fun DashboardScreen(
             .fillMaxSize()
             .padding(paddingValues),
     ) {
-        val compact = maxWidth < 720.dp
+        val compact = maxWidth < 620.dp
+        val narrow = maxWidth < 420.dp
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                start = if (compact) 16.dp else 32.dp,
-                end = if (compact) 16.dp else 32.dp,
-                top = 24.dp,
-                bottom = 32.dp,
+                start = if (narrow) 12.dp else if (compact) 16.dp else 32.dp,
+                end = if (narrow) 12.dp else if (compact) 16.dp else 32.dp,
+                top = if (compact) 16.dp else 24.dp,
+                bottom = if (compact) 96.dp else 32.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 14.dp else 20.dp),
         ) {
             item {
                 DashboardHeader(
@@ -163,7 +168,6 @@ fun DashboardScreen(
                     authorCount = papers.flatMap { it.authors }.distinct().size,
                     aiEventCount = researchHistory.usage.size,
                     aiCostUsd = researchHistory.usageSummary.totalCostUsd,
-                    compact = compact,
                 )
             }
             item {
@@ -173,7 +177,6 @@ fun DashboardScreen(
                     graphs = graphs,
                     historyLoading = historyLoading,
                     historyError = historyError,
-                    compact = compact,
                 )
             }
         }

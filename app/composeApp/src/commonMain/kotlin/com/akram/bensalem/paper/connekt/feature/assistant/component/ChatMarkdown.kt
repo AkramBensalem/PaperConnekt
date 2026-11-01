@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import com.akram.bensalem.paper.connekt.feature.assistant.component.MarkdownHostTheme as MaterialTheme
@@ -246,7 +247,7 @@ private fun chatTypography(base: TextStyle) = markdownTypography(
 
 /** Compact, chat-friendly Markdown with LaTeX math, used for research agent replies. */
 @Composable
-internal fun ChatMarkdown(
+fun ChatMarkdown(
     text: String,
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.onSurface,
@@ -293,6 +294,14 @@ internal fun ChatMarkdown(
                 ?.getTextInNode(model.content)?.toString()?.trim()
             if (language == MATH_FENCE_LANGUAGE) {
                 MarkdownCodeFence(model.content, model.node, model.typography.code) { code, _, _ -> MathBlock(code, base, color) }
+            } else if (language == DIAGRAM_FENCE_LANGUAGE) {
+                MarkdownCodeFence(model.content, model.node, model.typography.code) { code, _, _ ->
+                    DiagramBlock(code, model.typography.code)
+                }
+            } else if (language == PLOT_FENCE_LANGUAGE) {
+                MarkdownCodeFence(model.content, model.node, model.typography.code) { code, _, _ ->
+                    PlotBlock(code, model.typography.code)
+                }
             } else MarkdownCodeFence(model.content, model.node, model.typography.code)
         }),
     )
@@ -306,13 +315,38 @@ private fun mathInline(image: LatexImage, latex: String, density: Density): Inli
 
 @Composable
 private fun MathBlock(latex: String, base: TextStyle, color: Color) {
-    val fontPx = with(LocalDensity.current) { base.fontSize.toPx() }
-    val image = rememberLatex(listOf(LatexKey(latex.trim(), fontPx * 1.15f, color, true)))?.single()
+    val density = LocalDensity.current
+    val fontPx = with(density) { base.fontSize.toPx() }
+    val normalizedLatex = latex.trim()
+    val image = rememberLatex(listOf(LatexKey(normalizedLatex, fontPx * 1.15f, color, true)))?.single()
     Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).horizontalScroll(rememberScrollState()).testTag("chat-math-block"),
         contentAlignment = Alignment.Center) {
         if (image != null) {
-            val size = with(LocalDensity.current) { DpSize(image.image.width.toDp(), image.image.height.toDp()) }
-            Image(BitmapPainter(image.image), latex, Modifier.size(size))
-        } else Text(latex, style = base.copy(fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic))
+            val size = with(density) { DpSize(image.image.width.toDp(), image.image.height.toDp()) }
+            val content = remember(normalizedLatex, size) {
+                buildAnnotatedString { appendInlineContent("math-block", normalizedLatex) }
+            }
+            val inlineContent = remember(image, size, density) {
+                mapOf(
+                    "math-block" to InlineTextContent(
+                        with(density) {
+                            Placeholder(size.width.toSp(), size.height.toSp(), PlaceholderVerticalAlign.TextCenter)
+                        },
+                    ) {
+                        Image(BitmapPainter(image.image), normalizedLatex, Modifier.fillMaxSize())
+                    },
+                )
+            }
+            BasicText(
+                text = content,
+                style = base,
+                inlineContent = inlineContent,
+            )
+        } else {
+            BasicText(
+                text = normalizedLatex,
+                style = base.copy(fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic),
+            )
+        }
     }
 }

@@ -110,15 +110,16 @@ fun SettingsScreen(
             .background(MaterialTheme.colorScheme.surfaceContainer),
     ) {
         val compact = maxWidth < 760.dp
+        val narrow = maxWidth < 420.dp
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                start = if (compact) 16.dp else 32.dp,
-                end = if (compact) 16.dp else 32.dp,
-                top = 24.dp,
-                bottom = 32.dp,
+                start = if (narrow) 12.dp else if (compact) 16.dp else 32.dp,
+                end = if (narrow) 12.dp else if (compact) 16.dp else 32.dp,
+                top = if (compact) 16.dp else 24.dp,
+                bottom = if (compact) 96.dp else 32.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 14.dp else 18.dp),
         ) {
             item {
                 SettingsHeader(
@@ -600,11 +601,33 @@ fun SettingsScreen(
                                 },
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                ReadinessChip("OpenAI", openAiConfigured)
-                                ReadinessChip("Mistral", mistralConfigured)
-                                ReadinessChip("Zotero", zoteroConfigured && settings.zoteroEnabled)
-                                ReadinessChip("OpenAlex", openAlexConfigured)
+                            val readiness = listOf(
+                                "OpenAI" to openAiConfigured,
+                                "Mistral" to mistralConfigured,
+                                "Zotero" to (zoteroConfigured && settings.zoteroEnabled),
+                                "OpenAlex" to openAlexConfigured,
+                            )
+                            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                                val columns = if (maxWidth < 360.dp) 1 else 2
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    readiness.chunked(columns).forEach { rowItems ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            rowItems.forEach { (label, ready) ->
+                                                ReadinessChip(
+                                                    label = label,
+                                                    ready = ready,
+                                                    modifier = Modifier.weight(1f),
+                                                )
+                                            }
+                                            repeat(columns - rowItems.size) {
+                                                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -715,8 +738,10 @@ private fun SettingsFeedbackCard(
 private fun ReadinessChip(
     label: String,
     ready: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     FilterChip(
+        modifier = modifier,
         selected = ready,
         onClick = {},
         enabled = false,

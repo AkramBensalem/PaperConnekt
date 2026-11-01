@@ -32,6 +32,7 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.CompositionLocalProvider
 import com.akram.bensalem.paper.connekt.feature.assistant.AssistantRepository
+import com.akram.bensalem.paper.connekt.feature.assistant.LOCAL_RESEARCH_ACCOUNT
 import com.akram.bensalem.paper.connekt.feature.assistant.AssistantViewModel
 import com.akram.bensalem.paper.connekt.feature.assistant.PdfWorkspaceViewModel
 import com.akram.bensalem.paper.connekt.feature.assistant.StoredLocalPdfAnnotations
@@ -99,14 +100,14 @@ private fun LocalPaperWorkspace(
     val settings by store.settings.collectAsState()
     val positionKey = "pdf/local/${paper.id}"
     val savedPosition = remember(positionKey) { settings.pdfReadingPositions[positionKey] ?: SavedPdfReadingPosition() }
+    val assistant = viewModel { AssistantViewModel(AssistantRepository()) }
     val workspace = viewModel {
         PdfWorkspaceViewModel(
             mistralApiKey = { secretStore?.read(SecretKey.MISTRAL).orEmpty() },
+            usageRecorder = assistant::recordUsage,
             localAnnotationStore = StoredLocalPdfAnnotations(storage),
         )
     }
-
-    val assistant = viewModel { AssistantViewModel(AssistantRepository()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableStateOf(0) }
@@ -162,12 +163,15 @@ private fun LocalPaperWorkspace(
         )
     }
     LaunchedEffect(assistant, assistantPaper.id) {
+        store.updatePaper(paper.id) { it.copy(lastOpenedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()) }
+        assistant.updateHistoryAccount(LOCAL_RESEARCH_ACCOUNT)
         assistant.selectPaper(assistantPaper)
     }
     LaunchedEffect(workspace, attempt) {
         loading = true
         error = null
         try {
+            assistant.updateHistoryAccount(LOCAL_RESEARCH_ACCOUNT)
             val path = requireNotNull(paper.pdfPath) { "Attach a PDF to this item before opening the viewer." }
             val bytes = storage.readPdf(path)
             workspace.openLocal(
@@ -227,6 +231,7 @@ private fun LocalPaperWorkspace(
                     ideasLoading = state.ideasLoading,
                     ideaError = state.ideaError,
                     ideaBoard = assistant,
+                    usageRecorder = assistant::recordUsage,
                     pdfWorkspace = workspace,
                     secretStore = secretStore,
                     semanticSearchEnabled = settings.semanticSearchEnabled,
@@ -287,13 +292,14 @@ private fun ZoteroPaperWorkspace(
     val settings by store.settings.collectAsState()
     val positionKey = "pdf/zotero/$zoteroUserId/${target.groupId ?: "personal"}/${target.attachment.key}"
     val savedPosition = remember(positionKey) { settings.pdfReadingPositions[positionKey] ?: SavedPdfReadingPosition() }
+    val assistant = viewModel { AssistantViewModel(AssistantRepository()) }
     val workspace = viewModel {
         PdfWorkspaceViewModel(
             mistralApiKey = { secretStore?.read(SecretKey.MISTRAL).orEmpty() },
+            usageRecorder = assistant::recordUsage,
             pdfCache = storage,
         )
     }
-    val assistant = viewModel { AssistantViewModel(AssistantRepository()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var pendingExit by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -409,6 +415,7 @@ private fun ZoteroPaperWorkspace(
                         ideasLoading = state.ideasLoading,
                         ideaError = state.ideaError,
                         ideaBoard = assistant,
+                        usageRecorder = assistant::recordUsage,
                         pdfWorkspace = workspace,
                         studyTimeToday = activeStudy?.dailyStudyMillis?.get(today) ?: 0L,
                         totalStudyTime = activeStudy?.totalStudyMillis ?: 0L,

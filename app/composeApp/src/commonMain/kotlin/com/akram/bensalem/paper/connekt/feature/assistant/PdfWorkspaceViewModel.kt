@@ -417,7 +417,7 @@ class PdfWorkspaceViewModel(
                 if (token != session) return@launch
                 val markdown = markdownStore.save(key, converted)
                 usageRecorder(
-                    usagePaperId(target),
+                    usagePaperId(target, state.localStorageKey),
                     AiUsageEvent(
                         service = AiUsageService.OCR,
                         timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
