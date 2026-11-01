@@ -87,19 +87,23 @@ internal fun WorkspaceHeader(
         ) {
             val wide = maxWidth >= 1040.dp
             val compact = maxWidth < 600.dp
-            val inset = if (compact) 16.dp else 26.dp
+            val inset = when {
+                maxWidth < 420.dp -> 12.dp
+                compact -> 16.dp
+                else -> 26.dp
+            }
             Column(
                 modifier = Modifier.padding(inset),
-                verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 18.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 18.dp),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(if (compact) 14.dp else 24.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp),
                     ) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -125,12 +129,13 @@ internal fun WorkspaceHeader(
                         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Text(
                                 title,
-                                style = if (compact) MaterialTheme.typography.headlineMedium
+                                style = if (compact) MaterialTheme.typography.headlineSmall
                                     else MaterialTheme.typography.headlineLarge,
                             )
                             Text(
                                 subtitle,
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = if (compact) MaterialTheme.typography.bodySmall
+                                    else MaterialTheme.typography.bodyMedium,
                                 color = colors.onSurfaceVariant,
                             )
                         }

@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -286,13 +287,20 @@ private fun GraphList(
     onDelete: (ResearchGraph) -> Unit,
 ) {
     var sortMenuExpanded by remember { mutableStateOf(false) }
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 320.dp),
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 32.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val compact = maxWidth < 600.dp
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = if (compact) 280.dp else 320.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = if (compact) 16.dp else 24.dp,
+                end = if (compact) 16.dp else 24.dp,
+                top = if (compact) 16.dp else 24.dp,
+                bottom = if (compact) 24.dp else 32.dp,
+            ),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp),
+        ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             WorkspaceHeader(
                 title = "Research graphs",
@@ -312,6 +320,7 @@ private fun GraphList(
                     )
                 },
             )
+            }
         }
         errorMessage?.let { message ->
             item(span = { GridItemSpan(maxLineSpan) }) {
@@ -565,51 +574,83 @@ private fun GraphOrientationCard(
     paperCount: Int,
     connectionCount: Int,
 ) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f),
-        ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 22.dp, vertical = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(22.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    BoxWithConstraints {
+        val compact = maxWidth < 620.dp
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f),
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape),
-                contentAlignment = androidx.compose.ui.Alignment.Center,
-            ) {
-                Icon(
-                    painterResource(Res.drawable.outlined_auto_graph),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                )
+            if (compact) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    OrientationIntro(Modifier.fillMaxWidth())
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                    ) {
+                        OrientationMetric("$graphCount", "maps")
+                        OrientationMetric("$paperCount", "papers")
+                        OrientationMetric("$connectionCount", "links")
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 22.dp, vertical = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(22.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    OrientationIntro(Modifier.weight(1f))
+                    Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                        OrientationMetric("$graphCount", "maps")
+                        OrientationMetric("$paperCount", "papers")
+                        OrientationMetric("$connectionCount", "links")
+                    }
+                }
             }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    "Build your state-of-the-art map",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                Text(
-                    "Organize evidence around a question, reveal relationships, and see where the literature is dense or still open.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f),
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                OrientationMetric("$graphCount", "maps")
-                OrientationMetric("$paperCount", "papers")
-                OrientationMetric("$connectionCount", "links")
-            }
+        }
+    }
+}
+
+@Composable
+private fun OrientationIntro(
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.Top,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(MaterialTheme.colorScheme.primary, CircleShape),
+            contentAlignment = androidx.compose.ui.Alignment.Center,
+        ) {
+            Icon(
+                painterResource(Res.drawable.outlined_auto_graph),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+            )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "Build your state-of-the-art map",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                "Organize evidence around a question, reveal relationships, and see where the literature is dense or still open.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f),
+            )
         }
     }
 }
@@ -704,49 +745,93 @@ private fun GraphEmptyState(
     hasQuery: Boolean,
     onCreate: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(24.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(
-                    if (hasQuery) "No matching graphs" else "Start with a research question",
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                Text(
-                    if (hasQuery) {
-                        "Try a different graph name or clear the search."
-                    } else {
-                        "Create a local graph to see how your saved papers connect. Nothing leaves this device."
-                    },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (!hasQuery) {
-                    Button(onClick = onCreate) {
-                        Icon(painterResource(Res.drawable.outlined_add), contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Create your first graph")
+    BoxWithConstraints {
+        val compact = maxWidth < 640.dp
+        Card(modifier = Modifier.fillMaxWidth()) {
+            if (compact) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (!hasQuery) {
+                        Image(
+                            painter = painterResource(Res.drawable.research_graph_empty),
+                            contentDescription = "Connected research papers illustration",
+                            modifier = Modifier
+                                .size(132.dp)
+                                .align(androidx.compose.ui.Alignment.CenterHorizontally)
+                                .alpha(0.9f),
+                        )
+                    }
+                    GraphEmptyCopy(
+                        hasQuery = hasQuery,
+                        onCreate = onCreate,
+                        modifier = Modifier.fillMaxWidth(),
+                        fillButtonWidth = true,
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    GraphEmptyCopy(
+                        hasQuery = hasQuery,
+                        onCreate = onCreate,
+                        modifier = Modifier.weight(1f),
+                        fillButtonWidth = false,
+                    )
+                    if (!hasQuery) {
+                        Image(
+                            painter = painterResource(Res.drawable.research_graph_empty),
+                            contentDescription = "Connected research papers illustration",
+                            modifier = Modifier
+                                .size(180.dp)
+                                .alpha(0.9f),
+                        )
                     }
                 }
-            }
-            if (!hasQuery) {
-                androidx.compose.foundation.Image(
-                    painter = painterResource(Res.drawable.research_graph_empty),
-                    contentDescription = "Connected research papers illustration",
-                    modifier = Modifier
-                        .size(180.dp)
-                        .alpha(0.9f),
-                )
             }
         }
     }
 }
 
+@Composable
+private fun GraphEmptyCopy(
+    hasQuery: Boolean,
+    onCreate: () -> Unit,
+    modifier: Modifier = Modifier,
+    fillButtonWidth: Boolean,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            if (hasQuery) "No matching graphs" else "Start with a research question",
+            style = MaterialTheme.typography.titleLarge,
+        )
+        Text(
+            if (hasQuery) {
+                "Try a different graph name or clear the search."
+            } else {
+                "Create a local graph to see how your saved papers connect. Nothing leaves this device."
+            },
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (!hasQuery) {
+            Button(
+                onClick = onCreate,
+                modifier = if (fillButtonWidth) Modifier.fillMaxWidth() else Modifier,
+            ) {
+                Icon(painterResource(Res.drawable.outlined_add), contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Create your first graph")
+            }
+        }
+    }
+}
 @Composable
 private fun GraphNameDialog(
     title: String,

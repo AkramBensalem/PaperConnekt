@@ -124,16 +124,17 @@ fun DashboardScreen(
             .fillMaxSize()
             .padding(paddingValues),
     ) {
-        val compact = maxWidth < 900.dp
+        val compact = maxWidth < 620.dp
+        val narrow = maxWidth < 420.dp
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                start = if (compact) 16.dp else 32.dp,
-                end = if (compact) 16.dp else 32.dp,
-                top = 24.dp,
-                bottom = 32.dp,
+                start = if (narrow) 12.dp else if (compact) 16.dp else 32.dp,
+                end = if (narrow) 12.dp else if (compact) 16.dp else 32.dp,
+                top = if (compact) 16.dp else 24.dp,
+                bottom = if (compact) 24.dp else 32.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 14.dp else 20.dp),
         ) {
             item {
                 DashboardHeader(

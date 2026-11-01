@@ -154,11 +154,15 @@ fun AssistantScreen(
             .background(MaterialTheme.colorScheme.surfaceContainer),
     ) {
         val compact = maxWidth < 900.dp
+        val narrow = maxWidth < 420.dp
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = if (compact) 16.dp else 28.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(
+                    horizontal = if (narrow) 12.dp else if (compact) 16.dp else 28.dp,
+                    vertical = if (compact) 14.dp else 20.dp,
+                ),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp),
         ) {
             AssistantHeader(
                 sessionCount = globalAgent.conversations.size,
