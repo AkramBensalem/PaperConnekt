@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,7 @@ fun AppShell(
     store: LocalResearchStore,
     secretStore: SecretStore,
     startDestination: AppDestination,
+    requestedDestination: AppDestination? = null,
     menuState: AppMenuState,
     hideMobileNavigation: Boolean = false,
     onDestinationChanged: (AppDestination) -> Unit = {},
@@ -59,6 +61,7 @@ fun AppShell(
             store,
             secretStore,
             startDestination,
+            requestedDestination,
             pdfNavigation,
             menuState,
             hideMobileNavigation,
@@ -73,6 +76,7 @@ private fun AppShellContent(
     store: LocalResearchStore,
     secretStore: SecretStore,
     startDestination: AppDestination,
+    requestedDestination: AppDestination?,
     pdfNavigation: PdfNavigationGuard,
     menuState: AppMenuState,
     hideMobileNavigation: Boolean,
@@ -87,6 +91,10 @@ private fun AppShellContent(
     var requestedGraphId by remember { mutableStateOf<String?>(null) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var showAddPaper by remember { mutableStateOf(false) }
+
+    LaunchedEffect(requestedDestination) {
+        requestedDestination?.let { destination = it }
+    }
 
     SideEffect {
         onDestinationChanged(destination)

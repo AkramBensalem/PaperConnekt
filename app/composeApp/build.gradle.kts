@@ -15,6 +15,10 @@ kotlin {
         androidResources.enable = true
     }
     jvm("desktop")
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+    }
 
     sourceSets {
         commonMain.dependencies {
@@ -30,7 +34,6 @@ kotlin {
             implementation(libs.compose.material3)
             implementation(libs.compose.resources)
             implementation(libs.ktor.client.core)
-            implementation(libs.ktor.client.cio)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.client.serialization)
             implementation(libs.kotlinx.serialization.json)
@@ -40,7 +43,6 @@ kotlin {
             implementation(libs.markdown.renderer.core)
             implementation(libs.markdown.renderer.m3)
             implementation(libs.markdown.renderer.coil3)
-            implementation(libs.androidx.datastore)
             api(libs.koog.agents)
             api(libs.koog.agents.additions)
             implementation(libs.koog.http.client.ktor)
@@ -48,7 +50,13 @@ kotlin {
         }
         val desktopMain by getting {
             dependencies {
+                implementation(libs.ktor.client.cio)
                 implementation(libs.jlatexmath)
+            }
+        }
+        val wasmJsMain by getting {
+            dependencies {
+                implementation(libs.ktor.client.js)
             }
         }
         val desktopTest by getting {

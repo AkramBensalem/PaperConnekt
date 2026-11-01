@@ -12,6 +12,8 @@ kotlin {
         androidResources.enable = true
     }
     jvm("desktop")
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+    wasmJs { browser() }
 
     sourceSets {
         commonMain.dependencies {

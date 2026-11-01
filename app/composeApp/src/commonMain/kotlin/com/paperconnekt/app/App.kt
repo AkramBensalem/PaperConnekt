@@ -47,6 +47,9 @@ fun PaperConnektApp(
     secretStore: SecretStore,
     workspaceStorage: WorkspaceStorage,
     pdfAttachments: PdfAttachmentUi,
+    initialDestination: AppDestination? = null,
+    requestedDestination: AppDestination? = null,
+    onDestinationChanged: (AppDestination) -> Unit = {},
     menuState: AppMenuState = remember { AppMenuState() },
     showMobileMenu: Boolean = false,
     menuDialogHost: AppMenuDialogHost = MaterialAppMenuDialogHost,
@@ -86,6 +89,11 @@ fun PaperConnektApp(
         AppDestination.DASHBOARD
     } else {
         AppDestination.ONBOARDING
+    }
+    val effectiveStartDestination = if (settings.onboardingCompleted) {
+        initialDestination ?: startDestination
+    } else {
+        startDestination
     }
     CompositionLocalProvider(LocalPdfAttachments provides pdfAttachments, LocalMcpHost provides mcpHost) {
         PaperConnektTheme(preference = settings.selectedTheme) {
@@ -159,10 +167,14 @@ fun PaperConnektApp(
                                                 attempt = { attempt++ },
                                                 store = store,
                                                 secretStore = secretStore,
-                                                startDestination = startDestination,
+                                                startDestination = effectiveStartDestination,
+                                                requestedDestination = requestedDestination,
                                                 menuState = menuState,
                                                 hideMobileNavigation = mobileDrawerOpen,
-                                                onDestinationChanged = { currentDestination = it },
+                                                onDestinationChanged = {
+                                                    currentDestination = it
+                                                    onDestinationChanged(it)
+                                                },
                                                 onFocusedWorkspaceChanged = { focusedWorkspaceOpen = it },
                                             )
                                         }
@@ -196,8 +208,10 @@ fun PaperConnektApp(
                                 attempt = { attempt++ },
                                 store = store,
                                 secretStore = secretStore,
-                                startDestination = startDestination,
+                                startDestination = effectiveStartDestination,
+                                requestedDestination = requestedDestination,
                                 menuState = menuState,
+                                onDestinationChanged = onDestinationChanged,
                             )
                         }
                     }
@@ -216,6 +230,7 @@ private fun AppContent(
     store: PersistentResearchStore,
     secretStore: SecretStore,
     startDestination: AppDestination,
+    requestedDestination: AppDestination? = null,
     menuState: AppMenuState,
     hideMobileNavigation: Boolean = false,
     onDestinationChanged: (AppDestination) -> Unit = {},
@@ -226,6 +241,7 @@ private fun AppContent(
             store = store,
             secretStore = secretStore,
             startDestination = startDestination,
+            requestedDestination = requestedDestination,
             menuState = menuState,
             hideMobileNavigation = hideMobileNavigation,
             onDestinationChanged = onDestinationChanged,
