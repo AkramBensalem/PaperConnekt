@@ -115,6 +115,12 @@ Incompatible schema changes must increment the snapshot version and add an expli
 migration; additive fields with defaults remain backward compatible. Unsupported
 versions are preserved as corrupt backups rather than silently discarded.
 
+The planned web platform follows the same local-first contract. It uses one
+shared Compose/Wasm application served by an optional Ktor static host; browser
+IndexedDB/OPFS adapters replace desktop and Android filesystem storage, and
+the browser URL is synchronized with Compose navigation without making Ktor a
+required data backend. See [Web platform architecture](web-architecture.md).
+
 The Library and Assistant paper shelf contain only explicitly saved items:
 manual additions, **Save to Library**, or **Keep** in guided review. Graph seed
 selection and automatic reference/citation expansion do not save Library items.

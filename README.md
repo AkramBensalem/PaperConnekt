@@ -201,6 +201,7 @@ notes are in `branding/NOTICE.txt`.
 | --- | --- |
 | Android | Primary mobile target and actively developed |
 | Desktop JVM | Supported Compose Desktop target for research and writing workflows |
+| Web | Compose/Wasm app with browser-local IndexedDB storage and optional Ktor static host |
 | Windows/Linux desktop | Available through the JVM desktop target, subject to local packaging |
 | macOS | Planned desktop validation target; current development resources do not include a macOS device, so Apple-specific packaging and release validation remain to be completed |
 | iOS and iPadOS | Planned KMP targets; implementation can follow the shared Kotlin foundation when Apple hardware and signing access are available |
@@ -214,6 +215,18 @@ product limitation in the shared architecture.
 Use JDK 17 or newer and open the project in IntelliJ IDEA or Android Studio with
 Kotlin Multiplatform support. The project keeps platform adapters small and
 places reusable research logic in common Kotlin source sets.
+
+### Run the web app with Docker
+
+The web image builds the single Compose/Wasm distribution and serves it through
+the Ktor static host. Workspace data and imported PDFs remain in the browser;
+the container does not store or proxy application data.
+
+```bash
+docker compose up --build
+```
+
+Open <http://localhost:8080>. Stop it with `docker compose down`.
 
 ## License
 
