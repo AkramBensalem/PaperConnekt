@@ -2,6 +2,7 @@ package com.paperconnekt.app
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -29,6 +30,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -167,11 +170,12 @@ fun DashboardMetrics(
     )
     BoxWithConstraints {
         val columns = when {
-            maxWidth < 520.dp -> 1
+            maxWidth < 360.dp -> 1
             maxWidth < 820.dp -> 2
             maxWidth < 1180.dp -> 3
             else -> 6
         }
+        val compact = maxWidth < 820.dp
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Research insights", style = MaterialTheme.typography.titleMedium)
             metrics.chunked(columns).forEach { row ->
@@ -180,7 +184,7 @@ fun DashboardMetrics(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     row.forEach { (label, value) ->
-                        MetricCard(label, value.toString(), Modifier.weight(1f))
+                        MetricCard(label, value.toString(), Modifier.weight(1f), compact)
                     }
                     repeat(columns - row.size) {
                         Spacer(Modifier.weight(1f))
@@ -196,14 +200,37 @@ private fun MetricCard(
     label: String,
     value: String,
     modifier: Modifier,
+    compact: Boolean,
 ) {
-    Card(modifier = modifier) {
+    val colors = MaterialTheme.colorScheme
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = colors.surfaceContainer,
+        ),
+        border = BorderStroke(1.dp, colors.outlineVariant),
+    ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(if (compact) 14.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(value, style = MaterialTheme.typography.headlineSmall)
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                value,
+                style = if (compact) {
+                    MaterialTheme.typography.titleLarge
+                } else {
+                    MaterialTheme.typography.headlineSmall
+                },
+            )
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -243,6 +270,7 @@ fun DashboardAnalytics(
             val summary = AiUsageSummary(visibleUsage)
             BoxWithConstraints {
                 val stackCharts = maxWidth < 900.dp
+                val compactFilters = maxWidth < 620.dp
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -255,23 +283,108 @@ fun DashboardAnalytics(
                     }
                     if (historyLoading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    DashboardRange.entries.forEach { range ->
-                        FilterChip(
-                            selected = selectedRange == range,
-                            onClick = {
-                                if (range == DashboardRange.CUSTOM) {
-                                    dayInput = selectedDay
-                                    showDayDialog = true
-                                } else {
-                                    selectedRange = range
+                if (compactFilters) {
+                    var moreExpanded by remember { mutableStateOf(false) }
+                    val compactRanges = buildList {
+                        addAll(DashboardRange.entries.take(3))
+                        if (selectedRange !in this) {
+                            removeAt(lastIndex)
+                            add(selectedRange)
+                        }
+                    }
+                    val hiddenRanges = DashboardRange.entries.filterNot { it in compactRanges }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        compactRanges.forEach { range ->
+                            FilterChip(
+                                selected = selectedRange == range,
+                                onClick = {
+                                    if (range == DashboardRange.CUSTOM) {
+                                        dayInput = selectedDay
+                                        showDayDialog = true
+                                    } else {
+                                        selectedRange = range
+                                    }
+                                },
+                                label = {
+                                    Text(
+                                        if (range == DashboardRange.CUSTOM && selectedRange == range) {
+                                            selectedDay
+                                        } else {
+                                            range.label
+                                        },
+                                        maxLines = 1,
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        Box {
+                            IconButton(
+                                onClick = { moreExpanded = true },
+                                enabled = hiddenRanges.isNotEmpty(),
+                            ) {
+                                Text("...", style = MaterialTheme.typography.titleMedium)
+                            }
+                            DropdownMenu(
+                                expanded = moreExpanded,
+                                onDismissRequest = { moreExpanded = false },
+                            ) {
+                                hiddenRanges.forEach { range ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                if (range == DashboardRange.CUSTOM && selectedRange == range) {
+                                                    selectedDay
+                                                } else {
+                                                    range.label
+                                                },
+                                            )
+                                        },
+                                        onClick = {
+                                            moreExpanded = false
+                                            if (range == DashboardRange.CUSTOM) {
+                                                dayInput = selectedDay
+                                                showDayDialog = true
+                                            } else {
+                                                selectedRange = range
+                                            }
+                                        },
+                                    )
                                 }
-                            },
-                            label = { Text(if (range == DashboardRange.CUSTOM && selectedRange == range) selectedDay else range.label) },
-                        )
+                            }
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        DashboardRange.entries.forEach { range ->
+                            FilterChip(
+                                selected = selectedRange == range,
+                                onClick = {
+                                    if (range == DashboardRange.CUSTOM) {
+                                        dayInput = selectedDay
+                                        showDayDialog = true
+                                    } else {
+                                        selectedRange = range
+                                    }
+                                },
+                                label = {
+                                    Text(
+                                        if (range == DashboardRange.CUSTOM && selectedRange == range) {
+                                            selectedDay
+                                        } else {
+                                            range.label
+                                        },
+                                    )
+                                },
+                            )
+                        }
                     }
                 }
                 if (showDayDialog) {

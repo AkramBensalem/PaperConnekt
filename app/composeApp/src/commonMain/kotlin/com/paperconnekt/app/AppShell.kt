@@ -49,10 +49,22 @@ fun AppShell(
     secretStore: SecretStore,
     startDestination: AppDestination,
     menuState: AppMenuState,
+    hideMobileNavigation: Boolean = false,
+    onDestinationChanged: (AppDestination) -> Unit = {},
+    onFocusedWorkspaceChanged: (Boolean) -> Unit = {},
 ) {
     val pdfNavigation = remember { PdfNavigationGuard() }
     CompositionLocalProvider(LocalPdfNavigationGuard provides pdfNavigation) {
-        AppShellContent(store, secretStore, startDestination, pdfNavigation, menuState)
+        AppShellContent(
+            store,
+            secretStore,
+            startDestination,
+            pdfNavigation,
+            menuState,
+            hideMobileNavigation,
+            onDestinationChanged,
+            onFocusedWorkspaceChanged,
+        )
     }
 }
 
@@ -63,6 +75,9 @@ private fun AppShellContent(
     startDestination: AppDestination,
     pdfNavigation: PdfNavigationGuard,
     menuState: AppMenuState,
+    hideMobileNavigation: Boolean,
+    onDestinationChanged: (AppDestination) -> Unit,
+    onFocusedWorkspaceChanged: (Boolean) -> Unit,
 ) {
     var destination by remember { mutableStateOf(startDestination) }
     var requestedPaper by remember { mutableStateOf<Paper?>(null) }
@@ -72,6 +87,11 @@ private fun AppShellContent(
     var requestedGraphId by remember { mutableStateOf<String?>(null) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var showAddPaper by remember { mutableStateOf(false) }
+
+    SideEffect {
+        onDestinationChanged(destination)
+        onFocusedWorkspaceChanged(pdfWorkspaceFocused)
+    }
 
     fun openPdfFrom(source: AppDestination, paper: Paper? = null, zoteroTarget: ZoteroPdfTarget? = null) {
         pdfReturnDestination = source
@@ -298,21 +318,27 @@ private fun AppShellContent(
         } else {
             Scaffold(
                 bottomBar = {
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    ) {
-                        navigationItems.forEach { (item, label) ->
-                            NavigationBarItem(
-                                selected = destination == item,
-                                onClick = { if (destination != item) pdfNavigation.navigate { destination = item } },
-                                icon = {
-                                    NavigationIcon(
-                                        glyph = label.first,
-                                        contentDescription = label.second,
-                                    )
-                                },
-                                label = { Text(label.second) },
-                            )
+                    if (!hideMobileNavigation) {
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        ) {
+                            navigationItems.forEach { (item, label) ->
+                                NavigationBarItem(
+                                    selected = destination == item,
+                                    onClick = {
+                                        if (destination != item) {
+                                            pdfNavigation.navigate { destination = item }
+                                        }
+                                    },
+                                    icon = {
+                                        NavigationIcon(
+                                            glyph = label.first,
+                                            contentDescription = label.second,
+                                        )
+                                    },
+                                    label = { Text(label.second) },
+                                )
+                            }
                         }
                     }
                 },

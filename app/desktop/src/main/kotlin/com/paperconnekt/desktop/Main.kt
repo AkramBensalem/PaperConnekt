@@ -68,7 +68,8 @@ private fun desktopApplication(mcpHost: DesktopMcpHost) = application {
             AppMenuGroup.entries.forEach { group ->
                 Menu(group.title, mnemonic = group.title.first()) {
                     AppMenuAction.entries.filter {
-                        it.group == group && it != AppMenuAction.QUIT
+                        it.group == group &&
+                            it != AppMenuAction.QUIT
                     }.forEach { action ->
                         Item(
                             text = action.title,

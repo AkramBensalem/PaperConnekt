@@ -3,12 +3,14 @@ package com.paperconnekt.app
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -63,11 +65,11 @@ import com.paperconnekt.secrets.SecretStore
 import com.akram.bensalem.paper.connekt.feature.assistant.ZoteroPdfTarget
 import com.akram.bensalem.paper.connekt.feature.assistant.AssistantRepository
 import com.akram.bensalem.paper.connekt.feature.assistant.AssistantViewModel
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlin.random.Random
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.filled_add
+import com.paperconnekt.app.resources.filled_arrow_back
+import com.paperconnekt.app.resources.filled_arrow_forward
 import com.paperconnekt.app.resources.lightbulb
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.akram.bensalem.paper.connekt.core.aiassistant.AgentRole
@@ -78,6 +80,8 @@ import com.paperconnekt.app.resources.filled_auto_awesome
 import com.paperconnekt.app.resources.filled_content_copy
 import com.paperconnekt.app.resources.filled_stop
 import org.jetbrains.compose.resources.painterResource
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 @Composable
 fun AssistantScreen(
@@ -155,36 +159,85 @@ fun AssistantScreen(
     ) {
         val compact = maxWidth < 900.dp
         val narrow = maxWidth < 420.dp
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    horizontal = if (narrow) 12.dp else if (compact) 16.dp else 28.dp,
-                    vertical = if (compact) 14.dp else 20.dp,
-                ),
-            verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp),
-        ) {
-            AssistantHeader(
-                sessionCount = globalAgent.conversations.size,
-                onNewConversation = {
-                    if (!isCreating) {
-                        isCreating = true
-                        globalAgent.newChat()
-                        openedConversationId = globalAgent.conversation.id
-                        isCreating = false
-                    }
-                },
-                isCreating = isCreating,
-            )
-
-            if (compact) {
-                SessionStrip(
-                    conversations = globalAgent.conversations,
-                    selectedConversationId = openedConversationId,
-                    onSelect = {
-                        globalAgent.selectConversation(it)
-                        openedConversationId = it
-                    },
+        if (compact && openedConversationId == null) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        horizontal = if (narrow) 12.dp else 16.dp,
+                        vertical = 14.dp,
+                    ),
+                contentPadding = PaddingValues(bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                item {
+                    AssistantHeader(
+                        sessionCount = globalAgent.conversations.size,
+                        onNewConversation = {
+                            if (!isCreating) {
+                                isCreating = true
+                                globalAgent.newChat()
+                                openedConversationId = globalAgent.conversation.id
+                                isCreating = false
+                            }
+                        },
+                        isCreating = isCreating,
+                    )
+                }
+                item {
+                    SessionStrip(
+                        conversations = globalAgent.conversations,
+                        selectedConversationId = openedConversationId,
+                        onSelect = {
+                            globalAgent.selectConversation(it)
+                            openedConversationId = it
+                        },
+                        onNewConversation = {
+                            if (!isCreating) {
+                                isCreating = true
+                                globalAgent.newChat()
+                                openedConversationId = globalAgent.conversation.id
+                                isCreating = false
+                            }
+                        },
+                    )
+                }
+                item {
+                    RecentResearchShelf(
+                        localPapers = papers,
+                        history = historyAgent.state.history,
+                        onOpenPaper = {
+                            onPdfWorkspaceOpened()
+                            openPaper = it
+                        },
+                        onOpenZotero = {
+                            onPdfWorkspaceOpened()
+                            openZoteroTarget = it
+                        },
+                    )
+                }
+                item {
+                    PaperShelf(
+                        papers = papers,
+                        onOpenPaper = {
+                            onPdfWorkspaceOpened()
+                            openPaper = it
+                        },
+                    )
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        horizontal = if (narrow) 12.dp else if (compact) 16.dp else 28.dp,
+                        vertical = if (compact) 14.dp else 20.dp,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp),
+            ) {
+                AssistantHeader(
+                    sessionCount = globalAgent.conversations.size,
                     onNewConversation = {
                         if (!isCreating) {
                             isCreating = true
@@ -193,35 +246,11 @@ fun AssistantScreen(
                             isCreating = false
                         }
                     },
+                    isCreating = isCreating,
                 )
-                AssistantMainContent(
-                    modifier = Modifier.weight(1f),
-                    papers = papers,
-                    globalAgent = globalAgent,
-                    recentHistory = historyAgent.state.history,
-                    conversationOpened = openedConversationId != null,
-                    onOpenZotero = {
-                        onPdfWorkspaceOpened()
-                        openZoteroTarget = it
-                    },
-                    onOpenPaper = {
-                        onPdfWorkspaceOpened()
-                        openPaper = it
-                    },
-                    onCreateSession = {
-                        globalAgent.newChat()
-                        openedConversationId = globalAgent.conversation.id
-                    },
-                )
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    SessionSidebar(
-                        modifier = Modifier.width(270.dp),
+
+                if (compact) {
+                    SessionStrip(
                         conversations = globalAgent.conversations,
                         selectedConversationId = openedConversationId,
                         onSelect = {
@@ -242,7 +271,7 @@ fun AssistantScreen(
                         papers = papers,
                         globalAgent = globalAgent,
                         recentHistory = historyAgent.state.history,
-                        conversationOpened = openedConversationId != null,
+                        conversationOpened = true,
                         onOpenZotero = {
                             onPdfWorkspaceOpened()
                             openZoteroTarget = it
@@ -256,6 +285,50 @@ fun AssistantScreen(
                             openedConversationId = globalAgent.conversation.id
                         },
                     )
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        SessionSidebar(
+                            modifier = Modifier.width(270.dp),
+                            conversations = globalAgent.conversations,
+                            selectedConversationId = openedConversationId,
+                            onSelect = {
+                                globalAgent.selectConversation(it)
+                                openedConversationId = it
+                            },
+                            onNewConversation = {
+                                if (!isCreating) {
+                                    isCreating = true
+                                    globalAgent.newChat()
+                                    openedConversationId = globalAgent.conversation.id
+                                    isCreating = false
+                                }
+                            },
+                        )
+                        AssistantMainContent(
+                            modifier = Modifier.weight(1f),
+                            papers = papers,
+                            globalAgent = globalAgent,
+                            recentHistory = historyAgent.state.history,
+                            conversationOpened = openedConversationId != null,
+                            onOpenZotero = {
+                                onPdfWorkspaceOpened()
+                                openZoteroTarget = it
+                            },
+                            onOpenPaper = {
+                                onPdfWorkspaceOpened()
+                                openPaper = it
+                            },
+                            onCreateSession = {
+                                globalAgent.newChat()
+                                openedConversationId = globalAgent.conversation.id
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -835,6 +908,10 @@ private fun PaperShelf(
     papers: List<Paper>,
     onOpenPaper: (Paper) -> Unit,
 ) {
+    var selectedIndex by remember(papers.map { it.id }) { mutableStateOf(0) }
+    LaunchedEffect(papers.size) {
+        selectedIndex = if (papers.isEmpty()) 0 else selectedIndex.coerceIn(0, papers.lastIndex)
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
@@ -844,7 +921,43 @@ private fun PaperShelf(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Saved papers and PDFs", style = MaterialTheme.typography.titleMedium)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    "Saved papers and PDFs",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                if (papers.isNotEmpty()) {
+                    IconButton(
+                        onClick = { selectedIndex = (selectedIndex - 1).coerceAtLeast(0) },
+                        enabled = selectedIndex > 0,
+                    ) {
+                        Icon(
+                            painterResource(Res.drawable.filled_arrow_back),
+                            contentDescription = "Previous saved paper",
+                        )
+                    }
+                    Text(
+                        "${selectedIndex + 1}/${papers.size}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    IconButton(
+                        onClick = {
+                            selectedIndex = (selectedIndex + 1).coerceAtMost(papers.lastIndex)
+                        },
+                        enabled = selectedIndex < papers.lastIndex,
+                    ) {
+                        Icon(
+                            painterResource(Res.drawable.filled_arrow_forward),
+                            contentDescription = "Next saved paper",
+                        )
+                    }
+                }
+            }
             if (papers.isEmpty()) {
                 Text(
                     "No saved papers yet. Add one from the dashboard to make it available here.",
@@ -857,9 +970,23 @@ private fun PaperShelf(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(papers, key = Paper::id) { paper ->
-                        PaperShelfCard(paper = paper, onOpen = { onOpenPaper(paper) })
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val cardWidth = if (maxWidth < 600.dp) {
+                        (maxWidth - 16.dp).coerceAtLeast(220.dp)
+                    } else {
+                        320.dp
+                    }
+                    Box(
+                        Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        papers.getOrNull(selectedIndex)?.let { paper ->
+                            PaperShelfCard(
+                                paper = paper,
+                                onOpen = { onOpenPaper(paper) },
+                                modifier = Modifier.width(cardWidth),
+                            )
+                        }
                     }
                 }
             }
@@ -880,13 +1007,46 @@ private fun RecentResearchShelf(
     val recentZotero = history.papers
         .sortedByDescending { it.lastOpenedAt }
     if (recentLocal.isEmpty() && recentZotero.isEmpty()) return
+    val recentPapers = buildList {
+        recentLocal.take(4).forEach { paper ->
+            add(
+                RecentPaperEntry(
+                    key = "local-${paper.id}",
+                    title = paper.title,
+                    subtitle = paper.authors.take(2).joinToString().ifBlank { "Local library" },
+                    source = "Local",
+                    enabled = paper.pdfPath != null,
+                    onOpen = { onOpenPaper(paper) },
+                )
+            )
+        }
+        recentZotero.take(6).forEach { paper ->
+            add(
+                RecentPaperEntry(
+                    key = "zotero-${paper.id}",
+                    title = paper.title,
+                    subtitle = paper.authors.ifBlank { "Zotero library" },
+                    source = "Zotero",
+                    enabled = true,
+                    onOpen = { onOpenZotero(paper.target) },
+                )
+            )
+        }
+    }
+    var selectedIndex by remember(recentPapers.map { it.key }) { mutableStateOf(0) }
+    LaunchedEffect(recentPapers.size) {
+        selectedIndex = selectedIndex.coerceIn(0, recentPapers.lastIndex)
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f)),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Column(Modifier.weight(1f)) {
                     Text("Recently visited", style = MaterialTheme.typography.titleMedium)
                     Text(
@@ -895,35 +1055,66 @@ private fun RecentResearchShelf(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                IconButton(
+                    onClick = { selectedIndex = (selectedIndex - 1).coerceAtLeast(0) },
+                    enabled = selectedIndex > 0,
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.filled_arrow_back),
+                        contentDescription = "Previous recently visited paper",
+                    )
+                }
                 Text(
-                    "${recentLocal.size + recentZotero.size} papers",
+                    "${selectedIndex + 1}/${recentPapers.size}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
-            }
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(recentLocal.take(4), key = { "local-${it.id}" }) { paper ->
-                    RecentPaperCard(
-                        title = paper.title,
-                        subtitle = paper.authors.take(2).joinToString().ifBlank { "Local library" },
-                        source = "Local",
-                        enabled = paper.pdfPath != null,
-                        onOpen = { onOpenPaper(paper) },
+                IconButton(
+                    onClick = {
+                        selectedIndex = (selectedIndex + 1).coerceAtMost(recentPapers.lastIndex)
+                    },
+                    enabled = selectedIndex < recentPapers.lastIndex,
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.filled_arrow_forward),
+                        contentDescription = "Next recently visited paper",
                     )
                 }
-                items(recentZotero.take(6), key = { "zotero-${it.id}" }) { paper ->
-                    RecentPaperCard(
-                        title = paper.title,
-                        subtitle = paper.authors.ifBlank { "Zotero library" },
-                        source = "Zotero",
-                        enabled = true,
-                        onOpen = { onOpenZotero(paper.target) },
-                    )
+            }
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val cardWidth = if (maxWidth < 600.dp) {
+                    (maxWidth - 16.dp).coerceAtLeast(220.dp)
+                } else {
+                    320.dp
+                }
+                Box(
+                    Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    recentPapers.getOrNull(selectedIndex)?.let { paper ->
+                        RecentPaperCard(
+                            title = paper.title,
+                            subtitle = paper.subtitle,
+                            source = paper.source,
+                            enabled = paper.enabled,
+                            onOpen = paper.onOpen,
+                            modifier = Modifier.width(cardWidth),
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+private data class RecentPaperEntry(
+    val key: String,
+    val title: String,
+    val subtitle: String,
+    val source: String,
+    val enabled: Boolean,
+    val onOpen: () -> Unit,
+)
 
 @Composable
 private fun RecentPaperCard(
@@ -932,18 +1123,27 @@ private fun RecentPaperCard(
     source: String,
     enabled: Boolean,
     onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = Modifier.width(240.dp),
+        modifier = modifier.height(190.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(
+            Modifier.fillMaxSize().padding(13.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             Text(source.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
-            OutlinedButton(onClick = onOpen, enabled = enabled) {
+            Spacer(Modifier.weight(1f))
+            OutlinedButton(
+                onClick = onOpen,
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(if (enabled) "Resume reading" else "PDF unavailable")
             }
         }
@@ -954,16 +1154,22 @@ private fun RecentPaperCard(
 private fun PaperShelfCard(
     paper: Paper,
     onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = Modifier.width(230.dp),
+        modifier = modifier.height(190.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxSize().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
+            Text(
+                "SAVED PAPER",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
             Text(
                 paper.title,
                 style = MaterialTheme.typography.titleSmall,
@@ -986,7 +1192,12 @@ private fun PaperShelfCard(
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
             )
-            OutlinedButton(onClick = onOpen, enabled = paper.pdfPath != null) {
+            Spacer(Modifier.weight(1f))
+            OutlinedButton(
+                onClick = onOpen,
+                enabled = paper.pdfPath != null,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(if (paper.pdfPath != null) "Open PDF" else "No PDF")
             }
         }

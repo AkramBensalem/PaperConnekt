@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -473,31 +475,92 @@ fun GraphWorkspace(
             .padding(horizontal = if (compact) 16.dp else 24.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    painter = org.jetbrains.compose.resources.painterResource(Res.drawable.arrow_back),
-                    contentDescription = "Back to graphs",
-                )
+        if (compact) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            painter = org.jetbrains.compose.resources.painterResource(Res.drawable.arrow_back),
+                            contentDescription = "Back to graphs",
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = graph.name,
+                            style = MaterialTheme.typography.titleLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            "${filteredGraphPapers.size} papers  •  ${graph.connections.size} connections",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = { showSeedPicker = true }) { Text("Add seed") }
+                    TextButton(onClick = { showInsightsDialog = true }) { Text("Insights") }
+                    GraphFilterMenu(
+                        expanded = showFilters,
+                        onOpen = { showFilters = true },
+                        onDismiss = { showFilters = false },
+                    ) {
+                        GraphControls(
+                            filterCiting = showCitations,
+                            onToggleCiting = { showCitations = !showCitations },
+                            filterCited = showReferences,
+                            onToggleCited = { showReferences = !showReferences },
+                            minCitations = minimumCitations,
+                            onMinCitationsChanged = { minimumCitations = it },
+                            maxCitations = maximumCitations,
+                            onMaxCitationsChanged = { maximumCitations = it },
+                            minimumSimilarityPercent = minimumSimilarityPercent,
+                            onMinimumSimilarityChanged = { minimumSimilarityPercent = it },
+                            showInterconnections = showInterconnections,
+                            onToggleInterconnections = { showInterconnections = !showInterconnections },
+                            initiallyExpanded = true,
+                            embedded = true,
+                        )
+                    }
+                    OutlinedButton(onClick = onRename) { Text("Rename") }
+                }
             }
-            Spacer(Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = graph.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    "${filteredGraphPapers.size} papers  •  ${graph.connections.size} connections",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        painter = org.jetbrains.compose.resources.painterResource(Res.drawable.arrow_back),
+                        contentDescription = "Back to graphs",
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = graph.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        "${filteredGraphPapers.size} papers  •  ${graph.connections.size} connections",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { showSeedPicker = true }) { Text("Add seed") }
                 TextButton(onClick = { showInsightsDialog = true }) { Text("Insights") }
                 GraphFilterMenu(
@@ -522,8 +585,9 @@ fun GraphWorkspace(
                         embedded = true,
                     )
                 }
+                }
+                OutlinedButton(onClick = onRename) { Text("Rename") }
             }
-            OutlinedButton(onClick = onRename) { Text("Rename") }
         }
 
         if (isSaving) {

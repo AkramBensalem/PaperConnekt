@@ -132,7 +132,7 @@ fun DashboardScreen(
                 start = if (narrow) 12.dp else if (compact) 16.dp else 32.dp,
                 end = if (narrow) 12.dp else if (compact) 16.dp else 32.dp,
                 top = if (compact) 16.dp else 24.dp,
-                bottom = if (compact) 24.dp else 32.dp,
+                bottom = if (compact) 96.dp else 32.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(if (compact) 14.dp else 20.dp),
         ) {

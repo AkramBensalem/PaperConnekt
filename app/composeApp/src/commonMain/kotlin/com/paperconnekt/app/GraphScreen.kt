@@ -296,69 +296,69 @@ private fun GraphList(
                 start = if (compact) 16.dp else 24.dp,
                 end = if (compact) 16.dp else 24.dp,
                 top = if (compact) 16.dp else 24.dp,
-                bottom = if (compact) 24.dp else 32.dp,
+                bottom = if (compact) 96.dp else 32.dp,
             ),
             horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp),
         ) {
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            WorkspaceHeader(
-                title = "Research graphs",
-                subtitle = "Follow the connections. See where your research leads.",
-                icon = Res.drawable.outlined_account_tree,
-                actions = {
-                    HeaderAction("New graph", Res.drawable.outlined_add, onCreate)
-                },
-                tools = {
-                    GraphSearchControls(
-                        query = query,
-                        onQueryChange = onQueryChange,
-                        onSortClick = { sortMenuExpanded = true },
-                        sortMenuExpanded = sortMenuExpanded,
-                        onSortMenuDismiss = { sortMenuExpanded = false },
-                        onSortOrderChange = onSortOrderChange,
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                WorkspaceHeader(
+                    title = "Research graphs",
+                    subtitle = "Follow the connections. See where your research leads.",
+                    icon = Res.drawable.outlined_account_tree,
+                    actions = {
+                        HeaderAction("New graph", Res.drawable.outlined_add, onCreate)
+                    },
+                )
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                GraphSearchControls(
+                    query = query,
+                    onQueryChange = onQueryChange,
+                    onSortClick = { sortMenuExpanded = true },
+                    sortMenuExpanded = sortMenuExpanded,
+                    onSortMenuDismiss = { sortMenuExpanded = false },
+                    onSortOrderChange = onSortOrderChange,
+                )
+            }
+            errorMessage?.let { message ->
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    GraphStatusCard(message = message, isError = true)
+                }
+            }
+            if (graphs.isEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    GraphEmptyState(hasQuery = query.isNotBlank(), onCreate = onCreate)
+                }
+            } else {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    GraphOrientationCard(
+                        graphCount = graphs.size,
+                        paperCount = graphs.sumOf { it.paperIds.size },
+                        connectionCount = graphs.sumOf { it.connections.size },
                     )
-                },
-            )
-            }
-        }
-        errorMessage?.let { message ->
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                GraphStatusCard(message = message, isError = true)
-            }
-        }
-        if (graphs.isEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                GraphEmptyState(hasQuery = query.isNotBlank(), onCreate = onCreate)
-            }
-        } else {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                GraphOrientationCard(
-                    graphCount = graphs.size,
-                    paperCount = graphs.sumOf { it.paperIds.size },
-                    connectionCount = graphs.sumOf { it.connections.size },
-                )
-            }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                GraphWorkflowGuide()
-            }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    "Your research maps",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            item {
-                GraphCreateCard(onCreate = onCreate)
-            }
-            items(graphs, key = ResearchGraph::id) { graph ->
-                GraphListCard(
-                    graph = graph,
-                    onOpen = { onOpen(graph.id) },
-                    onRename = { onRename(graph) },
-                    onDelete = { onDelete(graph) },
-                )
+                }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    GraphWorkflowGuide()
+                }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Text(
+                        "Your research maps",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                item {
+                    GraphCreateCard(onCreate = onCreate)
+                }
+                items(graphs, key = ResearchGraph::id) { graph ->
+                    GraphListCard(
+                        graph = graph,
+                        onOpen = { onOpen(graph.id) },
+                        onRename = { onRename(graph) },
+                        onDelete = { onDelete(graph) },
+                    )
+                }
             }
         }
     }
