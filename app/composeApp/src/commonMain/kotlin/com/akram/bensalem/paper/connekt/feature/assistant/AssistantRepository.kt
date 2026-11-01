@@ -33,6 +33,14 @@ class AssistantRepository(private val store: ResearchHistoryStore = syncedResear
     suspend fun saveHistory(userId: String, history: ResearchHistory) =
         store.save(userId, history.copy(graphUsage = emptyMap()))
 
+    suspend fun recordWorkspaceOpen(timestamp: Long) {
+        val history = store.load(LOCAL_RESEARCH_ACCOUNT)
+        store.save(
+            LOCAL_RESEARCH_ACCOUNT,
+            history.recordWorkspaceOpen(timestamp),
+        )
+    }
+
     suspend fun recordGraphUsage(paperId: String, event: AiUsageEvent): Map<String, List<AiUsageEvent>> =
         graphUsageMutex.withLock {
             val history = store.load(GRAPH_USAGE_ACCOUNT)

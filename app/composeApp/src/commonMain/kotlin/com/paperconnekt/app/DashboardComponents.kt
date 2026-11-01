@@ -458,12 +458,22 @@ fun DashboardAnalytics(
         ) {
             val values = days.map { dailyOpens[it.toString()] ?: 0 }
             val peak = values.maxOrNull()?.coerceAtLeast(1) ?: 1
-            DashboardChartCard("Research rhythm", "${values.sum()} workspace opens in ${rangeLabel(days)}", modifier) {
+            val total = values.sum()
+            DashboardChartCard(
+                "Research rhythm",
+                if (total == 0) {
+                    "No workspace opens in ${rangeLabel(days)} yet"
+                } else {
+                    "$total workspace opens in ${rangeLabel(days)}"
+                },
+                modifier,
+            ) {
                 DashboardBarPlot(
                     values = values.map(Int::toFloat),
                     maxValue = peak.toFloat(),
                     color = MaterialTheme.colorScheme.primary,
                     description = days.zip(values).joinToString { "${it.first}: ${it.second} opens" },
+                    emptyMessage = "No activity in this period",
                 )
                 ChartRangeLabel(days.first().toString(), days.last().toString())
             }
@@ -496,12 +506,21 @@ fun DashboardAnalytics(
                 values = globalValues,
                 dashed = true,
             )
-            DashboardChartCard("AI cost trend", "Estimated USD over ${rangeLabel(days)} · ${formatDashboardUsd(total)} total", modifier) {
+            DashboardChartCard(
+                "AI cost trend",
+                if (total == 0.0) {
+                    "No AI cost recorded in ${rangeLabel(days)} yet"
+                } else {
+                    "Estimated USD over ${rangeLabel(days)} · ${formatDashboardUsd(total)} total"
+                },
+                modifier,
+            ) {
                 DashboardLinePlot(
                     series = series,
                     description = days.zip(globalValues).joinToString { "${it.first}: ${formatDashboardUsd(it.second)}" },
+                    emptyMessage = "No cost data in this period",
                 )
-                DashboardLineLegend(series)
+                if (total > 0.0) DashboardLineLegend(series)
                 ChartRangeLabel(days.first().toString(), days.last().toString())
             }
         }
@@ -512,12 +531,19 @@ fun DashboardAnalytics(
             val output = events.sumOf { it.outputUnits.coerceAtLeast(0L) }
             val total = input + output
             DashboardChartCard("Token flow", "${formatCompactNumber(total)} tracked input and output units", modifier) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    TokenBar("Input tokens / units", input, total, MaterialTheme.colorScheme.primary)
-                    TokenBar("Output tokens / units", output, total, MaterialTheme.colorScheme.secondary)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Input ${formatCompactNumber(input)}", style = MaterialTheme.typography.labelSmall)
-                        Text("Output ${formatCompactNumber(output)}", style = MaterialTheme.typography.labelSmall)
+                if (total == 0L) {
+                    DashboardPlotEmptyState(
+                        message = "No token usage recorded",
+                        detail = "Token totals will appear after an AI operation.",
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TokenBar("Input tokens / units", input, total, MaterialTheme.colorScheme.primary)
+                        TokenBar("Output tokens / units", output, total, MaterialTheme.colorScheme.secondary)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Input ${formatCompactNumber(input)}", style = MaterialTheme.typography.labelSmall)
+                            Text("Output ${formatCompactNumber(output)}", style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 }
             }
@@ -531,57 +557,63 @@ fun DashboardAnalytics(
         ) {
             val total = values.values.sum()
             DashboardChartCard("Cost by AI service", "Where estimated spend is going", modifier) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    AiUsageService.entries.forEach { service ->
-                        val value = values[service] ?: 0.0
-                        val fraction = if (total > 0.0) value / total else 0.0
-                        val serviceEvents = events.filter { it.service == service }
-                        val units = serviceEvents.sumOf { it.inputUnits.coerceAtLeast(0L) }
-                        val usageLabel = when (service) {
-                            AiUsageService.OCR -> "${formatCompactNumber(units)} pages"
-                            else -> "${formatCompactNumber(units)} input"
-                        }
-                        BoxWithConstraints {
-                            if (maxWidth < 460.dp) {
-                                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(service.label, style = MaterialTheme.typography.labelMedium)
+                if (total == 0.0) {
+                    DashboardPlotEmptyState(
+                        message = "No service usage recorded",
+                        detail = "AI service costs will be grouped here once available.",
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        AiUsageService.entries.forEach { service ->
+                            val value = values[service] ?: 0.0
+                            val fraction = value / total
+                            val serviceEvents = events.filter { it.service == service }
+                            val units = serviceEvents.sumOf { it.inputUnits.coerceAtLeast(0L) }
+                            val usageLabel = when (service) {
+                                AiUsageService.OCR -> "${formatCompactNumber(units)} pages"
+                                else -> "${formatCompactNumber(units)} input"
+                            }
+                            BoxWithConstraints {
+                                if (maxWidth < 460.dp) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text(service.label, style = MaterialTheme.typography.labelMedium)
+                                            Column(horizontalAlignment = Alignment.End) {
+                                                Text(formatDashboardUsd(value), style = MaterialTheme.typography.labelSmall)
+                                                Text(usageLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        }
+                                        LinearProgressIndicator(
+                                            progress = { fraction.toFloat() },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            color = serviceColor(service),
+                                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        )
+                                    }
+                                } else {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Text(
+                                            service.label,
+                                            Modifier.widthIn(min = 72.dp, max = 132.dp),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                        LinearProgressIndicator(
+                                            progress = { fraction.toFloat() },
+                                            modifier = Modifier.weight(1f),
+                                            color = serviceColor(service),
+                                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        )
                                         Column(horizontalAlignment = Alignment.End) {
                                             Text(formatDashboardUsd(value), style = MaterialTheme.typography.labelSmall)
                                             Text(usageLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                     }
-                                    LinearProgressIndicator(
-                                        progress = { fraction.toFloat() },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        color = serviceColor(service),
-                                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    )
-                                }
-                            } else {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Text(
-                                        service.label,
-                                        Modifier.widthIn(min = 72.dp, max = 132.dp),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                    LinearProgressIndicator(
-                                        progress = { fraction.toFloat() },
-                                        modifier = Modifier.weight(1f),
-                                        color = serviceColor(service),
-                                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    )
-                                    Column(horizontalAlignment = Alignment.End) {
-                                        Text(formatDashboardUsd(value), style = MaterialTheme.typography.labelSmall)
-                                        Text(usageLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
                                 }
                             }
                         }
                     }
-                    if (total == 0.0) Text("No AI usage recorded yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -628,10 +660,9 @@ fun DashboardAnalytics(
                     }
                 }
                 if (values.isEmpty()) {
-                    Text(
-                        "No AI usage recorded for this period.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
+                    DashboardPlotEmptyState(
+                        message = "No AI usage recorded",
+                        detail = "Usage share will appear after an AI operation.",
                     )
                 } else {
                     BoxWithConstraints {
@@ -730,16 +761,34 @@ private fun DashboardPieLegend(
             val sources = papers.groupingBy { it.source.ifBlank { "Local" } }.eachCount().toList().sortedByDescending { it.second }.take(5)
             DashboardChartCard("Collection shape", "${papers.size} papers · ${graphs.size} connected graphs", modifier) {
                 if (papers.isEmpty()) {
-                    Text("Add papers to reveal publication and source trends.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    DashboardPlotEmptyState(
+                        message = "Your collection is ready to grow",
+                        detail = "Add papers to reveal publication and source trends.",
+                    )
                 } else {
                     if (years.isNotEmpty()) {
                         Text("Papers by publication year", style = MaterialTheme.typography.labelLarge)
+                        if (years.size == 1) {
+                            val (year, count) = years.single()
+                            Text(
+                                "$count paper${if (count == 1) "" else "s"} from $year",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         DashboardBarPlot(
                             values = years.map { it.second.toFloat() },
                             maxValue = years.maxOf { it.second }.toFloat().coerceAtLeast(1f),
                             labels = years.map { it.first.toString() },
                             color = MaterialTheme.colorScheme.primary,
                             description = years.joinToString { "${it.first}: ${it.second} papers" },
+                            emptyMessage = "No publication years recorded",
+                        )
+                    } else {
+                        Text(
+                            "Add publication years to reveal the year trend.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
                         )
                     }
                     Text("Top sources", style = MaterialTheme.typography.labelLarge)
@@ -798,18 +847,25 @@ private fun DashboardPieLegend(
             color: androidx.compose.ui.graphics.Color,
             description: String,
             labels: List<String> = emptyList(),
+            emptyMessage: String = "No data in this period",
         ) {
-            Canvas(Modifier.fillMaxWidth().height(150.dp).semantics { contentDescription = description }) {
-                val slot = size.width / values.size.coerceAtLeast(1)
-                val barWidth = (slot * 0.58f).coerceAtLeast(4.dp.toPx())
-                values.forEachIndexed { index, value ->
-                    val height = (size.height * (value / maxValue.coerceAtLeast(1f))).coerceAtLeast(4.dp.toPx())
-                    drawRoundRect(
-                        color = if (value > 0f) color else color.copy(alpha = 0.18f),
-                        topLeft = Offset(index * slot + (slot - barWidth) / 2f, size.height - height),
-                        size = Size(barWidth, height),
-                        cornerRadius = CornerRadius(5.dp.toPx()),
-                    )
+            if (values.none { it > 0f }) {
+                DashboardPlotEmptyState(emptyMessage)
+            } else {
+                Canvas(Modifier.fillMaxWidth().height(150.dp).semantics { contentDescription = description }) {
+                    val slot = size.width / values.size.coerceAtLeast(1)
+                    val barWidth = (slot * 0.58f)
+                        .coerceAtMost(if (values.size == 1) 72.dp.toPx() else Float.MAX_VALUE)
+                        .coerceAtLeast(4.dp.toPx())
+                    values.forEachIndexed { index, value ->
+                        val height = (size.height * (value / maxValue.coerceAtLeast(1f))).coerceAtLeast(4.dp.toPx())
+                        drawRoundRect(
+                            color = if (value > 0f) color else color.copy(alpha = 0.18f),
+                            topLeft = Offset(index * slot + (slot - barWidth) / 2f, size.height - height),
+                            size = Size(barWidth, height),
+                            cornerRadius = CornerRadius(5.dp.toPx()),
+                        )
+                    }
                 }
             }
             if (labels.isNotEmpty()) {
@@ -824,43 +880,85 @@ private fun DashboardPieLegend(
         private fun DashboardLinePlot(
             series: List<DashboardLineSeries>,
             description: String,
+            emptyMessage: String = "No data in this period",
         ) {
             val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-            Canvas(Modifier.fillMaxWidth().height(150.dp).semantics { contentDescription = description }) {
-                val peak = series.flatMap { it.values }.maxOrNull()?.coerceAtLeast(0.0000001) ?: 0.0000001
-                val pointCount = series.maxOfOrNull { it.values.size } ?: 0
-                val step = size.width / (pointCount - 1).coerceAtLeast(1)
-                repeat(4) { index ->
-                    val y = size.height * index / 3f
-                    drawLine(gridColor, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
-                }
-                series.forEach { line ->
-                    val path = Path()
-                    line.values.forEachIndexed { index, value ->
-                        val point = Offset(index * step, size.height - (value / peak).toFloat() * size.height)
-                        if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
+            val hasValues = series.any { line -> line.values.any { it > 0.0 } }
+            if (!hasValues) {
+                DashboardPlotEmptyState(emptyMessage)
+            } else {
+                Canvas(Modifier.fillMaxWidth().height(150.dp).semantics { contentDescription = description }) {
+                    val peak = series.flatMap { it.values }.maxOrNull()?.coerceAtLeast(0.0000001) ?: 0.0000001
+                    val pointCount = series.maxOfOrNull { it.values.size } ?: 0
+                    val step = size.width / (pointCount - 1).coerceAtLeast(1)
+                    repeat(4) { index ->
+                        val y = size.height * index / 3f
+                        drawLine(gridColor, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
                     }
-                    drawPath(
-                        path,
-                        line.color,
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(
-                            width = if (line.dashed) 2.dp.toPx() else 3.dp.toPx(),
-                            pathEffect = if (line.dashed) {
-                                PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 7.dp.toPx()))
-                            } else {
-                                null
-                            },
-                        ),
-                    )
-                    if (!line.dashed) {
+                    series.forEach { line ->
+                        val path = Path()
                         line.values.forEachIndexed { index, value ->
-                            drawCircle(
-                                line.color,
-                                radius = 2.5.dp.toPx(),
-                                center = Offset(index * step, size.height - (value / peak).toFloat() * size.height),
+                            val point = Offset(index * step, size.height - (value / peak).toFloat() * size.height)
+                            if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
+                        }
+                        drawPath(
+                            path,
+                            line.color,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                width = if (line.dashed) 2.dp.toPx() else 3.dp.toPx(),
+                                pathEffect = if (line.dashed) {
+                                    PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 7.dp.toPx()))
+                                } else {
+                                    null
+                                },
                             )
+                        )
+                        if (!line.dashed) {
+                            line.values.forEachIndexed { index, value ->
+                                drawCircle(
+                                    line.color,
+                                    radius = 3.dp.toPx(),
+                                    center = Offset(index * step, size.height - (value / peak).toFloat() * size.height),
+                                )
+                            }
                         }
                     }
+                }
+            }
+        }
+
+        @Composable
+        private fun DashboardPlotEmptyState(
+            message: String,
+            detail: String? = null,
+        ) {
+            val dashColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+            Column(
+                Modifier.fillMaxWidth().height(150.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Canvas(Modifier.fillMaxWidth().height(28.dp)) {
+                    val dashWidth = 12.dp.toPx()
+                    val gap = 9.dp.toPx()
+                    var x = 0f
+                    while (x < size.width) {
+                        drawRoundRect(
+                            color = dashColor,
+                            topLeft = Offset(x, size.height - 5.dp.toPx()),
+                            size = Size(dashWidth, 5.dp.toPx()),
+                            cornerRadius = CornerRadius(3.dp.toPx()),
+                        )
+                        x += dashWidth + gap
+                    }
+                }
+                Text(message, style = MaterialTheme.typography.labelLarge)
+                detail?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

@@ -107,6 +107,14 @@ data class ResearchHistory(
     val graphUsage: Map<String, List<AiUsageEvent>> = emptyMap(),
     val unassignedUsage: List<AiUsageEvent> = emptyList(),
 ) {
+    fun recordWorkspaceOpen(timestamp: Long): ResearchHistory {
+        val day = Instant.fromEpochMilliseconds(timestamp)
+            .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
+        return copy(
+            dailyOpens = dailyOpens + (day to ((dailyOpens[day] ?: 0) + 1)),
+        )
+    }
+
     fun record(target: ZoteroPdfTarget, timestamp: Long): ResearchHistory {
         val opened = StudiedPaper(target, timestamp, timestamp)
         val previous = papers.find { it.id == opened.id }

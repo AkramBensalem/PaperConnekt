@@ -26,6 +26,7 @@ fun DestinationScreen(
     onZoteroTargetSelected: (ZoteroPdfTarget) -> Unit = {},
     onPdfWorkspaceOpened: () -> Unit = {},
     onPdfWorkspaceClosed: () -> Unit = {},
+    onAssistantConversationFocusedChanged: (Boolean) -> Unit = {},
 ) {
     when (destination) {
         AppDestination.DASHBOARD -> DashboardScreen(
@@ -36,7 +37,8 @@ fun DestinationScreen(
             onOpenLibrary = { onNavigate(AppDestination.LIBRARY) },
             onOpenGraph = onOpenGraph,
         )
-        AppDestination.ASSISTANT -> AssistantScreen(
+        AppDestination.ASSISTANT,
+        AppDestination.ASSISTANT_CHAT -> AssistantScreen(
             store = store,
             paddingValues = paddingValues,
             initialPaper = requestedPaper,
@@ -46,6 +48,8 @@ fun DestinationScreen(
             onInitialZoteroTargetConsumed = onZoteroRequestConsumed,
             onPdfWorkspaceOpened = onPdfWorkspaceOpened,
             onPdfWorkspaceClosed = onPdfWorkspaceClosed,
+            onConversationFocusedChanged = onAssistantConversationFocusedChanged,
+            focusedConversationPage = destination == AppDestination.ASSISTANT_CHAT,
         )
         AppDestination.GRAPH -> GraphScreen(
             store = store,

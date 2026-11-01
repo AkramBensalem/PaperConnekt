@@ -7,9 +7,9 @@ enum class AppDestination {
     ONBOARDING,
     DASHBOARD,
     ASSISTANT,
+    ASSISTANT_CHAT,
     GRAPH,
     GRAPH_CANVAS,
     LIBRARY,
     SETTINGS,
 }
-

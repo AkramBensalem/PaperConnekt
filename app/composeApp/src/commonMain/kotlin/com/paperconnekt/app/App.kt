@@ -87,7 +87,6 @@ fun PaperConnektApp(
     } else {
         AppDestination.ONBOARDING
     }
-
     CompositionLocalProvider(LocalPdfAttachments provides pdfAttachments, LocalMcpHost provides mcpHost) {
         PaperConnektTheme(preference = settings.selectedTheme) {
             Surface(
@@ -145,6 +144,7 @@ fun PaperConnektApp(
                                             currentDestination !in setOf(
                                                 AppDestination.GRAPH,
                                                 AppDestination.GRAPH_CANVAS,
+                                                AppDestination.ASSISTANT_CHAT,
                                             ) &&
                                             !focusedWorkspaceOpen
                                         ) {

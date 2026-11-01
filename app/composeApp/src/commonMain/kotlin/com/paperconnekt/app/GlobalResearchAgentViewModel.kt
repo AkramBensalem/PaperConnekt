@@ -150,6 +150,10 @@ class GlobalResearchAgentViewModel(
             "Add your ${selectedModel.provider.name.replace('_', ' ').lowercase().replaceFirstChar(Char::uppercase)} API key in Settings → API keys."
     }
 
+    fun recheckProviderKey() {
+        viewModelScope.launch { refreshProviderKey() }
+    }
+
     fun send(text: String = input) {
         val message = text.trim()
         if (message.isEmpty() || running || !storageReady || !providerKeyAvailable) return

@@ -1,5 +1,7 @@
 package com.paperconnekt.app
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -42,10 +44,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.Alignment
@@ -67,7 +71,6 @@ import com.akram.bensalem.paper.connekt.feature.assistant.AssistantRepository
 import com.akram.bensalem.paper.connekt.feature.assistant.AssistantViewModel
 import kotlin.random.Random
 import com.paperconnekt.app.resources.Res
-import com.paperconnekt.app.resources.filled_add
 import com.paperconnekt.app.resources.filled_arrow_back
 import com.paperconnekt.app.resources.filled_arrow_forward
 import com.paperconnekt.app.resources.lightbulb
@@ -94,6 +97,8 @@ fun AssistantScreen(
     onInitialZoteroTargetConsumed: () -> Unit = {},
     onPdfWorkspaceOpened: () -> Unit = {},
     onPdfWorkspaceClosed: () -> Unit = {},
+    onConversationFocusedChanged: (Boolean) -> Unit = {},
+    focusedConversationPage: Boolean = false,
 ) {
     val papers by store.papers.collectAsState()
     val settings by store.settings.collectAsState()
@@ -104,10 +109,19 @@ fun AssistantScreen(
     LaunchedEffect(settings.zoteroUserId) {
         historyAgent.updateHistoryAccount(settings.zoteroUserId.takeIf(String::isNotBlank))
     }
-    LaunchedEffect(globalAgent) { globalAgent.load() }
+    LaunchedEffect(globalAgent) {
+        globalAgent.load()
+        globalAgent.refreshProviderKey()
+    }
     var openedConversationId by remember { mutableStateOf<String?>(null) }
     var openPaper by remember { mutableStateOf<Paper?>(null) }
     var openZoteroTarget by remember { mutableStateOf<ZoteroPdfTarget?>(null) }
+    SideEffect {
+        onConversationFocusedChanged(openedConversationId != null)
+    }
+    LaunchedEffect(openedConversationId) {
+        globalAgent.refreshProviderKey()
+    }
     LaunchedEffect(initialPaper) {
         if (initialPaper != null) {
             onPdfWorkspaceOpened()
@@ -123,6 +137,10 @@ fun AssistantScreen(
         }
     }
     var isCreating by remember { mutableStateOf(false) }
+    fun openConversation(id: String?) {
+        openedConversationId = id
+        onConversationFocusedChanged(id != null)
+    }
     if (openPaper != null) {
         PdfWorkspaceScreen(
             paper = openPaper!!,
@@ -173,15 +191,6 @@ fun AssistantScreen(
                 item {
                     AssistantHeader(
                         sessionCount = globalAgent.conversations.size,
-                        onNewConversation = {
-                            if (!isCreating) {
-                                isCreating = true
-                                globalAgent.newChat()
-                                openedConversationId = globalAgent.conversation.id
-                                isCreating = false
-                            }
-                        },
-                        isCreating = isCreating,
                     )
                 }
                 item {
@@ -190,13 +199,13 @@ fun AssistantScreen(
                         selectedConversationId = openedConversationId,
                         onSelect = {
                             globalAgent.selectConversation(it)
-                            openedConversationId = it
+                            openConversation(it)
                         },
                         onNewConversation = {
                             if (!isCreating) {
                                 isCreating = true
                                 globalAgent.newChat()
-                                openedConversationId = globalAgent.conversation.id
+                                openConversation(globalAgent.conversation.id)
                                 isCreating = false
                             }
                         },
@@ -226,6 +235,26 @@ fun AssistantScreen(
                     )
                 }
             }
+        } else if (compact) {
+            AssistantMainContent(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = if (narrow) 8.dp else 12.dp, vertical = 8.dp),
+                papers = papers,
+                globalAgent = globalAgent,
+                recentHistory = historyAgent.state.history,
+                conversationOpened = true,
+                focusedConversationPage = focusedConversationPage,
+                onBackToHistory = { openConversation(null) },
+                onOpenZotero = {
+                    onPdfWorkspaceOpened()
+                    openZoteroTarget = it
+                },
+                onOpenPaper = {
+                    onPdfWorkspaceOpened()
+                    openPaper = it
+                },
+            )
         } else {
             Column(
                 modifier = Modifier
@@ -238,30 +267,27 @@ fun AssistantScreen(
             ) {
                 AssistantHeader(
                     sessionCount = globalAgent.conversations.size,
-                    onNewConversation = {
-                        if (!isCreating) {
-                            isCreating = true
-                            globalAgent.newChat()
-                            openedConversationId = globalAgent.conversation.id
-                            isCreating = false
-                        }
-                    },
-                    isCreating = isCreating,
                 )
 
-                if (compact) {
-                    SessionStrip(
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    SessionSidebar(
+                        modifier = Modifier.width(270.dp),
                         conversations = globalAgent.conversations,
                         selectedConversationId = openedConversationId,
                         onSelect = {
                             globalAgent.selectConversation(it)
-                            openedConversationId = it
+                            openConversation(it)
                         },
                         onNewConversation = {
                             if (!isCreating) {
                                 isCreating = true
                                 globalAgent.newChat()
-                                openedConversationId = globalAgent.conversation.id
+                                openConversation(globalAgent.conversation.id)
                                 isCreating = false
                             }
                         },
@@ -271,7 +297,9 @@ fun AssistantScreen(
                         papers = papers,
                         globalAgent = globalAgent,
                         recentHistory = historyAgent.state.history,
-                        conversationOpened = true,
+                        conversationOpened = openedConversationId != null,
+                        focusedConversationPage = focusedConversationPage,
+                        onBackToHistory = { openConversation(null) },
                         onOpenZotero = {
                             onPdfWorkspaceOpened()
                             openZoteroTarget = it
@@ -280,55 +308,7 @@ fun AssistantScreen(
                             onPdfWorkspaceOpened()
                             openPaper = it
                         },
-                        onCreateSession = {
-                            globalAgent.newChat()
-                            openedConversationId = globalAgent.conversation.id
-                        },
                     )
-                } else {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        SessionSidebar(
-                            modifier = Modifier.width(270.dp),
-                            conversations = globalAgent.conversations,
-                            selectedConversationId = openedConversationId,
-                            onSelect = {
-                                globalAgent.selectConversation(it)
-                                openedConversationId = it
-                            },
-                            onNewConversation = {
-                                if (!isCreating) {
-                                    isCreating = true
-                                    globalAgent.newChat()
-                                    openedConversationId = globalAgent.conversation.id
-                                    isCreating = false
-                                }
-                            },
-                        )
-                        AssistantMainContent(
-                            modifier = Modifier.weight(1f),
-                            papers = papers,
-                            globalAgent = globalAgent,
-                            recentHistory = historyAgent.state.history,
-                            conversationOpened = openedConversationId != null,
-                            onOpenZotero = {
-                                onPdfWorkspaceOpened()
-                                openZoteroTarget = it
-                            },
-                            onOpenPaper = {
-                                onPdfWorkspaceOpened()
-                                openPaper = it
-                            },
-                            onCreateSession = {
-                                globalAgent.newChat()
-                                openedConversationId = globalAgent.conversation.id
-                            },
-                        )
-                    }
                 }
             }
         }
@@ -338,8 +318,6 @@ fun AssistantScreen(
 @Composable
 private fun AssistantHeader(
     sessionCount: Int,
-    onNewConversation: () -> Unit,
-    isCreating: Boolean,
 ) {
     WorkspaceHeader(
         title = "Assistant",
@@ -349,14 +327,6 @@ private fun AssistantHeader(
             "$sessionCount conversation${if (sessionCount == 1) "" else "s"}",
             "History saved locally",
         ),
-        actions = {
-            HeaderAction(
-                label = if (isCreating) "Creating…" else "New conversation",
-                icon = Res.drawable.filled_add,
-                onClick = onNewConversation,
-                enabled = !isCreating,
-            )
-        },
     )
 }
 
@@ -425,16 +395,64 @@ private fun SessionStrip(
     onSelect: (String) -> Unit,
     onNewConversation: () -> Unit,
 ) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        item {
-            OutlinedButton(onClick = onNewConversation) { Text("+ New") }
-        }
-        items(conversations.sortedByDescending { it.updatedAt }, key = PaperAgentConversation::id) { conversation ->
-            FilterChip(
-                selected = conversation.id == selectedConversationId,
-                onClick = { onSelect(conversation.id) },
-                label = { Text(conversation.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            )
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Chat history", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (conversations.isEmpty()) {
+                            "Your saved research conversations will appear here."
+                        } else {
+                            "Select a conversation to continue your research."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                OutlinedButton(
+                    onClick = onNewConversation,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp),
+                ) {
+                    Text("+ New")
+                }
+            }
+            if (conversations.isEmpty()) {
+                Text(
+                    "No chats yet",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(
+                        conversations.sortedByDescending { it.updatedAt },
+                        key = PaperAgentConversation::id,
+                    ) { conversation ->
+                        FilterChip(
+                            selected = conversation.id == selectedConversationId,
+                            onClick = { onSelect(conversation.id) },
+                            label = {
+                                Text(
+                                    conversation.title,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -485,15 +503,17 @@ private fun AssistantMainContent(
     globalAgent: GlobalResearchAgentViewModel,
     recentHistory: com.akram.bensalem.paper.connekt.feature.assistant.ResearchHistory,
     conversationOpened: Boolean,
+    focusedConversationPage: Boolean,
+    onBackToHistory: () -> Unit,
     onOpenZotero: (ZoteroPdfTarget) -> Unit,
     onOpenPaper: (Paper) -> Unit,
-    onCreateSession: () -> Unit,
 ) {
     if (conversationOpened) {
         GlobalConversationPanel(
             modifier = modifier,
             agent = globalAgent,
-            onCreateSession = onCreateSession,
+            onBackToHistory = onBackToHistory,
+            focusedPage = focusedConversationPage,
         )
     } else {
         LazyColumn(
@@ -519,199 +539,275 @@ private fun AssistantMainContent(
     }
 }
 
-    @OptIn(ExperimentalLayoutApi::class)
-    @Composable
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
 private fun GlobalConversationPanel(
-        modifier: Modifier,
-        agent: GlobalResearchAgentViewModel,
-        onCreateSession: () -> Unit,
-    ) {
-        val scrollState = rememberLazyListState()
-        var draft by remember { mutableStateOf("") }
-        LaunchedEffect(agent.conversation.id, agent.conversation.messages.size, agent.running) {
-            val count = agent.conversation.messages.size + if (agent.running) 1 else 0
-            if (count > 0) scrollState.animateScrollToItem(count - 1)
+    modifier: Modifier,
+    agent: GlobalResearchAgentViewModel,
+    onBackToHistory: () -> Unit,
+    focusedPage: Boolean,
+) {
+    val scrollState = rememberLazyListState()
+    val headerCollapsed by remember {
+        derivedStateOf {
+            scrollState.firstVisibleItemIndex > 0 ||
+                scrollState.firstVisibleItemScrollOffset > 32
         }
-        Card(
-            modifier = modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        ) {
-            Column(Modifier.fillMaxSize()) {
+    }
+    var draft by remember { mutableStateOf("") }
+    LaunchedEffect(agent.conversation.id, agent.conversation.messages.size, agent.running) {
+        val count = agent.conversation.messages.size + if (agent.running) 1 else 0
+        if (count > 0) scrollState.animateScrollToItem(count - 1)
+    }
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(if (focusedPage) 0.dp else 16.dp),
+        border = if (focusedPage) {
+            null
+        } else {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        },
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = if (headerCollapsed) 3.dp else 0.dp,
+                shadowElevation = if (headerCollapsed) 2.dp else 0.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
                 Row(
-                    Modifier.fillMaxWidth().padding(start = 18.dp, top = 14.dp, end = 10.dp, bottom = 10.dp),
+                    Modifier.padding(
+                        start = if (headerCollapsed) 10.dp else 18.dp,
+                        top = if (headerCollapsed) 6.dp else 14.dp,
+                        end = 10.dp,
+                        bottom = if (headerCollapsed) 6.dp else 10.dp,
+                    ),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Icon(
-                        painterResource(Res.drawable.filled_auto_awesome),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp),
-                    )
+                    IconButton(onClick = onBackToHistory) {
+                        Icon(
+                            painterResource(Res.drawable.filled_arrow_back),
+                            contentDescription = "Back to chat history",
+                        )
+                    }
+                    AnimatedVisibility(visible = !headerCollapsed) {
+                        Icon(
+                            painterResource(Res.drawable.filled_auto_awesome),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                     Column(Modifier.weight(1f)) {
                         Text(
                             agent.conversation.title,
-                            style = MaterialTheme.typography.titleLarge,
+                            style = if (headerCollapsed) {
+                                MaterialTheme.typography.titleMedium
+                            } else {
+                                MaterialTheme.typography.titleLarge
+                            },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Text(
-                            "Global library context · local + Zotero + Idea Board + graphs",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
                     }
-                    TextButton(
-                        onClick = onCreateSession,
-                        enabled = !agent.running,
-                    ) { Text("New chat") }
                     IconButton(onClick = agent::stop, enabled = agent.running) {
                         Icon(painterResource(Res.drawable.filled_stop), "Stop")
                     }
                 }
-                agent.storageError?.let {
-                    Surface(
-                        Modifier.fillMaxWidth().padding(horizontal = 14.dp),
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        shape = RoundedCornerShape(10.dp),
-                    ) {
-                        Text(it, Modifier.padding(10.dp), color = MaterialTheme.colorScheme.onErrorContainer)
-                    }
+            }
+            agent.storageError?.let {
+                Surface(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text(it, Modifier.padding(10.dp), color = MaterialTheme.colorScheme.onErrorContainer)
                 }
-                if (!agent.providerKeyAvailable && agent.storageReady) {
+            }
+            if (!agent.providerKeyAvailable && agent.storageReady) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(
                         agent.providerKeyMessage,
-                        Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
+                        modifier = Modifier.weight(1f),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                     )
+                    TextButton(
+                        onClick = agent::recheckProviderKey,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
+                        Text("Recheck")
+                    }
                 }
-                LazyColumn(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    state = scrollState,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    if (agent.conversation.messages.isEmpty() && !agent.running) {
-                        item {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Ask across your research library", style = MaterialTheme.typography.headlineSmall)
-                                Text(
-                                    "Compare a set of papers, search converted PDF text, inspect Idea Board Markdown, or extract connections from a research graph.",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    listOf(
-                                        "Compare the methods in my latest papers",
-                                        "Find papers about retrieval augmented generation",
-                                        "Summarize the papers in my latest graph",
-                                    ).forEach { prompt ->
-                                        SuggestionChip(
-                                            onClick = { agent.send(prompt) },
-                                            enabled = agent.storageReady && agent.providerKeyAvailable,
-                                            label = { Text(prompt) },
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    items(agent.conversation.messages, key = { it.id }) { message ->
-                        GlobalMessageBubble(message)
-                    }
-                    if (agent.running) {
-                        item {
-                            Column(
-                                Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                if (agent.streamingText.isNotBlank()) ChatMarkdown(agent.streamingText)
-                                agent.liveSteps.forEach { step ->
-                                    Text(
-                                        "${if (step.done) "✓" else "…"} ${step.label}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+            }
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                state = scrollState,
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = if (headerCollapsed) 8.dp else 12.dp,
+                    bottom = 12.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (agent.conversation.messages.isEmpty() && !agent.running) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Ask across your research library", style = MaterialTheme.typography.headlineSmall)
+                            Text(
+                                "Compare a set of papers, search converted PDF text, inspect Idea Board Markdown, or extract connections from a research graph.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                listOf(
+                                    "Compare the methods in my latest papers",
+                                    "Find papers about retrieval augmented generation",
+                                    "Summarize the papers in my latest graph",
+                                ).forEach { prompt ->
+                                    SuggestionChip(
+                                        onClick = { agent.send(prompt) },
+                                        enabled = agent.storageReady && agent.providerKeyAvailable,
+                                        label = { Text(prompt) },
                                     )
                                 }
-                                if (agent.streamingText.isBlank() && agent.liveSteps.isEmpty()) {
-                                    Text("Thinking…", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
                             }
                         }
                     }
                 }
-                Row(
-                    Modifier.fillMaxWidth().padding(12.dp),
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                items(agent.conversation.messages, key = { it.id }) { message ->
+                    GlobalMessageBubble(message)
+                }
+                if (agent.running) {
+                    item {
+                        Column(
+                            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            if (agent.streamingText.isNotBlank()) ChatMarkdown(agent.streamingText)
+                            agent.liveSteps.forEach { step ->
+                                Text(
+                                    "${if (step.done) "✓" else "…"} ${step.label}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            if (agent.streamingText.isBlank() && agent.liveSteps.isEmpty()) {
+                                Text("Thinking…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 3.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Column(
+                    modifier = Modifier.padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     OutlinedTextField(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                         value = draft,
                         onValueChange = { draft = it },
                         enabled = agent.storageReady && !agent.running,
                         label = { Text("Ask your research library") },
-                        placeholder = { Text("Compare papers, inspect a graph, or save an Idea Board note…") },
+                        placeholder = {
+                            Text("Compare papers, inspect a graph, or save an Idea Board note…")
+                        },
                         minLines = 2,
                         maxLines = 6,
+                        shape = RoundedCornerShape(16.dp),
                     )
-                    Button(
-                        enabled = draft.isNotBlank() && agent.storageReady && agent.providerKeyAvailable && !agent.running,
-                        onClick = {
-                            agent.send(draft)
-                            draft = ""
-                        },
-                    ) { Text("Send") }
-                }
-            }
-        }
-    }
-
-    @Composable
-private fun GlobalMessageBubble(message: PaperAgentMessage) {
-        val isUser = message.role == AgentRole.USER
-        val clipboard = LocalClipboardManager.current
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
-        ) {
-            Surface(
-                Modifier.fillMaxWidth(0.86f),
-                shape = RoundedCornerShape(14.dp),
-                color = if (isUser) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceContainerHighest,
-            ) {
-                Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(
-                        if (isUser) "You" else "PaperConnekt assistant",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    SelectionContainer {
-                        if (isUser) Text(message.text) else ChatMarkdown(message.text)
-                    }
-                    if (message.isError) {
-                        Text("The response failed; you can retry the same question.", color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.labelSmall)
-                    }
-                    if (!isUser && !message.isError && message.text.isNotBlank()) {
-                        IconButton(
-                            onClick = { clipboard.setText(AnnotatedString(message.text)) },
-                            modifier = Modifier.size(28.dp),
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        Button(
+                            enabled = draft.isNotBlank() &&
+                                agent.storageReady &&
+                                agent.providerKeyAvailable &&
+                                !agent.running,
+                            onClick = {
+                                agent.send(draft)
+                                draft = ""
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
                         ) {
-                            Icon(
-                                painterResource(Res.drawable.filled_content_copy),
-                                contentDescription = "Copy reply",
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            Text("Send")
                         }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun GlobalMessageBubble(message: PaperAgentMessage) {
+    val isUser = message.role == AgentRole.USER
+    val clipboard = LocalClipboardManager.current
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+    ) {
+        Surface(
+            Modifier.fillMaxWidth(0.86f),
+            shape = RoundedCornerShape(14.dp),
+            color = if (isUser) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surfaceContainerHighest,
+        ) {
+            Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(
+                    if (isUser) "You" else "PaperConnekt assistant",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                SelectionContainer {
+                    if (isUser) Text(message.text) else ChatMarkdown(message.text)
+                }
+                if (message.isError) {
+                    Text(
+                        "The response failed; you can retry the same question.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+                if (!isUser && !message.isError && message.text.isNotBlank()) {
+                    IconButton(
+                        onClick = { clipboard.setText(AnnotatedString(message.text)) },
+                        modifier = Modifier.size(28.dp),
+                    ) {
+                        Icon(
+                            painterResource(Res.drawable.filled_content_copy),
+                            contentDescription = "Copy reply",
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun WelcomePanel(onCreate: () -> Unit) {

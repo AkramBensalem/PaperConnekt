@@ -82,7 +82,9 @@ fun DashboardScreen(
         historyError = null
         try {
             val account = settings.zoteroUserId.trim().ifEmpty { LOCAL_RESEARCH_ACCOUNT }
-            researchHistory = AssistantRepository().loadUsageHistory(account)
+            val repository = AssistantRepository()
+            repository.recordWorkspaceOpen(kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
+            researchHistory = repository.loadUsageHistory(account)
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (exception: Exception) {
