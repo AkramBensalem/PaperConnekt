@@ -90,7 +90,7 @@ private fun AppShellContent(
 
     SideEffect {
         onDestinationChanged(destination)
-        onFocusedWorkspaceChanged(pdfWorkspaceFocused || destination == AppDestination.ASSISTANT_CHAT)
+        onFocusedWorkspaceChanged(pdfWorkspaceFocused)
     }
 
     fun setAssistantConversationFocused(focused: Boolean) {
@@ -261,39 +261,38 @@ private fun AppShellContent(
             )
         } else if (maxWidth >= 840.dp) {
             Row(modifier = Modifier.fillMaxSize()) {
-                if (destination != AppDestination.ASSISTANT_CHAT) {
-                    NavigationRail(
-                        modifier = Modifier.border(
-                            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        ),
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        header = {
-                            Column(
-                                modifier = Modifier.padding(vertical = 20.dp),
-                                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                            ) {
-                                Image(
-                                    painter = painterResource(Res.drawable.paperconnekt_brand),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(48.dp),
-                                )
-                            }
-                        },
-                    ) {
-                        navigationItems.forEach { (item, label) ->
-                            NavigationRailItem(
-                                selected = destination == item,
-                                onClick = { if (destination != item) pdfNavigation.navigate { destination = item } },
-                                icon = {
-                                    NavigationIcon(
-                                        glyph = label.first,
-                                        contentDescription = label.second,
-                                    )
-                                },
-                                label = { Text(label.second) },
-                                alwaysShowLabel = true,
+                NavigationRail(
+                    modifier = Modifier.border(
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    ),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    header = {
+                        Column(
+                            modifier = Modifier.padding(vertical = 20.dp),
+                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                        ) {
+                            Image(
+                                painter = painterResource(Res.drawable.paperconnekt_brand),
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
                             )
                         }
+                    },
+                ) {
+                    navigationItems.forEach { (item, label) ->
+                        NavigationRailItem(
+                            selected = destination == item ||
+                                (item == AppDestination.ASSISTANT && destination == AppDestination.ASSISTANT_CHAT),
+                            onClick = { if (destination != item) pdfNavigation.navigate { destination = item } },
+                            icon = {
+                                NavigationIcon(
+                                    glyph = label.first,
+                                    contentDescription = label.second,
+                                )
+                            },
+                            label = { Text(label.second) },
+                            alwaysShowLabel = true,
+                        )
                     }
                 }
                 Column(
@@ -331,7 +330,7 @@ private fun AppShellContent(
         } else {
             Scaffold(
                 bottomBar = {
-                    if (!hideMobileNavigation && destination != AppDestination.ASSISTANT_CHAT) {
+                    if (!hideMobileNavigation) {
                         NavigationBar(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         ) {

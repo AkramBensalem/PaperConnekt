@@ -219,7 +219,7 @@ fun GraphCanvasScreen(
         GraphWorkspace(
             graph = graph,
             papers = papers,
-            compact = maxWidth < 860.dp,
+            compact = maxWidth < 1120.dp,
             isSaving = isSaving,
             errorMessage = errorMessage,
             onBack = onBack,
@@ -288,7 +288,7 @@ private fun GraphList(
 ) {
     var sortMenuExpanded by remember { mutableStateOf(false) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val compact = maxWidth < 600.dp
+        val compact = maxWidth < 1120.dp
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = if (compact) 280.dp else 320.dp),
             modifier = Modifier.fillMaxSize(),

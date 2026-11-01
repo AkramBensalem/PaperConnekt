@@ -126,7 +126,7 @@ fun DashboardScreen(
             .fillMaxSize()
             .padding(paddingValues),
     ) {
-        val compact = maxWidth < 620.dp
+        val compact = maxWidth < 1120.dp
         val narrow = maxWidth < 420.dp
         LazyColumn(
             modifier = Modifier.fillMaxSize(),

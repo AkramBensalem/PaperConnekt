@@ -85,8 +85,8 @@ internal fun WorkspaceHeader(
                 ),
             ),
         ) {
-            val wide = maxWidth >= 1040.dp
-            val compact = maxWidth < 600.dp
+            val wide = maxWidth >= 1120.dp
+            val compact = maxWidth < 720.dp
             val inset = when {
                 maxWidth < 420.dp -> 12.dp
                 compact -> 16.dp

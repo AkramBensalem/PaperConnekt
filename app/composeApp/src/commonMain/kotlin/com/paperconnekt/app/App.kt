@@ -144,7 +144,6 @@ fun PaperConnektApp(
                                             currentDestination !in setOf(
                                                 AppDestination.GRAPH,
                                                 AppDestination.GRAPH_CANVAS,
-                                                AppDestination.ASSISTANT_CHAT,
                                             ) &&
                                             !focusedWorkspaceOpen
                                         ) {

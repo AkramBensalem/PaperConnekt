@@ -175,7 +175,7 @@ fun DashboardMetrics(
             maxWidth < 1180.dp -> 3
             else -> 6
         }
-        val compact = maxWidth < 820.dp
+        val compact = maxWidth < 1120.dp
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Research insights", style = MaterialTheme.typography.titleMedium)
             metrics.chunked(columns).forEach { row ->
@@ -269,7 +269,7 @@ fun DashboardAnalytics(
             val visibleUsage = usage.filter { usageDate(it) in chartDays.first()..chartDays.last() }
             val summary = AiUsageSummary(visibleUsage)
             BoxWithConstraints {
-                val stackCharts = maxWidth < 900.dp
+                val stackCharts = maxWidth < 1120.dp
                 val compactFilters = maxWidth < 620.dp
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

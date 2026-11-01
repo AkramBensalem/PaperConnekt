@@ -109,7 +109,7 @@ fun SettingsScreen(
             .padding(paddingValues)
             .background(MaterialTheme.colorScheme.surfaceContainer),
     ) {
-        val compact = maxWidth < 760.dp
+        val compact = maxWidth < 1120.dp
         val narrow = maxWidth < 420.dp
         LazyColumn(
             modifier = Modifier.fillMaxSize(),

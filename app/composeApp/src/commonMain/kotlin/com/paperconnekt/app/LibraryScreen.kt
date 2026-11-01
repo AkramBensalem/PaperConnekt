@@ -713,7 +713,9 @@ fun LibraryScreen(
             .padding(paddingValues),
     ) {
         val short = maxHeight < 620.dp
-        val compact = maxWidth < 900.dp || (short && maxWidth < 1100.dp)
+        // The three-pane layout needs enough room for the collection pane,
+        // paper list, and details pane without squeezing the list controls.
+        val compact = maxWidth < 1120.dp || (short && maxWidth < 1240.dp)
         val compactHorizontalPadding = if (maxWidth < 560.dp) 12.dp else 16.dp
         val compactVerticalPadding = if (short) 8.dp else 12.dp
         val pageScrollState = rememberScrollState()
@@ -1525,7 +1527,7 @@ private fun ZoteroLibraryContent(
             }
         }
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val compact = maxWidth < 900.dp || (maxHeight < 620.dp && maxWidth < 1100.dp)
+            val compact = maxWidth < 1120.dp || (maxHeight < 620.dp && maxWidth < 1240.dp)
             if (compact) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(

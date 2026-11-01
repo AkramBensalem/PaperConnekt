@@ -50,6 +50,8 @@ fun DestinationScreen(
             onPdfWorkspaceClosed = onPdfWorkspaceClosed,
             onConversationFocusedChanged = onAssistantConversationFocusedChanged,
             focusedConversationPage = destination == AppDestination.ASSISTANT_CHAT,
+            onOpenPaper = onPaperSelected,
+            onOpenZoteroTarget = onZoteroTargetSelected,
         )
         AppDestination.GRAPH -> GraphScreen(
             store = store,

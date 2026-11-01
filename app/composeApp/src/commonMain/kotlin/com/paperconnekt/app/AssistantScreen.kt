@@ -1,7 +1,15 @@
 package com.paperconnekt.app
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -99,6 +107,8 @@ fun AssistantScreen(
     onPdfWorkspaceClosed: () -> Unit = {},
     onConversationFocusedChanged: (Boolean) -> Unit = {},
     focusedConversationPage: Boolean = false,
+    onOpenPaper: (Paper) -> Unit = {},
+    onOpenZoteroTarget: (ZoteroPdfTarget) -> Unit = {},
 ) {
     val papers by store.papers.collectAsState()
     val settings by store.settings.collectAsState()
@@ -175,7 +185,7 @@ fun AssistantScreen(
             .padding(paddingValues)
             .background(MaterialTheme.colorScheme.surfaceContainer),
     ) {
-        val compact = maxWidth < 900.dp
+        val compact = maxWidth < 1120.dp
         val narrow = maxWidth < 420.dp
         if (compact && openedConversationId == null) {
             LazyColumn(
@@ -216,12 +226,10 @@ fun AssistantScreen(
                         localPapers = papers,
                         history = historyAgent.state.history,
                         onOpenPaper = {
-                            onPdfWorkspaceOpened()
-                            openPaper = it
+                            onOpenPaper(it)
                         },
                         onOpenZotero = {
-                            onPdfWorkspaceOpened()
-                            openZoteroTarget = it
+                            onOpenZoteroTarget(it)
                         },
                     )
                 }
@@ -229,8 +237,7 @@ fun AssistantScreen(
                     PaperShelf(
                         papers = papers,
                         onOpenPaper = {
-                            onPdfWorkspaceOpened()
-                            openPaper = it
+                            onOpenPaper(it)
                         },
                     )
                 }
@@ -247,12 +254,10 @@ fun AssistantScreen(
                 focusedConversationPage = focusedConversationPage,
                 onBackToHistory = { openConversation(null) },
                 onOpenZotero = {
-                    onPdfWorkspaceOpened()
-                    openZoteroTarget = it
+                    onOpenZoteroTarget(it)
                 },
                 onOpenPaper = {
-                    onPdfWorkspaceOpened()
-                    openPaper = it
+                    onOpenPaper(it)
                 },
             )
         } else {
@@ -265,9 +270,15 @@ fun AssistantScreen(
                     ),
                 verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp),
             ) {
-                AssistantHeader(
-                    sessionCount = globalAgent.conversations.size,
-                )
+                AnimatedVisibility(
+                    visible = openedConversationId == null,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    AssistantHeader(
+                        sessionCount = globalAgent.conversations.size,
+                    )
+                }
 
                 Row(
                     modifier = Modifier
@@ -301,12 +312,10 @@ fun AssistantScreen(
                         focusedConversationPage = focusedConversationPage,
                         onBackToHistory = { openConversation(null) },
                         onOpenZotero = {
-                            onPdfWorkspaceOpened()
-                            openZoteroTarget = it
+                            onOpenZoteroTarget(it)
                         },
                         onOpenPaper = {
-                            onPdfWorkspaceOpened()
-                            openPaper = it
+                            onOpenPaper(it)
                         },
                     )
                 }
@@ -1004,9 +1013,10 @@ private fun PaperShelf(
     papers: List<Paper>,
     onOpenPaper: (Paper) -> Unit,
 ) {
-    var selectedIndex by remember(papers.map { it.id }) { mutableStateOf(0) }
+    var pageIndex by remember(papers.map { it.id }) { mutableStateOf(0) }
+    var pageCount by remember { mutableStateOf(1) }
     LaunchedEffect(papers.size) {
-        selectedIndex = if (papers.isEmpty()) 0 else selectedIndex.coerceIn(0, papers.lastIndex)
+        pageIndex = pageIndex.coerceAtLeast(0)
     }
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1028,8 +1038,8 @@ private fun PaperShelf(
                 )
                 if (papers.isNotEmpty()) {
                     IconButton(
-                        onClick = { selectedIndex = (selectedIndex - 1).coerceAtLeast(0) },
-                        enabled = selectedIndex > 0,
+                        onClick = { pageIndex = (pageIndex - 1).coerceAtLeast(0) },
+                        enabled = pageIndex > 0,
                     ) {
                         Icon(
                             painterResource(Res.drawable.filled_arrow_back),
@@ -1037,15 +1047,15 @@ private fun PaperShelf(
                         )
                     }
                     Text(
-                        "${selectedIndex + 1}/${papers.size}",
+                        "Page ${pageIndex + 1}/$pageCount",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
                     IconButton(
                         onClick = {
-                            selectedIndex = (selectedIndex + 1).coerceAtMost(papers.lastIndex)
+                            pageIndex = (pageIndex + 1).coerceAtMost(pageCount - 1)
                         },
-                        enabled = selectedIndex < papers.lastIndex,
+                        enabled = pageIndex < pageCount - 1,
                     ) {
                         Icon(
                             painterResource(Res.drawable.filled_arrow_forward),
@@ -1067,21 +1077,37 @@ private fun PaperShelf(
                     )
                 }
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val cardWidth = if (maxWidth < 600.dp) {
-                        (maxWidth - 16.dp).coerceAtLeast(220.dp)
-                    } else {
-                        320.dp
+                    val cardsPerPage = when {
+                        maxWidth >= 980.dp -> 3
+                        maxWidth >= 640.dp -> 2
+                        else -> 1
                     }
-                    Box(
-                        Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        papers.getOrNull(selectedIndex)?.let { paper ->
-                            PaperShelfCard(
-                                paper = paper,
-                                onOpen = { onOpenPaper(paper) },
-                                modifier = Modifier.width(cardWidth),
-                            )
+                    val calculatedPageCount = (papers.size + cardsPerPage - 1) / cardsPerPage
+                    LaunchedEffect(cardsPerPage, calculatedPageCount) {
+                        pageCount = calculatedPageCount.coerceAtLeast(1)
+                        pageIndex = pageIndex.coerceIn(0, calculatedPageCount - 1)
+                    }
+                    val cardWidth = ((maxWidth - 12.dp * (cardsPerPage - 1)) / cardsPerPage)
+                        .coerceAtLeast(220.dp)
+                    AnimatedContent(
+                        targetState = pageIndex,
+                        transitionSpec = {
+                            (slideInHorizontally { it / 3 } + fadeIn()) togetherWith
+                                (slideOutHorizontally { -it / 3 } + fadeOut())
+                        },
+                        label = "saved papers carousel",
+                    ) { page ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            papers.drop(page * cardsPerPage).take(cardsPerPage).forEach { paper ->
+                                PaperShelfCard(
+                                    paper = paper,
+                                    onOpen = { onOpenPaper(paper) },
+                                    modifier = Modifier.width(cardWidth),
+                                )
+                            }
                         }
                     }
                 }
@@ -1129,9 +1155,10 @@ private fun RecentResearchShelf(
             )
         }
     }
-    var selectedIndex by remember(recentPapers.map { it.key }) { mutableStateOf(0) }
+    var pageIndex by remember(recentPapers.map { it.key }) { mutableStateOf(0) }
+    var pageCount by remember { mutableStateOf(1) }
     LaunchedEffect(recentPapers.size) {
-        selectedIndex = selectedIndex.coerceIn(0, recentPapers.lastIndex)
+        pageIndex = pageIndex.coerceAtLeast(0)
     }
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1152,8 +1179,8 @@ private fun RecentResearchShelf(
                     )
                 }
                 IconButton(
-                    onClick = { selectedIndex = (selectedIndex - 1).coerceAtLeast(0) },
-                    enabled = selectedIndex > 0,
+                    onClick = { pageIndex = (pageIndex - 1).coerceAtLeast(0) },
+                    enabled = pageIndex > 0,
                 ) {
                     Icon(
                         painterResource(Res.drawable.filled_arrow_back),
@@ -1161,15 +1188,15 @@ private fun RecentResearchShelf(
                     )
                 }
                 Text(
-                    "${selectedIndex + 1}/${recentPapers.size}",
+                    "Page ${pageIndex + 1}/$pageCount",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
                 IconButton(
                     onClick = {
-                        selectedIndex = (selectedIndex + 1).coerceAtMost(recentPapers.lastIndex)
+                        pageIndex = (pageIndex + 1).coerceAtMost(pageCount - 1)
                     },
-                    enabled = selectedIndex < recentPapers.lastIndex,
+                    enabled = pageIndex < pageCount - 1,
                 ) {
                     Icon(
                         painterResource(Res.drawable.filled_arrow_forward),
@@ -1178,24 +1205,40 @@ private fun RecentResearchShelf(
                 }
             }
             BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val cardWidth = if (maxWidth < 600.dp) {
-                    (maxWidth - 16.dp).coerceAtLeast(220.dp)
-                } else {
-                    320.dp
+                val cardsPerPage = when {
+                    maxWidth >= 980.dp -> 3
+                    maxWidth >= 640.dp -> 2
+                    else -> 1
                 }
-                Box(
-                    Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    recentPapers.getOrNull(selectedIndex)?.let { paper ->
-                        RecentPaperCard(
-                            title = paper.title,
-                            subtitle = paper.subtitle,
-                            source = paper.source,
-                            enabled = paper.enabled,
-                            onOpen = paper.onOpen,
-                            modifier = Modifier.width(cardWidth),
-                        )
+                val calculatedPageCount = (recentPapers.size + cardsPerPage - 1) / cardsPerPage
+                LaunchedEffect(cardsPerPage, calculatedPageCount) {
+                    pageCount = calculatedPageCount.coerceAtLeast(1)
+                    pageIndex = pageIndex.coerceIn(0, calculatedPageCount - 1)
+                }
+                val cardWidth = ((maxWidth - 12.dp * (cardsPerPage - 1)) / cardsPerPage)
+                    .coerceAtLeast(220.dp)
+                AnimatedContent(
+                    targetState = pageIndex,
+                    transitionSpec = {
+                        (slideInHorizontally { it / 3 } + fadeIn()) togetherWith
+                            (slideOutHorizontally { -it / 3 } + fadeOut())
+                    },
+                    label = "recent papers carousel",
+                ) { page ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        recentPapers.drop(page * cardsPerPage).take(cardsPerPage).forEach { paper ->
+                            RecentPaperCard(
+                                title = paper.title,
+                                subtitle = paper.subtitle,
+                                source = paper.source,
+                                enabled = paper.enabled,
+                                onOpen = paper.onOpen,
+                                modifier = Modifier.width(cardWidth),
+                            )
+                        }
                     }
                 }
             }
