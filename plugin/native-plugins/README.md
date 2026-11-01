@@ -16,9 +16,10 @@ from the Compose app UI. Cross-product contracts remain in:
 - `shared/storage` for local persistence contracts
 - `plugin/native-api` for the native plugin interface
 
-This keeps platform integration code native while allowing the app and plugins to
-exchange the same Kotlin data models and plugin contract. No JavaScript extension
-runtime or remote service is required by these modules.
+This keeps the shared behavior native while allowing the app and host adapters
+to exchange the same Kotlin data models and plugin contract. The VS Code host
+surface remains a thin JavaScript adapter, while its data contract is the same
+local workspace file consumed by the Kotlin IntelliJ adapter.
 
 ## Brand resources
 
@@ -32,10 +33,13 @@ with `python3 tools/generate_brand_icons.py` from the repository root.
 | VS Code extension listing | `vscode/src/main/resources/icons/paperconnekt.png` (128 px) |
 | VS Code activity bar | `vscode/src/main/resources/icons/paperconnekt-activity.svg` (24 px, monochrome for host tinting) |
 
-These are Kotlin adapter modules, not yet packaged IntelliJ or VS Code
-extensions. IntelliJ's listing icons use the conventional `META-INF` names;
-a future tool-window registration should reference `/icons/paperconnekt.svg`.
-When adding the VS Code extension manifest, copy the assets into the extension
-package and set its `icon` and `contributes.viewsContainers.activitybar[].icon`
-paths to the listing and activity-bar resources respectively. No inert
-`plugin.xml` or `package.json` is added merely to declare an icon.
+The host adapters are packaged in:
+
+- `plugin/idea`, an IntelliJ Platform plugin with a docked PaperConnekt tool
+  window and a Tools-menu action.
+- `plugin/vscode`, a VS Code extension with a PaperConnekt activity-bar view,
+  shared-workspace paper navigation, refresh, and local PDF opening.
+
+Both adapters read the same local `workspace.json` used by the desktop app.
+They are intentionally read-only for now: edits remain owned by the main app,
+which prevents a plugin refresh from overwriting newer local data.

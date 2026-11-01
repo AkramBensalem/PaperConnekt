@@ -1,3 +1,4 @@
+import org.jetbrains.intellij.platform.gradle.extensions.intellijPlatform
 import org.gradle.api.initialization.resolve.RepositoriesMode
 
 rootProject.name = "PaperConnekt"
@@ -13,11 +14,13 @@ pluginManagement {
 }
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+    id("org.jetbrains.intellij.platform.settings") version "2.19.0"
 }
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        intellijPlatform { defaultRepositories() }
         google()
         mavenCentral()
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
@@ -57,6 +60,7 @@ include(":plugin:native-api")
 include(":plugin:native-plugins:common")
 include(":plugin:native-plugins:vscode")
 include(":plugin:native-plugins:idea")
+include(":plugin:idea")
 include(":app:composeApp")
 include(":app:android")
 include(":app:desktop")

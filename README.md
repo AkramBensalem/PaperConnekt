@@ -141,8 +141,10 @@ app/android     app/desktop     future app/web
 | `shared/secrets` | A common contract for storing provider credentials through platform-secure implementations |
 | `plugin/native-api` | The shared contract for native editor and IDE integrations |
 | `plugin/native-plugins/common` | Kotlin behaviour shared by the native plugins, including paper indexing and plugin sessions |
-| `plugin/native-plugins/vscode` | Native VS Code adapter |
-| `plugin/native-plugins/idea` | Native IntelliJ IDEA adapter |
+| `plugin/native-plugins/vscode` | Shared Kotlin behavior for the VS Code adapter |
+| `plugin/native-plugins/idea` | Shared Kotlin behavior for the IntelliJ IDEA adapter |
+| `plugin/vscode` | Installable VS Code activity-bar extension |
+| `plugin/idea` | Installable IntelliJ IDEA Platform plugin |
 | `app/composeApp` | Shared Compose Multiplatform UI and application flow |
 | `app/android` | Android launcher, manifest, and Android-native integrations |
 | `app/desktop` | JVM desktop launcher, window configuration, and desktop integrations |
@@ -168,10 +170,10 @@ the same glyph and palette.
   Apple packaging still requires macOS validation.
 - The shared Compose navigation rail uses a PNG export, supported on both
   Android and desktop.
-- Native plugin resources include IntelliJ plugin-list and light/dark
-  tool-window SVGs, plus VS Code listing PNG and monochrome activity-bar SVG.
-  The adapters do not yet have installable host manifests; see the native
-  plugin README for their intended wiring.
+- Native plugin resources include IntelliJ tool-window SVGs and a VS Code
+  monochrome activity-bar SVG. The installable host manifests live in
+  `plugin/idea` and `plugin/vscode`; both read the shared local workspace
+  without mutating it.
 
 To re-export after editing the master, run
 `python3 tools/generate_brand_icons.py` with Pillow and CairoSVG available.

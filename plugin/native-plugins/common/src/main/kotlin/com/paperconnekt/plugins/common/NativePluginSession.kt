@@ -19,6 +19,12 @@ abstract class NativePluginSession(
         load(store.papers.value)
     }
 
+    suspend fun loadFrom(reader: NativeWorkspaceReader): PluginWorkspaceSnapshot {
+        val snapshot = reader.read()
+        load(snapshot.papers)
+        return snapshot
+    }
+
     override suspend fun search(query: String): List<Paper> {
         return index.search(query)
     }

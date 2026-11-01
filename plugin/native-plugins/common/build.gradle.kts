@@ -11,5 +11,6 @@ dependencies {
     api(project(":shared:domain"))
     api(project(":shared:storage"))
     api(project(":plugin:native-api"))
+    implementation(libs.kotlinx.coroutines)
     implementation(libs.kotlinx.serialization.json)
 }

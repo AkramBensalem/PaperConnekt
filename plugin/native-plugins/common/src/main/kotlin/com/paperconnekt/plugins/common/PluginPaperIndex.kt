@@ -39,5 +39,7 @@ class PluginPaperIndex(
 @Serializable
 data class PluginWorkspaceSnapshot(
     val papers: List<Paper> = emptyList(),
+    val graphs: List<com.paperconnekt.domain.model.ResearchGraph> = emptyList(),
+    val assistantSessions: List<com.paperconnekt.domain.model.AssistantSession> = emptyList(),
+    val libraryEntries: List<com.paperconnekt.domain.model.LibraryEntry> = emptyList(),
 )
-
