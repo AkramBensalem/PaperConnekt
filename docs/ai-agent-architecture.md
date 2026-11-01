@@ -147,10 +147,11 @@ Planned additions:
 Chat Markdown supports three complementary visual formats:
 
 - LaTeX for equations.
+- Equations remain selectable and copyable as their original LaTeX while rendering as native math images.
 - `diagram` fences for lightweight conceptual drawings rendered with shared Compose Canvas primitives.
-- `plot` fences for data-driven charts rendered by Lets-Plot Compose. The model emits validated JSON data columns and an allowlisted set of layers (`line`, `curve`, `point`, `scatter`, and `bar`); it never emits executable plotting code.
+- `plot` fences for data-driven charts rendered by the shared Compose Canvas renderer. The model emits validated JSON data columns and an allowlisted set of layers (`line`, `curve`, `point`, `scatter`, and `bar`); it never emits executable plotting code.
 
-This keeps mathematical plots interactive and vector-based while retaining a smaller renderer for diagrams that are not statistical charts. Lets-Plot currently targets Android, Desktop/JVM, and WasmJS in this application; iOS is intentionally out of scope for the current implementation.
+This keeps mathematical plots interactive and vector-based while retaining a smaller renderer for diagrams that are not statistical charts. The plot and diagram renderers both use shared Compose primitives, so the same declarative output works on Android and Desktop/JVM; iOS is intentionally out of scope for the current implementation.
 
 ### 2.6 Concurrency model
 

@@ -40,8 +40,6 @@ kotlin {
             implementation(libs.markdown.renderer.core)
             implementation(libs.markdown.renderer.m3)
             implementation(libs.markdown.renderer.coil3)
-            implementation(libs.lets.plot.kotlin)
-            implementation(libs.lets.plot.compose)
             implementation(libs.androidx.datastore)
             api(libs.koog.agents)
             api(libs.koog.agents.additions)

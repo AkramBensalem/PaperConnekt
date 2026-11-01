@@ -19,19 +19,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -58,9 +59,7 @@ private fun JsonObject.number(name: String, fallback: Float): Float =
     this[name]?.jsonPrimitive?.doubleOrNull?.toFloat() ?: fallback
 
 private fun JsonObject.string(name: String): String? =
-    this[name]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
-
-private fun JsonPrimitive.contentOrNull(): String? = content
+    this[name]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
 
 private fun parseDiagram(text: String): DiagramModel? = runCatching {
     val root = diagramJson.parseToJsonElement(text.trim()).jsonObject
@@ -126,6 +125,7 @@ internal fun DiagramBlock(code: String, fallbackStyle: TextStyle) {
             Text(code.trim(), style = fallbackStyle.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace))
         } else {
             val textMeasurer = rememberTextMeasurer()
+            val colors = MaterialTheme.colorScheme
             Column {
                 Canvas(
                     Modifier.width(diagram.width.dp)
@@ -138,9 +138,9 @@ internal fun DiagramBlock(code: String, fallbackStyle: TextStyle) {
                         content.left + x.coerceIn(0f, 1f) * content.width,
                         content.bottom - y.coerceIn(0f, 1f) * content.height,
                     )
-                    val axisColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-                    val defaultColor = MaterialTheme.colorScheme.primary
+                    val axisColor = colors.onSurfaceVariant.copy(alpha = 0.7f)
+                    val gridColor = colors.onSurface.copy(alpha = 0.08f)
+                    val defaultColor = colors.primary
 
                     for (step in 1..4) {
                         val x = content.left + content.width * step / 5f
@@ -195,20 +195,24 @@ internal fun DiagramBlock(code: String, fallbackStyle: TextStyle) {
                                     element.number("x", 0f) + element.number("width", 0.2f),
                                     element.number("y", 1f) - element.number("height", 0.2f),
                                 )
-                                drawRect(color, Rect(left, right), style = Stroke(stroke))
+                                drawRect(
+                                    color = color,
+                                    topLeft = left,
+                                    size = Size(right.x - left.x, right.y - left.y),
+                                    style = Stroke(stroke),
+                                )
                             }
                             "text" -> {
                                 val label = element.string("text") ?: return@forEach
                                 val position = point(element.number("x", 0f), element.number("y", 0f))
-                                drawText(
-                                    textMeasurer,
+                                val text = textMeasurer.measure(
                                     label,
-                                    topLeft = position,
-                                    style = androidx.compose.ui.text.TextStyle(
+                                    androidx.compose.ui.text.TextStyle(
                                         color = color,
                                         fontSize = element.number("size", 14f).sp,
                                     ),
                                 )
+                                drawText(text, topLeft = position)
                             }
                         }
                     }
