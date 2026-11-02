@@ -41,5 +41,56 @@ The host adapters are packaged in:
   shared-workspace paper navigation, refresh, and local PDF opening.
 
 Both adapters read the same local `workspace.json` used by the desktop app.
-They are intentionally read-only for now: edits remain owned by the main app,
-which prevents a plugin refresh from overwriting newer local data.
+The VS Code adapter remains read-only. The IntelliJ host also saves graph edits,
+node positions, imported PDF attachments, last-opened timestamps, and reading
+positions through the shared storage contracts. It reloads the workspace before
+each mutation and rejects a detected external change rather than replacing it
+with stale data. Refresh before continuing after a conflict; avoid editing the
+same workspace simultaneously in two applications.
+
+## IntelliJ native research workspace
+
+`plugin/idea` uses the Jewel/Compose approach from the reference `idea-native`
+plugin. Its reader, annotation menus, floating assistant, Idea Board, Markdown
+adapter, and keyboard-shortcut code were imported from that implementation and
+adapted to local contest papers rather than a signed-in Zotero account.
+
+The graph canvas and force-layout engine are compiled directly from the app's
+`legacygraph` sources, together with the app's graph-filtering algorithms. Native
+controls provide saved graphs, local/OpenAlex seed selection, citation/reference
+expansion, manual connections, paper selection, filtering, and persisted layouts.
+Remote searches and expansion run only when explicitly requested.
+
+The PDF reader uses the reference plugin's PDFBox rasterizer and text geometry,
+not an external application or Chromium's PDF viewer. Its controller, local
+annotation persistence, OCR, paper-agent tools, chat history, and Idea Board
+storage are source-shared with the contest application. Managed attachments,
+annotation keys, and reading-position keys match the desktop app.
+
+Selected common sources are compiled against **IDEA's Compose runtime**. The
+plugin does not depend on the precompiled `app:composeApp` artifact or package a
+second Compose/Skiko runtime. JVM store-factory bindings are generated from the
+existing common/desktop sources in the IDEA module's build directory. This
+avoids both duplicate runtime classes and calls compiled against a different
+Compose ABI, without changing Android, Desktop, or web builds.
+
+The adaptation is local-first: there is no account gate, Supabase service,
+cloud-sync screen, or cloud speech service. Reading, graph layout, annotations,
+and notes need no provider credentials. Optional OpenAI, Mistral, and OpenAlex
+keys can be set in the workspace menu's **Provider settings** and stay in
+IntelliJ Password Safe. Keys are not automatically copied from the desktop app.
+AI chat sends the chosen context to the selected provider; requesting Mistral
+OCR sends the PDF to Mistral. The upstream graph's guided AI review and cloud
+read-aloud controls are not included in this local adapter.
+
+Run the IntelliJ sandbox from the repository root:
+
+```bash
+./gradlew :plugin:idea:runIde
+```
+
+In the sandbox, choose **Tools > Open PaperConnekt**. Use **Open local PDF** in
+the workspace menu to import a file, or open an attached Library paper. Graph
+opens the actual interactive canvas; **Saved graphs** opens graph history.
+`-Dpaperconnekt.data.dir` controls the shared data directory when supplied to the
+IDE process; the default is `~/.paperconnekt-contest`.

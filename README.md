@@ -67,6 +67,13 @@ avoids rebuilding the research model for every host and demonstrates how
 Kotlin Multiplatform can share meaningful product logic across an application
 and its native integrations.
 
+The IntelliJ workspace uses Jewel with the reference native reader UI, an
+embedded PDFBox reader, annotations, floating paper-agent/Idea Board panels, and
+the app's source-shared interactive graph canvas. It compiles those shared
+controllers and renderers against IDEA's Compose runtime rather than loading the
+app's UI artifact. See [native plugin documentation](plugin/native-plugins/README.md)
+for running it and the local-first adaptations.
+
 ## Platform menus
 
 Desktop has a native **File / View / Help / About** menu bar. Add a paper,

@@ -18,6 +18,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":shared:domain"))
+            implementation(kotlin("stdlib"))
         }
     }
 }
