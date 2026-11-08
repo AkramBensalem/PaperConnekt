@@ -20,6 +20,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.random.Random
+import kotlin.time.Clock
 
 class AssistantViewModel(
     private val repository: AssistantRepository,
@@ -103,7 +104,7 @@ class AssistantViewModel(
     private suspend fun recordWorkspaceOpen(target: ZoteroPdfTarget): Boolean {
         val userId = historyUserId ?: return false
         val generation = historyGeneration
-        val timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        val timestamp = Clock.System.now().toEpochMilliseconds()
         return historyMutex.withLock {
             if (historyGeneration != generation) return@withLock false
             try {
@@ -135,19 +136,19 @@ class AssistantViewModel(
             userId = userId,
             generation = historyGeneration,
             paperId = StudiedPaper(target, 0L, 0L).id,
-            lastRecordedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+            lastRecordedAt = Clock.System.now().toEpochMilliseconds()
         )
         studyTimer = timer
         studyTimerJob = viewModelScope.launch {
             try {
                 while (studyTimer === timer) {
                     delay(STUDY_TIME_SAVE_INTERVAL_MILLIS)
-                    recordStudyTime(timer, kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
+                    recordStudyTime(timer, Clock.System.now().toEpochMilliseconds())
                 }
             } finally {
                 withContext(NonCancellable) {
                     if (studyTimer === timer) studyTimer = null
-                    recordStudyTime(timer, kotlinx.datetime.Clock.System.now().toEpochMilliseconds(), allowInactiveAccount = true)
+                    recordStudyTime(timer, Clock.System.now().toEpochMilliseconds(), allowInactiveAccount = true)
                 }
             }
         }
@@ -160,7 +161,7 @@ class AssistantViewModel(
         studyTimerJob = null
         if (timer != null) viewModelScope.launch {
             withContext(NonCancellable) {
-                recordStudyTime(timer, kotlinx.datetime.Clock.System.now().toEpochMilliseconds(), allowInactiveAccount = true)
+                recordStudyTime(timer, Clock.System.now().toEpochMilliseconds(), allowInactiveAccount = true)
             }
         }
     }
@@ -216,7 +217,7 @@ class AssistantViewModel(
                     AiUsageEvent(
                         service = if (usage.task == PaperAiTask.RELEVANCE_SCORING) AiUsageService.RELEVANCE_SCORING
                         else AiUsageService.LITERATURE_TRIAGE,
-                        timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+                        timestamp = Clock.System.now().toEpochMilliseconds(),
                         inputUnits = usage.estimatedInputTokens,
                         outputUnits = usage.estimatedOutputTokens,
                         model = usage.model
@@ -251,7 +252,7 @@ class AssistantViewModel(
 
     fun selectZoteroPaper(target: ZoteroPdfTarget) {
         stopStudyTimer()
-        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        val now = Clock.System.now().toEpochMilliseconds()
         val item = target.item
         selectPaper(Paper(
             id = target.groupId?.let { "zotero:group:$it:${target.attachment.key}" } ?: "zotero:${target.attachment.key}",
@@ -400,4 +401,4 @@ class AssistantViewModel(
 private const val STUDY_TIME_SAVE_INTERVAL_MILLIS = 15_000L
 
 private fun newIdeaId(): String =
-    "${kotlinx.datetime.Clock.System.now().toEpochMilliseconds().toString(36)}-${Random.nextLong().toULong().toString(36)}"
+    "${Clock.System.now().toEpochMilliseconds().toString(36)}-${Random.nextLong().toULong().toString(36)}"

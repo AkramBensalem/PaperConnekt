@@ -42,7 +42,6 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.math.round
 
@@ -59,7 +58,8 @@ fun ResearchDashboard(
     var selectedTag by remember { mutableStateOf<String?>(null) }
     var onlyThisWeek by remember { mutableStateOf(false) }
     var costPaperId by remember(state.historyAccountId) { mutableStateOf<String?>(null) }
-    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+    val today = kotlinx.datetime.Clock.System.now()
+        .toLocalDateTime(TimeZone.currentSystemDefault()).date
     val papers = state.history.papers
     val latest = papers.firstOrNull()
     val tags = papers.flatMap { paper ->
@@ -325,7 +325,8 @@ private fun ResearchMetric(value: String, label: String) {
 
 @Composable
 private fun StudyTimeLabel(paper: StudiedPaper) {
-    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
+    val today = kotlinx.datetime.Clock.System.now()
+        .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
     StudyTimeIndicator(paper.dailyStudyMillis[today] ?: 0L, paper.totalStudyMillis)
 }
 
@@ -348,7 +349,8 @@ private fun UsageCostLabel(paper: StudiedPaper, onShowBreakdown: () -> Unit) {
 private fun PaperCostDialog(paper: StudiedPaper, onDismiss: () -> Unit) {
     val summary = AiUsageSummary(paper.usage)
     val costs = summary.byService
-    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+    val today = kotlinx.datetime.Clock.System.now()
+        .toLocalDateTime(TimeZone.currentSystemDefault()).date
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("AI cost breakdown") },

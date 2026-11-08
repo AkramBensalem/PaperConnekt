@@ -10,6 +10,7 @@ import com.akram.bensalem.paper.connekt.feature.assistant.component.ResearchDash
 import com.akram.bensalem.paper.connekt.feature.assistant.component.Workplace
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,7 +49,7 @@ fun AssistantScreen(
         val usagePaperId = activeStudy?.id ?: activeTarget?.let { target ->
             target.groupId?.let { "group:$it:${target.attachment.key}" } ?: "personal:${target.attachment.key}"
         }
-        val today = kotlinx.datetime.Clock.System.now()
+        val today = Clock.System.now()
             .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
         Box(modifier.fillMaxSize()) {
             Workplace(

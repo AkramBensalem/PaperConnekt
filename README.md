@@ -1,241 +1,159 @@
 # PaperConnekt
 
-**PaperConnekt is a Kotlin Multiplatform research workspace for reading,
-organising, connecting, and discussing scientific literature.**
+> A local-first research workspace for reading, organising, connecting, and
+> discussing scientific literature.
 
-The project grew out of the daily needs of a PhD researcher: finding relevant
-papers, keeping notes close to the source, moving between ideas, and turning a
-large collection of references into a research direction. PaperConnekt brings
-those activities into one focused workspace instead of scattering them across a
-PDF reader, a reference manager, an IDE, and disconnected AI tools.
+PaperConnekt brings papers, notes, graphs, reading context, and optional AI
+assistance into one focused workspace. It is built with Kotlin Multiplatform
+so the core research model can be shared across the app and native editor
+integrations.
 
 The project is being prepared for the
-[KotlinConf Student Contest](https://kotlinconf.com/contest/), with a strong
-focus on Kotlin Multiplatform, thoughtful product design, and practical value
-for students and researchers.
+[KotlinConf Student Contest](https://kotlinconf.com/contest/).
 
-## What PaperConnekt does
+## What you can do
 
-### Research dashboard
-
-The dashboard is the starting point for research. It provides a focused view of
-saved papers, manual paper entry, local search, and optional discovery through
-OpenAlex. The workflow is designed to keep the researcher close to the
-literature rather than turning the app into a generic document manager.
-
-### AI research assistance
-
-PaperConnekt keeps assistant conversations alongside the research workspace.
-Users can maintain a history of questions, relate discussions to papers, and
-open a paper from the assistant flow in the PDF workspace. Provider
-credentials are optional and managed locally, so the user can choose whether
-and when to connect an AI provider.
-
-### Research graphs
-
-Research graphs make relationships explicit. A graph can collect papers around
-a question, topic, or thesis chapter, while paper-to-paper connections help
-surface the structure behind a literature review.
-
-### Personal research library
-
-The library provides a local hierarchy for folders and papers, inspired by the
-organisation patterns researchers know from Zotero. It is useful with or
-without a Zotero connection, so the core workflow remains available while
-travelling, teaching, or working offline.
-
-The library workspace now presents collections as a navigable nested tree with
-folder counts, search, unfiled/recent views, and collection actions. Each item
-can be completed, moved, opened in the reading workspace when a PDF is
-attached, or edited in place. Item details support a local PDF path, metadata,
-and abstract/reading notes; the attached path is intentionally local-first and
-does not upload files or require an account.
-
-### IDE and editor plugins
-
-Research does not stop when a researcher starts writing. PaperConnekt also
-provides native plugin adapters for IntelliJ IDEA and VS Code. The plugins are
-intended to make the researcher’s preferred writing environment a natural
-extension of the workspace: a place to find papers, consult notes, and move
-between literature and LaTeX or source code without losing context.
-
-The plugin architecture is deliberately shared. A Kotlin `common` plugin
-module contains reusable indexing and session behaviour, while thin native
-adapters connect that behaviour to IntelliJ IDEA and VS Code. The app and
-plugins also use the same Kotlin domain models and storage contracts. This
-avoids rebuilding the research model for every host and demonstrates how
-Kotlin Multiplatform can share meaningful product logic across an application
-and its native integrations.
-
-The IntelliJ workspace uses Jewel with the reference native reader UI, an
-embedded PDFBox reader, annotations, floating paper-agent/Idea Board panels, and
-the app's source-shared interactive graph canvas. It compiles those shared
-controllers and renderers against IDEA's Compose runtime rather than loading the
-app's UI artifact. See [native plugin documentation](plugin/native-plugins/README.md)
-for running it and the local-first adaptations.
-
-## Platform menus
-
-Desktop has a native **File / View / Help / About** menu bar. Add a paper,
-open Settings, switch research views or themes, toggle fullscreen, and open the
-local workspace folder in the system file manager. Both Quit and window-close
-use the PDF workspace's unsaved-edit confirmation.
-
-The desktop launcher uses the experimental Compose **Window and Dialog API v2**.
-The main window starts centered at 1100 x 760 dp with a 640 x 480 dp minimum
-(subject to window-manager support). Fullscreen requests are asynchronous;
-the menu reflects the actual placement reported by the window manager and
-restores the previous placement when leaving fullscreen.
-Help/About and menu errors use resizable, parent-centered native dialog windows
-with title bars, scrollable content, and Escape/Close dismissal. These dialogs
-block only their parent window; Android retains Material dialogs with the same
-content. Other in-app editors and confirmations keep their existing presentation.
-
-Use **Command** on macOS or **Ctrl** on Windows/Linux with **N** to add a paper,
-**,** for Settings, **1-4** for Dashboard/Library/Graph/Assistant, and **Q** to
-quit. **F11** toggles fullscreen. Workspace actions become available after
-initialization and onboarding; Help and About remain available independently.
-
-Android keeps its adaptive bottom navigation/navigation rail and adds a
-Material overflow **Menu** for secondary actions. It does not expose desktop
-filesystem paths, fullscreen controls, or Quit. PDF attachments continue to
-use Android's system document picker.
-
-Getting started, About, developer/contact information, acknowledgements,
-issue reporting, and release links share the same content on both platforms.
-External links open only on request. Updates link to GitHub releases; there
-is no automatic update check or installer. Opening the desktop workspace
-folder does not change its save location or migrate data.
-
-## Product principles
-
-- **Researcher-centred:** every feature supports reading, organising,
-  connecting, or writing about literature.
-- **Local-first:** the essential workspace is useful on the device and does
-  not depend on an account or a continuously available service.
-- **Private by design:** provider keys are stored through platform-specific
-  secure storage abstractions and are only used when the researcher enables an
-  integration.
-- **Native where it matters:** the shared research model is written in Kotlin,
-  while host-specific UI and integrations use the conventions of each
-  platform.
-- **Composable:** optional providers such as OpenAlex, Zotero, and AI services
-  extend the workspace without defining its core experience.
-
-## Architecture
-
-```text
-app/android     app/desktop     future app/web
-        \          |             /
-             app/composeApp
-                                 |
-                                 +--> shared/storage ----> shared/domain
-                                 |
-                                 +--> shared/secrets
-                                 |
-                                 +--> plugin/native-api
-                                           |
-                                           +--> plugin/native-plugins/common
-                                                  |             |
-                                                  v             v
-                                                vscode         idea
-             ```
-
-| Layer | Responsibility |
+| Area | In a sentence |
 | --- | --- |
-| `shared/domain` | Serializable papers, graphs, library entries, assistant sessions, settings, and navigation contracts |
-| `shared/storage` | Local research-store interfaces, local data access, and optional paper discovery providers |
-| `shared/secrets` | A common contract for storing provider credentials through platform-secure implementations |
-| `plugin/native-api` | The shared contract for native editor and IDE integrations |
-| `plugin/native-plugins/common` | Kotlin behaviour shared by the native plugins, including paper indexing and plugin sessions |
-| `plugin/native-plugins/vscode` | Shared Kotlin behavior for the VS Code adapter |
-| `plugin/native-plugins/idea` | Shared Kotlin behavior for the IntelliJ IDEA adapter |
-| `plugin/vscode` | Installable VS Code activity-bar extension |
-| `plugin/idea` | Installable IntelliJ IDEA Platform plugin |
-| `app/composeApp` | Shared Compose Multiplatform UI and application flow |
-| `app/android` | Android launcher, manifest, and Android-native integrations |
-| `app/desktop` | JVM desktop launcher, window configuration, and desktop integrations |
+| **Library** | Save papers, organise them into nested collections, attach local PDFs, and keep reading notes. |
+| **PDF workspace** | Read and annotate imported PDFs without uploading them or requiring an account. |
+| **Research graphs** | Connect papers around a question, topic, or thesis chapter. |
+| **Assistant** | Keep research conversations beside papers, with optional provider integrations. |
+| **Discovery** | Search OpenAlex when you choose; local papers remain available offline. |
+| **Editor integrations** | Open the same local workspace from IntelliJ IDEA and VS Code. |
 
-The dependency direction keeps product logic and UI in shared Kotlin modules.
-Each platform module owns only its launcher and native boundary, so Android and
-desktop can evolve independently while a future web module can reuse the same
-Compose application flow.
+## Project status
 
-## App and plugin icons
+PaperConnekt is an active contest project. The table below describes the
+current direction rather than promising production support.
 
-The PaperConnekt mark combines a folded-paper **P** with a three-node research
-graph on a rounded blue tile. The letter represents papers; the linked nodes
-represent connections between research ideas.
-Its gradient uses `#3B82F6`, the app's primary blue `#2457A6`, and `#173D80`.
-`branding/paperconnekt.svg` is the editable master; all platform exports share
-the same glyph and palette.
+| Area | Status |
+| --- | --- |
+| Shared domain, storage, and secrets contracts | Available |
+| Android application | Available; primary mobile target |
+| Desktop JVM application | Available; active research and writing workflow |
+| Web/Wasm application and local static host | Available; evolving |
+| IntelliJ IDEA plugin | Available; local workspace integration |
+| VS Code extension | Available; read-only workspace navigation |
+| iOS/iPadOS | Planned |
+| macOS packaging validation | Planned; requires Apple hardware |
 
-- Android owns adaptive launcher layers, round/legacy density exports, and an
-  Android 13 monochrome themed icon in `app/android/src/main/res`.
-- Desktop owns its window icon and Linux PNG, Windows multi-size ICO, and
-  macOS ICNS packaging assets in `app/desktop/src/main/resources/icons`.
-  Apple packaging still requires macOS validation.
-- The shared Compose navigation rail uses a PNG export, supported on both
-  Android and desktop.
-- Native plugin resources include IntelliJ tool-window SVGs and a VS Code
-  monochrome activity-bar SVG. The installable host manifests live in
-  `plugin/idea` and `plugin/vscode`; both read the shared local workspace
-  without mutating it.
-
-To re-export after editing the master, run
-`python3 tools/generate_brand_icons.py` with Pillow and CairoSVG available.
-This only writes icon resources; it does not run Gradle.
-The mark is custom vector artwork, not a generic chain-link glyph; its design
-notes are in `branding/NOTICE.txt`.
+For the feature roadmap, see [the branch plan](docs/branch-plan.md).
 
 ## Technology
 
-| Area | Technology |
+| Concern | Libraries and tools |
 | --- | --- |
-| Language | Kotlin 2.1.21 |
-| Multiplatform | Kotlin Multiplatform |
-| User interface | Compose Multiplatform and Material 3 |
-| Android | Android SDK 35, minimum SDK 26 |
-| Desktop | Compose Desktop on JVM 17 |
-| Networking | Ktor Client, used by optional discovery integrations |
-| Data format | Kotlinx Serialization |
+| Language and build | Kotlin, Kotlin Multiplatform, Gradle |
+| UI | Compose Multiplatform, Material 3 |
+| Android | Android SDK, AndroidX Activity and Lifecycle |
+| Desktop | Compose Desktop, JVM 17 |
+| Web | Kotlin/Wasm, Compose/Wasm, Ktor static host |
+| Networking | Ktor Client |
+| Data and models | Kotlinx Serialization, Kotlinx DateTime |
 | Concurrency | Kotlin Coroutines |
-| Paper discovery | OpenAlex integration, with local workflows available independently |
-| Secret storage | Android Keystore on Android; platform preferences on desktop |
-| Native integrations | Kotlin/JVM adapters for IntelliJ IDEA and VS Code |
+| Research agent | Koog (optional provider-backed assistance) |
+| PDF and text | PDFium/PDFBox, Markdown renderer, JLaTeXMath |
+| Native integrations | IntelliJ Platform, Jewel, VS Code extension API |
 
-## Platform status
+## Platforms
 
-| Platform | Status |
-| --- | --- |
-| Android | Primary mobile target and actively developed |
-| Desktop JVM | Supported Compose Desktop target for research and writing workflows |
-| Web | Compose/Wasm app with browser-local IndexedDB storage and optional Ktor static host |
-| Windows/Linux desktop | Available through the JVM desktop target, subject to local packaging |
-| macOS | Planned desktop validation target; current development resources do not include a macOS device, so Apple-specific packaging and release validation remain to be completed |
-| iOS and iPadOS | Planned KMP targets; implementation can follow the shared Kotlin foundation when Apple hardware and signing access are available |
+| Target | Launcher/module | Notes |
+| --- | --- | --- |
+| Android | `app/android` | Minimum SDK 26; uses the Android sandbox and document picker |
+| Desktop JVM | `app/desktop` | JDK 17; Windows and Linux packaging is supported |
+| Web/Wasm | `app/web` + `app/webServer` | Browser-local storage; can be served with Docker |
+| IntelliJ IDEA | `plugin/idea` | Runs in an IntelliJ sandbox |
+| VS Code | `plugin/vscode` | Reads the shared local workspace |
 
-The Apple targets are part of the longer-term platform direction. Their current
-validation status reflects development-resource constraints rather than a
-product limitation in the shared architecture.
+## Quick start
 
-## Getting started
+### Prerequisites
 
-Use JDK 17 or newer and open the project in IntelliJ IDEA or Android Studio with
-Kotlin Multiplatform support. The project keeps platform adapters small and
-places reusable research logic in common Kotlin source sets.
+- JDK 17 or newer
+- Git
+- Android Studio or IntelliJ IDEA with Kotlin Multiplatform support
+- Docker, if you want to run the web app with the included container
+
+Clone the repository and open it in your IDE:
+
+```bash
+git clone https://github.com/AkramBensalem/PaperConnekt.git
+cd PaperConnekt
+```
+
+More detailed setup, platform commands, and troubleshooting are in
+[Installation](docs/installation.md).
 
 ### Run the web app with Docker
 
-The web image builds the single Compose/Wasm distribution and serves it through
-the Ktor static host. Workspace data and imported PDFs remain in the browser;
-the container does not store or proxy application data.
+This is the easiest way to try the browser target:
 
 ```bash
 docker compose up --build
 ```
 
-Open <http://localhost:8080>. Stop it with `docker compose down`.
+Open <http://localhost:8080>. Stop the server with `docker compose down`.
+The app stores workspace data in the browser; the container is only a static
+asset host.
+
+### Run the other targets
+
+The main Gradle entry points are:
+
+```bash
+./gradlew :app:desktop:run
+./gradlew :app:android:installDebug
+./gradlew :plugin:idea:runIde
+```
+
+Android requires a connected device or running emulator. See
+[Development](docs/development.md) for build variants, the VS Code extension,
+and contributor workflow.
+
+## Documentation
+
+Start at the [documentation hub](docs/README.md):
+
+| Guide | Purpose |
+| --- | --- |
+| [Installation](docs/installation.md) | Prerequisites, cloning, running each target, and common setup issues |
+| [Development](docs/development.md) | Module map, useful Gradle tasks, plugin workflow, and contribution conventions |
+| [Architecture](docs/architecture.md) | Shared contracts, local-first storage, PDF handling, and feature boundaries |
+| [Web architecture](docs/web-architecture.md) | Browser storage, routing, Wasm hosting, and the web implementation plan |
+| [AI agent architecture](docs/ai-agent-architecture.md) | Paper retrieval, citations, embeddings, and MCP tools |
+| [DevOps and GitHub Actions](docs/devops.md) | Remote builds, artifacts, and the release/deployment plan |
+| [Feature roadmap](docs/branch-plan.md) | Contest feature slices and project milestones |
+| [Native plugin notes](plugin/native-plugins/README.md) | IntelliJ and VS Code adapters, shared workspace behavior, and packaging |
+
+## Design principles
+
+- **Local-first:** reading, organising, notes, and saved research work without
+  an account or a required backend.
+- **Researcher-centred:** features support reading, connecting, and writing
+  about literature rather than adding generic productivity overhead.
+- **Private by design:** provider credentials stay behind platform-specific
+  secure-storage abstractions and are used only when enabled.
+- **Shared where useful, native where necessary:** domain logic and contracts
+  are shared; launchers and host integrations follow each platform's
+  conventions.
+
+## Data and privacy
+
+The contest application stores the workspace locally. Desktop data defaults to
+`~/.paperconnekt-contest`; Android uses its private app storage; the web target
+uses browser storage. Imported PDFs are copied into managed local storage.
+Provider credentials are not written into the workspace snapshot.
+
+Optional OpenAlex, Zotero, and AI integrations require explicit configuration.
+They do not turn the application into a mandatory cloud service.
+
+## Contributing
+
+Small, focused changes are easiest to review. Before opening a pull request,
+read [Development](docs/development.md), keep product models in shared modules,
+and keep platform launchers in their platform modules. Do not add credentials,
+generated local data, or machine-specific configuration.
 
 ## License
 

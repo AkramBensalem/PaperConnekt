@@ -919,7 +919,7 @@ private fun ConversationPanel(
                     enabled = draft.isNotBlank(),
                     onClick = {
                         val message = draft.trim()
-                        val now = Clock.System.now()
+                        val now = kotlinx.datetime.Clock.System.now()
                         onSessionUpdated(
                             session.copy(
                                 title = if (session.title == "New research conversation") {
@@ -952,7 +952,7 @@ private fun ConversationPanel(
             initialTitle = session.title,
             onDismiss = { renameDialog = false },
             onSave = { title ->
-                onSessionUpdated(session.copy(title = title, updatedAt = Clock.System.now()))
+                onSessionUpdated(session.copy(title = title, updatedAt = kotlinx.datetime.Clock.System.now()))
                 renameDialog = false
             },
         )
@@ -1391,7 +1391,7 @@ private fun RenameSessionDialog(
 private fun newAssistantSession(): AssistantSession = AssistantSession(
     id = "assistant-${Random.nextLong()}",
     title = "New research conversation",
-    updatedAt = Clock.System.now(),
+    updatedAt = kotlinx.datetime.Clock.System.now(),
 )
 
 private fun formatMessageTime(instant: Instant): String =

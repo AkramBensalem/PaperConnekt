@@ -97,7 +97,6 @@ import com.paperconnekt.app.resources.arrow_back
 import com.paperconnekt.app.resources.research_graph_empty
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 
 @Composable
 fun GraphWorkspace(
@@ -264,7 +263,7 @@ fun GraphWorkspace(
                 // The workspace copy is authoritative; the incoming graph can
                 // be an older snapshot captured before the latest drag.
                 nodePositions = updated.nodePositions + persistedNodePositions,
-                updatedAt = Clock.System.now(),
+                updatedAt = kotlinx.datetime.Clock.System.now(),
             )
         )
     }

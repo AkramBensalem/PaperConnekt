@@ -43,6 +43,7 @@ import io.ktor.client.HttpClient
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
 import kotlin.random.Random
+import kotlin.time.Clock
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -83,7 +84,7 @@ fun DashboardScreen(
         try {
             val account = settings.zoteroUserId.trim().ifEmpty { LOCAL_RESEARCH_ACCOUNT }
             val repository = AssistantRepository()
-            repository.recordWorkspaceOpen(kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
+            repository.recordWorkspaceOpen(Clock.System.now().toEpochMilliseconds())
             researchHistory = repository.loadUsageHistory(account)
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled

@@ -50,7 +50,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -159,11 +159,11 @@ private fun LocalPaperWorkspace(
             filePath = paper.pdfPath,
             createdAt = 0L,
             updatedAt = 0L,
-            visitedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+            visitedAt = kotlin.time.Clock.System.now().toEpochMilliseconds(),
         )
     }
     LaunchedEffect(assistant, assistantPaper.id) {
-        store.updatePaper(paper.id) { it.copy(lastOpenedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()) }
+        store.updatePaper(paper.id) { it.copy(lastOpenedAt = kotlin.time.Clock.System.now().toEpochMilliseconds()) }
         assistant.updateHistoryAccount(LOCAL_RESEARCH_ACCOUNT)
         assistant.selectPaper(assistantPaper)
     }
@@ -399,7 +399,7 @@ private fun ZoteroPaperWorkspace(
                     it.target.attachment.key == target.attachment.key &&
                         it.target.groupId == target.groupId
                 }
-                val today = Clock.System.now()
+                val today = kotlinx.datetime.Clock.System.now()
                     .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
                 state.selectedPaper?.let { paper ->
                     Workplace(

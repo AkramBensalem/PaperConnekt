@@ -4,6 +4,7 @@ import com.akram.bensalem.paper.connekt.core.aiassistant.AgentRole
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.random.Random
+import kotlin.time.Clock
 
 @Serializable
 data class PaperAgentMessage(
@@ -84,6 +85,6 @@ data class StoredPaperAgentChats(val version: Int = 1, val conversations: List<P
 
 val paperAgentChatJson = Json { ignoreUnknownKeys = true; encodeDefaults = true; prettyPrint = false }
 
-fun nowMillis(): Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+fun nowMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
 fun newConversationId(): String = nowMillis().toString(36) + "-" + Random.nextLong().toULong().toString(36)

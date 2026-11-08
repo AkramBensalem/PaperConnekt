@@ -20,6 +20,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlin.time.Clock
 
 val inkWidthPresets = listOf(0.5f, 1f, 2f, 3f, 5f, 8f, 12f)
 val textSizePresets = listOf(8f, 10f, 12f, 14f, 18f, 24f, 32f)
@@ -420,7 +421,7 @@ class PdfWorkspaceViewModel(
                     usagePaperId(target, state.localStorageKey),
                     AiUsageEvent(
                         service = AiUsageService.OCR,
-                        timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+                        timestamp = Clock.System.now().toEpochMilliseconds(),
                         inputUnits = converted.layout?.pages?.size?.toLong()
                             ?: markdownPages(converted.markdown).size.toLong(),
                         model = converted.layout?.model ?: MISTRAL_OCR_MODEL,

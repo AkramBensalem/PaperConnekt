@@ -29,7 +29,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -78,7 +77,6 @@ import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageService
 import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageSummary
 import com.akram.bensalem.paper.connekt.feature.assistant.ResearchHistory
 import org.jetbrains.compose.resources.painterResource
-import kotlinx.datetime.Clock
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -258,7 +256,8 @@ fun DashboardAnalytics(
             historyLoading: Boolean,
             historyError: String?,
         ) {
-            val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+            val today = kotlinx.datetime.Clock.System.now()
+                .toLocalDateTime(TimeZone.currentSystemDefault()).date
             var selectedRange by rememberSaveable { mutableStateOf(DashboardRange.DAYS_14) }
             var selectedDay by rememberSaveable { mutableStateOf(today.toString()) }
             var showDayDialog by rememberSaveable { mutableStateOf(false) }
@@ -299,7 +298,7 @@ fun DashboardAnalytics(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         compactRanges.forEach { range ->
-                            FilterChip(
+                            WorkspaceFilterChip(
                                 selected = selectedRange == range,
                                 onClick = {
                                     if (range == DashboardRange.CUSTOM) {
@@ -364,7 +363,7 @@ fun DashboardAnalytics(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         DashboardRange.entries.forEach { range ->
-                            FilterChip(
+                            WorkspaceFilterChip(
                                 selected = selectedRange == range,
                                 onClick = {
                                     if (range == DashboardRange.CUSTOM) {
@@ -429,21 +428,26 @@ fun DashboardAnalytics(
                     DashboardCollectionChart(papers, graphs)
                 } else {
                     Row(
-                        Modifier.fillMaxWidth(),
+                        Modifier.fillMaxWidth().height(340.dp),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        DashboardActivityChart(history.dailyOpens, chartDays, Modifier.weight(1f))
-                        DashboardCostChart(usage, chartDays, Modifier.weight(1f))
+                        DashboardActivityChart(history.dailyOpens, chartDays, Modifier.weight(1f).fillMaxHeight())
+                        DashboardCostChart(usage, chartDays, Modifier.weight(1f).fillMaxHeight())
                     }
                     Row(
-                        Modifier.fillMaxWidth(),
+                        Modifier.fillMaxWidth().height(278.dp),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        DashboardTokenChart(visibleUsage, Modifier.weight(1f))
-                        DashboardServiceChart(summary.byService, visibleUsage, Modifier.weight(1f))
+                        DashboardTokenChart(visibleUsage, Modifier.weight(1f).fillMaxHeight())
+                        DashboardServiceChart(summary.byService, visibleUsage, Modifier.weight(1f).fillMaxHeight())
                     }
-                    DashboardPieChart(visibleUsage)
-                    DashboardCollectionChart(papers, graphs)
+                    Row(
+                        Modifier.fillMaxWidth().height(418.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        DashboardPieChart(visibleUsage, Modifier.weight(1f).fillMaxHeight())
+                        DashboardCollectionChart(papers, graphs, Modifier.weight(1f).fillMaxHeight())
+                    }
                 }
                 DashboardModelTable(visibleUsage)
                 }
@@ -652,7 +656,7 @@ fun DashboardAnalytics(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     DashboardPieMetric.entries.forEach { option ->
-                        FilterChip(
+                        WorkspaceFilterChip(
                             selected = metric == option,
                             onClick = { metric = option },
                             label = { Text(option.label) },
@@ -1136,7 +1140,7 @@ fun DashboardPaperCard(
             if (paper.tags.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     paper.tags.take(3).forEach { tag ->
-                        FilterChip(selected = false, onClick = {}, label = { Text(tag) })
+                        WorkspaceFilterChip(selected = false, onClick = {}, label = { Text(tag) })
                     }
                 }
             }

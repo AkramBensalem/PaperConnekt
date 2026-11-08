@@ -119,6 +119,7 @@ import com.paperconnekt.app.resources.filled_sync_problem
 import com.paperconnekt.app.resources.filled_unpublished
 import com.paperconnekt.app.resources.research_graph_empty
 import org.jetbrains.compose.resources.painterResource
+import kotlin.time.Clock
 
 private enum class LibraryView {
     ALL,
@@ -138,7 +139,7 @@ private data class ZoteroLibraryPaper(
 )
 
 private fun ZoteroLibraryPaper.toAssistantPaper(): AssistantPaper {
-    val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+    val now = Clock.System.now().toEpochMilliseconds()
     val authors = item.data.creators.mapNotNull { creator ->
         creator.name ?: listOfNotNull(creator.firstName, creator.lastName)
             .joinToString(" ")
@@ -166,7 +167,7 @@ private fun ZoteroLibraryPaper.toAssistantPaper(): AssistantPaper {
 }
 
 private fun Paper.toAssistantPaper(): AssistantPaper {
-    val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+    val now = Clock.System.now().toEpochMilliseconds()
     return AssistantPaper(
         id = id,
         title = title,
@@ -478,7 +479,7 @@ fun LibraryScreen(
                 ZoteroLibraryPaper(item, attachmentsByParent[item.key].orEmpty().firstOrNull())
             }
             zoteroSyncState = ZOTERO_SYNCED
-            zoteroLastSyncedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+            zoteroLastSyncedAt = Clock.System.now().toEpochMilliseconds()
             zoteroError = null
             withContext(Dispatchers.Default) {
                 store.updateSettings { current ->

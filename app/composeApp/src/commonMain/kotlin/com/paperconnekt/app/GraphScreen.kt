@@ -124,7 +124,7 @@ fun GraphScreen(
                     id = "graph-${Random.nextLong()}",
                     name = name,
                     seedPaperIds = emptyList(),
-                    updatedAt = Clock.System.now(),
+                    updatedAt = kotlinx.datetime.Clock.System.now(),
                 )
                 scope.launch {
                     runCatching { store.saveGraph(graph) }
@@ -147,7 +147,7 @@ fun GraphScreen(
             onSave = { name ->
                 scope.launch {
                     runCatching {
-                        store.saveGraph(graph.copy(name = name, updatedAt = Clock.System.now()))
+                        store.saveGraph(graph.copy(name = name, updatedAt = kotlinx.datetime.Clock.System.now()))
                     }.onFailure {
                         errorMessage = it.message ?: "Could not rename graph."
                     }
@@ -256,7 +256,7 @@ fun GraphCanvasScreen(
             onSave = { name ->
                 scope.launch {
                     runCatching {
-                        store.saveGraph(renamedGraph.copy(name = name, updatedAt = Clock.System.now()))
+                        store.saveGraph(renamedGraph.copy(name = name, updatedAt = kotlinx.datetime.Clock.System.now()))
                     }.onFailure {
                         errorMessage = it.message ?: "Could not rename graph."
                     }

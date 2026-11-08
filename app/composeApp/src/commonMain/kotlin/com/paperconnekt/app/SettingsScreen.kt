@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalUriHandler
 import com.akram.bensalem.paper.connekt.feature.mcp.LocalMcpHost
+import com.paperconnekt.domain.model.LanguagePreference
 import com.paperconnekt.domain.model.ThemePreference
 import com.paperconnekt.secrets.SecretKey
 import com.paperconnekt.secrets.SecretStore
@@ -194,6 +195,41 @@ fun SettingsScreen(
                                             scope.launch {
                                                 store.updateSettings {
                                                     it.copy(selectedTheme = preference)
+                                                }
+                                            }
+                                        },
+                                    )
+                                    Column {
+                                        Text(preference.label)
+                                        Text(
+                                            preference.description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            }
+                            Divider()
+                            Text("Language", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Choose the language used by PaperConnekt.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            LanguagePreference.values().forEach { preference ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .semantics {
+                                            contentDescription = "${preference.label} language"
+                                        },
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    RadioButton(
+                                        selected = settings.selectedLanguage == preference,
+                                        onClick = {
+                                            scope.launch {
+                                                store.updateSettings {
+                                                    it.copy(selectedLanguage = preference)
                                                 }
                                             }
                                         },
@@ -889,4 +925,18 @@ private val ThemePreference.description: String
         ThemePreference.SYSTEM -> "Follow the device appearance"
         ThemePreference.LIGHT -> "Use the light PaperConnekt palette"
         ThemePreference.DARK -> "Use the dark PaperConnekt palette"
+    }
+
+private val LanguagePreference.label: String
+    get() = when (this) {
+        LanguagePreference.ENGLISH -> "English"
+        LanguagePreference.FRENCH -> "Français"
+        LanguagePreference.ARABIC -> "العربية"
+    }
+
+private val LanguagePreference.description: String
+    get() = when (this) {
+        LanguagePreference.ENGLISH -> "Use English throughout the app"
+        LanguagePreference.FRENCH -> "Utiliser le français dans l’application"
+        LanguagePreference.ARABIC -> "استخدم العربية في التطبيق"
     }

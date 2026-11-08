@@ -18,6 +18,7 @@ data class AppSettings(
     /** MCP clients may also add notes to a paper's Idea Board; otherwise the server is read-only. */
     val mcpAllowIdeaWrites: Boolean = false,
     val selectedTheme: ThemePreference = ThemePreference.SYSTEM,
+    val selectedLanguage: LanguagePreference = LanguagePreference.ENGLISH,
     val libraryUiState: LibraryUiState = LibraryUiState(),
     val zoteroLibraryCache: ZoteroLibraryCache = ZoteroLibraryCache(),
     val pdfReadingPositions: Map<String, SavedPdfReadingPosition> = emptyMap(),
@@ -40,6 +41,13 @@ enum class ThemePreference {
     SYSTEM,
     LIGHT,
     DARK,
+}
+
+@Serializable
+enum class LanguagePreference {
+    ENGLISH,
+    FRENCH,
+    ARABIC,
 }
 
 @Serializable

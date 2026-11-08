@@ -41,7 +41,6 @@ import org.jetbrains.compose.resources.painterResource
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import io.github.aakira.napier.Napier
-import kotlinx.datetime.Clock
 import kotlin.random.Random
 
 @Composable
@@ -186,7 +185,7 @@ private fun AppShellContent(
                 name = paper.title,
                 paperIds = listOf(paper.id),
                 seedPaperIds = listOf(paper.id),
-                updatedAt = Clock.System.now(),
+                updatedAt = kotlinx.datetime.Clock.System.now(),
                 discoveredPapers = listOf(paper),
             )
             store.saveGraph(graph)

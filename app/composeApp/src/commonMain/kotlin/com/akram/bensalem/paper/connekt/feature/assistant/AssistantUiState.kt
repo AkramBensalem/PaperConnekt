@@ -1,6 +1,7 @@
 package com.akram.bensalem.paper.connekt.feature.assistant
 
 import com.akram.bensalem.paper.connekt.models.Paper
+import kotlin.time.Clock
 
 data class AssistantUiState(
     val history: ResearchHistory = ResearchHistory(),
@@ -23,14 +24,14 @@ data class Note(
     val id: String,
     val content: String,
     val pageNumber: Int? = null,
-    val timestamp: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+    val timestamp: Long = Clock.System.now().toEpochMilliseconds()
 )
 
 data class ChatMessage(
     val id: String,
     val sender: MessageSender,
     val content: String,
-    val timestamp: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+    val timestamp: Long = Clock.System.now().toEpochMilliseconds()
 )
 
 enum class MessageSender {

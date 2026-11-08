@@ -89,7 +89,7 @@ data class AiUsageSummary(
     val totalCostUsd: Double get() = events.sumOf { it.estimatedCostUsd }
     val todayCostUsd: Double
         get() {
-            val today = Instant.fromEpochMilliseconds(kotlin.time.Clock.System.now().toEpochMilliseconds())
+            val today = kotlinx.datetime.Clock.System.now()
                 .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
             return events.filter { event ->
                 Instant.fromEpochMilliseconds(event.timestamp)

@@ -37,6 +37,7 @@ internal fun WorkspaceFilterChip(
     onClick: () -> Unit,
     label: @Composable () -> Unit,
     leadingIcon: (@Composable () -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
@@ -44,25 +45,40 @@ internal fun WorkspaceFilterChip(
     val focused by interaction.collectIsFocusedAsState()
     val colors = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(12.dp)
-    val container by animateColorAsState(
+    val containerColor by animateColorAsState(
         targetValue = when {
-            pressed -> lerp(colors.surface, colors.primary, 0.18f)
+            selected && pressed -> lerp(colors.primaryContainer, colors.primary, 0.2f)
+            selected && hovered -> lerp(colors.primaryContainer, colors.primary, 0.12f)
             selected -> colors.primaryContainer
+            pressed -> lerp(colors.surface, colors.primary, 0.18f)
             hovered -> lerp(colors.surface, colors.primary, 0.08f)
             else -> colors.surface
         },
         animationSpec = tween(150),
     )
+    val contentColor by animateColorAsState(
+        targetValue = when {
+            selected -> colors.onPrimaryContainer
+            hovered || pressed -> colors.primary
+            else -> colors.onSurfaceVariant
+        },
+        animationSpec = tween(150),
+    )
+    val borderColor = when {
+        focused -> colors.primary
+        hovered || selected -> colors.primary
+        else -> colors.outlineVariant
+    }
     Row(
-        modifier = Modifier
+        modifier = modifier
             .padding(vertical = 4.dp)
             .heightIn(min = 40.dp)
             .clip(shape)
-            .background(container)
+            .background(containerColor)
             .border(
                 BorderStroke(
                     if (focused) 2.dp else 1.dp,
-                    if (focused || hovered || selected) colors.primary else colors.outlineVariant,
+                    borderColor,
                 ),
                 shape,
             )
@@ -79,7 +95,7 @@ internal fun WorkspaceFilterChip(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CompositionLocalProvider(
-            LocalContentColor provides if (selected) colors.onPrimaryContainer else colors.primary,
+            LocalContentColor provides contentColor,
         ) {
             leadingIcon?.invoke()
             ProvideTextStyle(MaterialTheme.typography.labelLarge) { label() }
