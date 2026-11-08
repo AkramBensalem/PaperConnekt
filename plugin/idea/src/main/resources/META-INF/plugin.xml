@@ -1,0 +1,25 @@
+<idea-plugin require-restart="true">
+    <id>com.paperconnekt.idea</id>
+    <name>PaperConnekt</name>
+    <vendor>PaperConnekt</vendor>
+    <description><![CDATA[
+        A local-first research workspace for papers, graphs, reading sessions, and assistant conversations.
+    ]]></description>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.compose</depends>
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="PaperConnekt"
+                    anchor="right"
+                    icon="/icons/paperconnekt.svg"
+                    canCloseContents="false"
+                    factoryClass="com.paperconnekt.idea.PaperConnektToolWindowFactory"/>
+    </extensions>
+    <actions>
+        <action id="PaperConnekt.Open"
+                class="com.paperconnekt.idea.OpenPaperConnektAction"
+                text="Open PaperConnekt"
+                description="Open the PaperConnekt research workspace">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

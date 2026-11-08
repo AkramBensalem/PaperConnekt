@@ -1,0 +1,105 @@
+{
+  "name": "paperconnekt",
+  "displayName": "PaperConnekt",
+  "description": "A local-first research workspace for papers, graphs, and assistant sessions inside VS Code.",
+  "version": "0.1.0",
+  "publisher": "AkramBensalem",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization",
+    "Chat"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.cjs",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "paperconnekt",
+          "title": "PaperConnekt",
+          "icon": "media/paperconnekt-activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "paperconnekt": [
+        {
+          "id": "paperconnekt.navigation",
+          "name": "Research workspace",
+          "icon": "$(library)"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "paperconnekt.refresh",
+        "title": "PaperConnekt: Refresh workspace",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "paperconnekt.destination",
+        "title": "PaperConnekt: Open destination"
+      },
+      {
+        "command": "paperconnekt.openPaper",
+        "title": "PaperConnekt: Open paper",
+        "icon": "$(book)"
+      },
+      {
+        "command": "paperconnekt.openGraph",
+        "title": "PaperConnekt: Open graph",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "paperconnekt.openFile",
+        "title": "PaperConnekt: Open workspace file",
+        "icon": "$(folder-opened)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "paperconnekt.refresh",
+          "when": "view == paperconnekt.navigation",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "paperconnekt.openPaper",
+          "when": "view == paperconnekt.navigation && viewItem == paper",
+          "group": "inline"
+        },
+        {
+          "command": "paperconnekt.openGraph",
+          "when": "view == paperconnekt.navigation && viewItem == graph",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "PaperConnekt",
+      "properties": {
+        "paperconnekt.dataDirectory": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "description": "Optional directory containing the shared PaperConnekt workspace.json file."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "package": "npx @vscode/vsce package"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.6.0"
+  }
+}
