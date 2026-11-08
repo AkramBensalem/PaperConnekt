@@ -251,10 +251,15 @@ fun ChatMarkdown(
     text: String,
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.onSurface,
+    compact: Boolean = false,
     imageTransformer: ImageTransformer = Coil3ImageTransformerImpl,
 ) {
     val prepared = remember(text) { prepareChatMarkdown(text) }
-    val base = MaterialTheme.typography.bodyMedium.copy(lineHeight = 21.sp, color = color)
+    val base = if (compact) {
+        MaterialTheme.typography.labelSmall.copy(lineHeight = 16.sp, color = color)
+    } else {
+        MaterialTheme.typography.bodyMedium.copy(lineHeight = 21.sp, color = color)
+    }
     val density = LocalDensity.current
     val fontPx = with(density) { base.fontSize.toPx() }
     val keys = remember(prepared, fontPx, color) {
@@ -283,8 +288,15 @@ fun ChatMarkdown(
             tableBackground = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f)),
         typography = chatTypography(base),
         imageTransformer = imageTransformer,
-        padding = markdownPadding(block = 4.dp, list = 2.dp, listItemTop = 2.dp, listItemBottom = 2.dp, listIndent = 6.dp,
-            codeBlock = PaddingValues(10.dp), blockQuote = PaddingValues(horizontal = 10.dp)),
+        padding = markdownPadding(
+            block = if (compact) 0.dp else 4.dp,
+            list = if (compact) 0.dp else 2.dp,
+            listItemTop = if (compact) 0.dp else 2.dp,
+            listItemBottom = if (compact) 0.dp else 2.dp,
+            listIndent = if (compact) 0.dp else 6.dp,
+            codeBlock = PaddingValues(if (compact) 0.dp else 10.dp),
+            blockQuote = PaddingValues(horizontal = if (compact) 0.dp else 10.dp),
+        ),
         dimens = markdownDimens(codeBackgroundCornerSize = 8.dp, blockQuoteThickness = 3.dp, tableCellWidth = 120.dp,
             tableCellPadding = 8.dp, tableCornerSize = 8.dp),
         annotator = annotator,
