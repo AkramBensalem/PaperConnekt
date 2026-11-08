@@ -71,6 +71,7 @@ import com.paperconnekt.app.resources.filled_description
 import com.paperconnekt.app.resources.dashboard
 import com.paperconnekt.app.resources.book
 import com.paperconnekt.app.resources.lightbulb
+import org.jetbrains.compose.resources.stringResource
 import com.paperconnekt.domain.model.Paper
 import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageEvent
 import com.akram.bensalem.paper.connekt.feature.assistant.AiUsageService
@@ -85,6 +86,118 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.round
+import com.paperconnekt.app.resources.add_paper
+import com.paperconnekt.app.resources.ai_assistance
+import com.paperconnekt.app.resources.ai_model_activity
+import com.paperconnekt.app.resources.authors_example
+import com.paperconnekt.app.resources.ai_cost_trend
+import com.paperconnekt.app.resources.ai_operations_metric
+import com.paperconnekt.app.resources.ai_usage_share
+import com.paperconnekt.app.resources.ai_cost_in_range
+import com.paperconnekt.app.resources.no_ai_cost_in_range
+import com.paperconnekt.app.resources.add_papers_for_trends
+import com.paperconnekt.app.resources.add_years_for_trend
+import com.paperconnekt.app.resources.all_time
+import com.paperconnekt.app.resources.cancel
+import com.paperconnekt.app.resources.choose_a_day
+import com.paperconnekt.app.resources.choose_day
+import com.paperconnekt.app.resources.close_add_paper
+import com.paperconnekt.app.resources.collection_ready
+import com.paperconnekt.app.resources.collection_shape
+import com.paperconnekt.app.resources.comma_separated_authors_tags
+import com.paperconnekt.app.resources.connected_graphs_metric
+import com.paperconnekt.app.resources.cost
+import com.paperconnekt.app.resources.cost_by_service
+import com.paperconnekt.app.resources.date_format_hint
+import com.paperconnekt.app.resources.discover_online
+import com.paperconnekt.app.resources.discover_papers
+import com.paperconnekt.app.resources.doi_value
+import com.paperconnekt.app.resources.doi
+import com.paperconnekt.app.resources.doi_placeholder
+import com.paperconnekt.app.resources.dashboard_description
+import com.paperconnekt.app.resources.dashboard_empty_hint
+import com.paperconnekt.app.resources.dashboard_search_empty_hint
+import com.paperconnekt.app.resources.days_14
+import com.paperconnekt.app.resources.days_30
+import com.paperconnekt.app.resources.days_7
+import com.paperconnekt.app.resources.days_90
+import com.paperconnekt.app.resources.estimated_ai_cost_metric
+import com.paperconnekt.app.resources.estimated_spend
+import com.paperconnekt.app.resources.filed_entries_metric
+import com.paperconnekt.app.resources.enter_full_title
+import com.paperconnekt.app.resources.global_scope
+import com.paperconnekt.app.resources.input_tokens
+import com.paperconnekt.app.resources.input_tokens_units
+import com.paperconnekt.app.resources.library
+import com.paperconnekt.app.resources.loading_placeholder
+import com.paperconnekt.app.resources.local_first_workspace
+import com.paperconnekt.app.resources.local_first_mode
+import com.paperconnekt.app.resources.managed_pdf_copy
+import com.paperconnekt.app.resources.no_activity_period
+import com.paperconnekt.app.resources.no_ai_usage
+import com.paperconnekt.app.resources.no_cost_period
+import com.paperconnekt.app.resources.no_data_period
+import com.paperconnekt.app.resources.no_matching_papers
+import com.paperconnekt.app.resources.no_publication_years_recorded
+import com.paperconnekt.app.resources.no_service_usage
+import com.paperconnekt.app.resources.no_token_usage
+import com.paperconnekt.app.resources.nav_assistant
+import com.paperconnekt.app.resources.open_ai_assistance
+import com.paperconnekt.app.resources.openalex_discovery_enabled
+import com.paperconnekt.app.resources.open_graph_action
+import com.paperconnekt.app.resources.open_library
+import com.paperconnekt.app.resources.open_paper
+import com.paperconnekt.app.resources.open_source
+import com.paperconnekt.app.resources.optional_pdf_attachment
+import com.paperconnekt.app.resources.operations_count
+import com.paperconnekt.app.resources.output_tokens
+import com.paperconnekt.app.resources.output_tokens_units
+import com.paperconnekt.app.resources.paper_abstract_placeholder
+import com.paperconnekt.app.resources.paper_details_section
+import com.paperconnekt.app.resources.paper_title_label
+import com.paperconnekt.app.resources.papers_by_publication_year
+import com.paperconnekt.app.resources.papers_connected_graphs
+import com.paperconnekt.app.resources.papers_from_year
+import com.paperconnekt.app.resources.quick_actions
+import com.paperconnekt.app.resources.reading_copy_section
+import com.paperconnekt.app.resources.remove
+import com.paperconnekt.app.resources.research_collection_waiting
+import com.paperconnekt.app.resources.research_rhythm_title
+import com.paperconnekt.app.resources.research_insights
+import com.paperconnekt.app.resources.researchers_metric
+import com.paperconnekt.app.resources.range_dates
+import com.paperconnekt.app.resources.range_last_days
+import com.paperconnekt.app.resources.range_on_day
+import com.paperconnekt.app.resources.room_for_next_idea
+import com.paperconnekt.app.resources.save
+import com.paperconnekt.app.resources.save_locally
+import com.paperconnekt.app.resources.saved_papers_count
+import com.paperconnekt.app.resources.saved_papers_metric
+import com.paperconnekt.app.resources.tags_example
+import com.paperconnekt.app.resources.tags
+import com.paperconnekt.app.resources.title_required_edit_later
+import com.paperconnekt.app.resources.today_label
+import com.paperconnekt.app.resources.token_flow
+import com.paperconnekt.app.resources.tracked_units
+import com.paperconnekt.app.resources.token_usage_after_operation
+import com.paperconnekt.app.resources.tokens
+import com.paperconnekt.app.resources.top_sources
+import com.paperconnekt.app.resources.unspecified_model
+import com.paperconnekt.app.resources.usage_share_after_operation
+import com.paperconnekt.app.resources.usage_input
+import com.paperconnekt.app.resources.usage_pages
+import com.paperconnekt.app.resources.workspace_opens_in_range
+import com.paperconnekt.app.resources.no_workspace_opens_in_range
+import com.paperconnekt.app.resources.service_costs_grouped
+import com.paperconnekt.app.resources.year
+import com.paperconnekt.app.resources.year_placeholder
+import com.paperconnekt.app.resources.year_validation
+import com.paperconnekt.app.resources.abstract_label
+import com.paperconnekt.app.resources.authors
+import com.paperconnekt.app.resources.build_collection_hint
+import com.paperconnekt.app.resources.local_library_no_account
+import com.paperconnekt.app.resources.welcome_back
+import com.paperconnekt.app.resources.workspace
 
 @Composable
 fun DashboardHeader(
@@ -94,16 +207,16 @@ fun DashboardHeader(
     onAssistant: () -> Unit,
 ) {
     WorkspaceHeader(
-        title = "Room for your next idea.",
-        subtitle = "Welcome back. Pick up a paper, connect a thought, or ask a new question.",
+        title = stringResource(Res.string.room_for_next_idea),
+        subtitle = stringResource(Res.string.welcome_back),
         icon = Res.drawable.dashboard,
         summaries = listOf(
-            "$paperCount saved paper${if (paperCount == 1) "" else "s"}",
-            if (includeRemote) "OpenAlex discovery enabled" else "Local-first mode",
+            stringResource(Res.string.saved_papers_count, paperCount),
+            stringResource(if (includeRemote) Res.string.openalex_discovery_enabled else Res.string.local_first_mode),
         ),
         actions = {
-            HeaderAction("Open library", Res.drawable.book, onLibrary)
-            HeaderAction("Ask Assistant", Res.drawable.lightbulb, onAssistant, primary = false)
+            HeaderAction(stringResource(Res.string.open_library), Res.drawable.book, onLibrary)
+            HeaderAction(stringResource(Res.string.nav_assistant), Res.drawable.lightbulb, onAssistant, primary = false)
         },
     )
 }
@@ -116,20 +229,20 @@ fun DashboardQuickActions(
     onLibrary: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Quick actions", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.quick_actions), style = MaterialTheme.typography.titleMedium)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Button(onClick = onDiscover, modifier = Modifier.weight(1f)) {
-                Text("Discover papers")
+                Text(stringResource(Res.string.discover_papers))
             }
             if (!compact) {
                 Button(onClick = onAssistant, modifier = Modifier.weight(1f)) {
-                    Text("Open AI assistance")
+                    Text(stringResource(Res.string.open_ai_assistance))
                 }
                 Button(onClick = onLibrary, modifier = Modifier.weight(1f)) {
-                    Text("Open library")
+                    Text(stringResource(Res.string.open_library))
                 }
             }
         }
@@ -139,10 +252,10 @@ fun DashboardQuickActions(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Button(onClick = onAssistant, modifier = Modifier.weight(1f)) {
-                    Text("AI assistance")
+                    Text(stringResource(Res.string.ai_assistance))
                 }
                 Button(onClick = onLibrary, modifier = Modifier.weight(1f)) {
-                    Text("Library")
+                    Text(stringResource(Res.string.library))
                 }
             }
         }
@@ -159,12 +272,12 @@ fun DashboardMetrics(
     aiCostUsd: Double,
 ) {
     val metrics = listOf(
-        "Saved papers" to paperCount,
-        "Researchers" to authorCount,
-        "Connected graphs" to graphCount,
-        "Filed entries" to libraryCount,
-        "AI operations" to aiEventCount,
-        "Estimated AI cost" to formatDashboardUsd(aiCostUsd),
+        stringResource(Res.string.saved_papers_metric) to paperCount,
+        stringResource(Res.string.researchers_metric) to authorCount,
+        stringResource(Res.string.connected_graphs_metric) to graphCount,
+        stringResource(Res.string.filed_entries_metric) to libraryCount,
+        stringResource(Res.string.ai_operations_metric) to aiEventCount,
+        stringResource(Res.string.estimated_ai_cost_metric) to formatDashboardUsd(aiCostUsd),
     )
     BoxWithConstraints {
         val columns = when {
@@ -175,7 +288,7 @@ fun DashboardMetrics(
         }
         val compact = maxWidth < 1120.dp
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Research insights", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(Res.string.research_insights), style = MaterialTheme.typography.titleMedium)
             metrics.chunked(columns).forEach { row ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -233,20 +346,41 @@ private fun MetricCard(
     }
 }
 
-private enum class DashboardRange(val label: String, val dayCount: Int?) {
-    TODAY("Today", 1),
-    DAYS_7("7 days", 7),
-    DAYS_14("14 days", 14),
-    DAYS_30("30 days", 30),
-    DAYS_90("90 days", 90),
-    ALL("All time", null),
-    CUSTOM("Choose day", 1),
+private enum class DashboardRange(val dayCount: Int?) {
+    TODAY(1),
+    DAYS_7(7),
+    DAYS_14(14),
+    DAYS_30(30),
+    DAYS_90(90),
+    ALL(null),
+    CUSTOM(1),
 }
 
-private enum class DashboardPieMetric(val label: String) {
-    TOKENS("Tokens"),
-    COST("Cost"),
+private enum class DashboardPieMetric {
+    TOKENS,
+    COST,
 }
+
+@Composable
+private fun DashboardRange.localizedLabel(): String = stringResource(
+    when (this) {
+        DashboardRange.TODAY -> Res.string.today_label
+        DashboardRange.DAYS_7 -> Res.string.days_7
+        DashboardRange.DAYS_14 -> Res.string.days_14
+        DashboardRange.DAYS_30 -> Res.string.days_30
+        DashboardRange.DAYS_90 -> Res.string.days_90
+        DashboardRange.ALL -> Res.string.all_time
+        DashboardRange.CUSTOM -> Res.string.choose_day
+    },
+)
+
+@Composable
+private fun DashboardPieMetric.localizedLabel(): String = stringResource(
+    when (this) {
+        DashboardPieMetric.TOKENS -> Res.string.tokens
+        DashboardPieMetric.COST -> Res.string.cost
+    },
+)
 
 @Composable
 fun DashboardAnalytics(
@@ -273,9 +407,9 @@ fun DashboardAnalytics(
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("Workspace intelligence", style = MaterialTheme.typography.titleLarge)
+                        Text(stringResource(Res.string.workspace), style = MaterialTheme.typography.titleLarge)
                         Text(
-                            "A local view of your research activity and AI footprint.",
+                            stringResource(Res.string.dashboard_description),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -313,7 +447,7 @@ fun DashboardAnalytics(
                                         if (range == DashboardRange.CUSTOM && selectedRange == range) {
                                             selectedDay
                                         } else {
-                                            range.label
+                                            range.localizedLabel()
                                         },
                                         maxLines = 1,
                                     )
@@ -326,7 +460,7 @@ fun DashboardAnalytics(
                                 onClick = { moreExpanded = true },
                                 enabled = hiddenRanges.isNotEmpty(),
                             ) {
-                                Text("...", style = MaterialTheme.typography.titleMedium)
+                                Text(stringResource(Res.string.loading_placeholder), style = MaterialTheme.typography.titleMedium)
                             }
                             DropdownMenu(
                                 expanded = moreExpanded,
@@ -339,7 +473,7 @@ fun DashboardAnalytics(
                                                 if (range == DashboardRange.CUSTOM && selectedRange == range) {
                                                     selectedDay
                                                 } else {
-                                                    range.label
+                                                    range.localizedLabel()
                                                 },
                                             )
                                         },
@@ -378,7 +512,7 @@ fun DashboardAnalytics(
                                         if (range == DashboardRange.CUSTOM && selectedRange == range) {
                                             selectedDay
                                         } else {
-                                            range.label
+                                            range.localizedLabel()
                                         },
                                     )
                                 },
@@ -389,12 +523,12 @@ fun DashboardAnalytics(
                 if (showDayDialog) {
                     AlertDialog(
                         onDismissRequest = { showDayDialog = false },
-                        title = { Text("Choose a day") },
+                        title = { Text(stringResource(Res.string.choose_a_day)) },
                         text = {
                             OutlinedTextField(
                                 value = dayInput,
                                 onValueChange = { dayInput = it },
-                                label = { Text("Date (YYYY-MM-DD)") },
+                                label = { Text(stringResource(Res.string.date_format_hint)) },
                                 singleLine = true,
                                 isError = runCatching { LocalDate.parse(dayInput) }.isFailure,
                             )
@@ -408,12 +542,12 @@ fun DashboardAnalytics(
                                     showDayDialog = false
                                 },
                             ) {
-                                Text("Apply")
+                                Text(stringResource(Res.string.save))
                             }
                         },
                         dismissButton = {
                             TextButton(onClick = { showDayDialog = false }) {
-                                Text("Cancel")
+                                Text(stringResource(Res.string.cancel))
                             }
                         },
                     )
@@ -464,11 +598,11 @@ fun DashboardAnalytics(
             val peak = values.maxOrNull()?.coerceAtLeast(1) ?: 1
             val total = values.sum()
             DashboardChartCard(
-                "Research rhythm",
+                stringResource(Res.string.research_rhythm_title),
                 if (total == 0) {
-                    "No workspace opens in ${rangeLabel(days)} yet"
+                    stringResource(Res.string.no_workspace_opens_in_range, rangeLabel(days))
                 } else {
-                    "$total workspace opens in ${rangeLabel(days)}"
+                    stringResource(Res.string.workspace_opens_in_range, total, rangeLabel(days))
                 },
                 modifier,
             ) {
@@ -477,7 +611,7 @@ fun DashboardAnalytics(
                     maxValue = peak.toFloat(),
                     color = MaterialTheme.colorScheme.primary,
                     description = days.zip(values).joinToString { "${it.first}: ${it.second} opens" },
-                    emptyMessage = "No activity in this period",
+                    emptyMessage = stringResource(Res.string.no_activity_period),
                 )
                 ChartRangeLabel(days.first().toString(), days.last().toString())
             }
@@ -505,24 +639,24 @@ fun DashboardAnalytics(
             }
             val total = globalValues.sum()
             val series = serviceSeries + DashboardLineSeries(
-                label = "Global",
+                label = stringResource(Res.string.global_scope),
                 color = MaterialTheme.colorScheme.onSurface,
                 values = globalValues,
                 dashed = true,
             )
             DashboardChartCard(
-                "AI cost trend",
+                stringResource(Res.string.ai_cost_trend),
                 if (total == 0.0) {
-                    "No AI cost recorded in ${rangeLabel(days)} yet"
+                    stringResource(Res.string.no_ai_cost_in_range, rangeLabel(days))
                 } else {
-                    "Estimated USD over ${rangeLabel(days)} · ${formatDashboardUsd(total)} total"
+                    stringResource(Res.string.ai_cost_in_range, rangeLabel(days), formatDashboardUsd(total))
                 },
                 modifier,
             ) {
                 DashboardLinePlot(
                     series = series,
                     description = days.zip(globalValues).joinToString { "${it.first}: ${formatDashboardUsd(it.second)}" },
-                    emptyMessage = "No cost data in this period",
+                    emptyMessage = stringResource(Res.string.no_cost_period),
                 )
                 if (total > 0.0) DashboardLineLegend(series)
                 ChartRangeLabel(days.first().toString(), days.last().toString())
@@ -534,19 +668,23 @@ fun DashboardAnalytics(
             val input = events.sumOf { it.inputUnits.coerceAtLeast(0L) }
             val output = events.sumOf { it.outputUnits.coerceAtLeast(0L) }
             val total = input + output
-            DashboardChartCard("Token flow", "${formatCompactNumber(total)} tracked input and output units", modifier) {
+            DashboardChartCard(
+                stringResource(Res.string.token_flow),
+                stringResource(Res.string.tracked_units, formatCompactNumber(total)),
+                modifier,
+            ) {
                 if (total == 0L) {
                     DashboardPlotEmptyState(
-                        message = "No token usage recorded",
-                        detail = "Token totals will appear after an AI operation.",
+                        message = stringResource(Res.string.no_token_usage),
+                        detail = stringResource(Res.string.token_usage_after_operation),
                     )
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TokenBar("Input tokens / units", input, total, MaterialTheme.colorScheme.primary)
-                        TokenBar("Output tokens / units", output, total, MaterialTheme.colorScheme.secondary)
+                        TokenBar(stringResource(Res.string.input_tokens_units), input, total, MaterialTheme.colorScheme.primary)
+                        TokenBar(stringResource(Res.string.output_tokens_units), output, total, MaterialTheme.colorScheme.secondary)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Input ${formatCompactNumber(input)}", style = MaterialTheme.typography.labelSmall)
-                            Text("Output ${formatCompactNumber(output)}", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(Res.string.input_tokens, formatCompactNumber(input)), style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(Res.string.output_tokens, formatCompactNumber(output)), style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -560,11 +698,11 @@ fun DashboardAnalytics(
             modifier: Modifier = Modifier,
         ) {
             val total = values.values.sum()
-            DashboardChartCard("Cost by AI service", "Where estimated spend is going", modifier) {
+            DashboardChartCard(stringResource(Res.string.cost_by_service), stringResource(Res.string.estimated_spend), modifier) {
                 if (total == 0.0) {
                     DashboardPlotEmptyState(
-                        message = "No service usage recorded",
-                        detail = "AI service costs will be grouped here once available.",
+                        message = stringResource(Res.string.no_service_usage),
+                        detail = stringResource(Res.string.service_costs_grouped),
                     )
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -574,8 +712,8 @@ fun DashboardAnalytics(
                             val serviceEvents = events.filter { it.service == service }
                             val units = serviceEvents.sumOf { it.inputUnits.coerceAtLeast(0L) }
                             val usageLabel = when (service) {
-                                AiUsageService.OCR -> "${formatCompactNumber(units)} pages"
-                                else -> "${formatCompactNumber(units)} input"
+                                AiUsageService.OCR -> stringResource(Res.string.usage_pages, formatCompactNumber(units))
+                                else -> stringResource(Res.string.usage_input, formatCompactNumber(units))
                             }
                             BoxWithConstraints {
                                 if (maxWidth < 460.dp) {
@@ -643,7 +781,7 @@ fun DashboardAnalytics(
                 Triple(service, value, serviceColor(service))
             }
             DashboardChartCard(
-                "AI usage share",
+                stringResource(Res.string.ai_usage_share),
                 if (metric == DashboardPieMetric.TOKENS) {
                     "${formatCompactNumber(total.toLong())} tracked units"
                 } else {
@@ -659,14 +797,14 @@ fun DashboardAnalytics(
                         WorkspaceFilterChip(
                             selected = metric == option,
                             onClick = { metric = option },
-                            label = { Text(option.label) },
+                            label = { Text(option.localizedLabel()) },
                         )
                     }
                 }
                 if (values.isEmpty()) {
                     DashboardPlotEmptyState(
-                        message = "No AI usage recorded",
-                        detail = "Usage share will appear after an AI operation.",
+                        message = stringResource(Res.string.no_ai_usage),
+                        detail = stringResource(Res.string.usage_share_after_operation),
                     )
                 } else {
                     BoxWithConstraints {
@@ -763,19 +901,23 @@ private fun DashboardPieLegend(
         ) {
             val years = papers.mapNotNull { it.year }.groupingBy { it }.eachCount().toList().sortedBy { it.first }.takeLast(8)
             val sources = papers.groupingBy { it.source.ifBlank { "Local" } }.eachCount().toList().sortedByDescending { it.second }.take(5)
-            DashboardChartCard("Collection shape", "${papers.size} papers · ${graphs.size} connected graphs", modifier) {
+            DashboardChartCard(
+                stringResource(Res.string.collection_shape),
+                stringResource(Res.string.papers_connected_graphs, papers.size, graphs.size),
+                modifier,
+            ) {
                 if (papers.isEmpty()) {
                     DashboardPlotEmptyState(
-                        message = "Your collection is ready to grow",
-                        detail = "Add papers to reveal publication and source trends.",
+                        message = stringResource(Res.string.collection_ready),
+                        detail = stringResource(Res.string.add_papers_for_trends),
                     )
                 } else {
                     if (years.isNotEmpty()) {
-                        Text("Papers by publication year", style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(Res.string.papers_by_publication_year), style = MaterialTheme.typography.labelLarge)
                         if (years.size == 1) {
                             val (year, count) = years.single()
                             Text(
-                                "$count paper${if (count == 1) "" else "s"} from $year",
+                                stringResource(Res.string.papers_from_year, count, year),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -786,16 +928,16 @@ private fun DashboardPieLegend(
                             labels = years.map { it.first.toString() },
                             color = MaterialTheme.colorScheme.primary,
                             description = years.joinToString { "${it.first}: ${it.second} papers" },
-                            emptyMessage = "No publication years recorded",
+                            emptyMessage = stringResource(Res.string.no_publication_years_recorded),
                         )
                     } else {
                         Text(
-                            "Add publication years to reveal the year trend.",
+                            stringResource(Res.string.add_years_for_trend),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
-                    Text("Top sources", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(Res.string.top_sources), style = MaterialTheme.typography.labelLarge)
                     sources.forEach { (source, count) ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(source, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -808,15 +950,16 @@ private fun DashboardPieLegend(
 
         @Composable
         private fun DashboardModelTable(events: List<AiUsageEvent>) {
-            val models = events.groupingBy { it.model.ifBlank { "Unspecified model" } }.eachCount()
+            val unspecifiedModel = stringResource(Res.string.unspecified_model)
+            val models = events.groupingBy { it.model.ifBlank { unspecifiedModel } }.eachCount()
             if (models.isEmpty()) return
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("AI model activity", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(Res.string.ai_model_activity), style = MaterialTheme.typography.titleMedium)
                     models.entries.sortedByDescending { it.value }.take(6).forEach { (model, count) ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(model, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text("$count operation${if (count == 1) "" else "s"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(Res.string.operations_count, count), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -851,10 +994,10 @@ private fun DashboardPieLegend(
             color: androidx.compose.ui.graphics.Color,
             description: String,
             labels: List<String> = emptyList(),
-            emptyMessage: String = "No data in this period",
+            emptyMessage: String? = null,
         ) {
             if (values.none { it > 0f }) {
-                DashboardPlotEmptyState(emptyMessage)
+                DashboardPlotEmptyState(emptyMessage ?: stringResource(Res.string.no_data_period))
             } else {
                 Canvas(Modifier.fillMaxWidth().height(150.dp).semantics { contentDescription = description }) {
                     val slot = size.width / values.size.coerceAtLeast(1)
@@ -884,12 +1027,12 @@ private fun DashboardPieLegend(
         private fun DashboardLinePlot(
             series: List<DashboardLineSeries>,
             description: String,
-            emptyMessage: String = "No data in this period",
+            emptyMessage: String? = null,
         ) {
             val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
             val hasValues = series.any { line -> line.values.any { it > 0.0 } }
             if (!hasValues) {
-                DashboardPlotEmptyState(emptyMessage)
+                DashboardPlotEmptyState(emptyMessage ?: stringResource(Res.string.no_data_period))
             } else {
                 Canvas(Modifier.fillMaxWidth().height(150.dp).semantics { contentDescription = description }) {
                     val peak = series.flatMap { it.values }.maxOrNull()?.coerceAtLeast(0.0000001) ?: 0.0000001
@@ -1068,10 +1211,12 @@ private fun dashboardDays(
     return (0 until count).map { offset -> today - DatePeriod(days = count - offset - 1) }
 }
 
-private fun rangeLabel(days: List<LocalDate>): String =
-    if (days.size == 1) "on ${days.first()}"
-    else if (days.size <= 14) "the last ${days.size} days"
-    else "${days.first()} – ${days.last()}"
+@Composable
+private fun rangeLabel(days: List<LocalDate>): String = when {
+    days.size == 1 -> stringResource(Res.string.range_on_day, days.first())
+    days.size <= 14 -> stringResource(Res.string.range_last_days, days.size)
+    else -> stringResource(Res.string.range_dates, days.first(), days.last())
+}
 
 private fun formatCompactNumber(value: Long): String = when {
     value >= 1_000_000L -> "${round(value / 100_000.0) / 10.0}M"
@@ -1135,7 +1280,7 @@ fun DashboardPaperCard(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 paper.year?.let { Text(it.toString(), style = MaterialTheme.typography.labelMedium) }
-                paper.doi?.let { Text("DOI $it", style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                paper.doi?.let { Text(stringResource(Res.string.doi_value, it), style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
             if (paper.tags.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1155,17 +1300,17 @@ fun DashboardPaperCard(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = onOpenGraph) {
-                    Text("Open graph")
+                    Text(stringResource(Res.string.open_graph_action))
                 }
                 if (paper.pdfPath != null || paper.sourceUrl != null) {
                     TextButton(onClick = onOpen) {
-                        Text(if (paper.pdfPath != null) "Open paper" else "Open source")
+                        Text(stringResource(if (paper.pdfPath != null) Res.string.open_paper else Res.string.open_source))
                     }
                 }
                 if (isSaved) {
-                    TextButton(onClick = onRemove) { Text("Remove") }
+                    TextButton(onClick = onRemove) { Text(stringResource(Res.string.remove)) }
                 } else {
-                    TextButton(onClick = onSave) { Text("Save locally") }
+                    TextButton(onClick = onSave) { Text(stringResource(Res.string.save_locally)) }
                 }
             }
         }
@@ -1216,20 +1361,20 @@ fun DashboardEmptyState(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                if (hasQuery) "No matching papers" else "Your research collection is waiting",
+                if (hasQuery) stringResource(Res.string.no_matching_papers) else stringResource(Res.string.research_collection_waiting),
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
                 if (hasQuery) {
-                    "Try a different title, author, tag, or DOI, or search optional online discovery."
+                    stringResource(Res.string.dashboard_search_empty_hint)
                 } else {
-                    "Add a paper manually or discover a topic to start building your local-first workspace."
+                    stringResource(Res.string.dashboard_empty_hint)
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onAddPaper) { Text("Add paper") }
-                TextButton(onClick = onDiscover) { Text("Discover online") }
+                Button(onClick = onAddPaper) { Text(stringResource(Res.string.add_paper)) }
+                TextButton(onClick = onDiscover) { Text(stringResource(Res.string.discover_online)) }
             }
         }
     }
@@ -1307,13 +1452,13 @@ fun PaperMetadataDialog(
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(title, style = MaterialTheme.typography.titleLarge)
                             Text(
-                                "Build your collection, one paper at a time.",
+                                stringResource(Res.string.build_collection_hint),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         IconButton(onClick = onDismiss, enabled = !busy) {
-                            Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close add paper")
+                            Icon(painterResource(Res.drawable.filled_close), contentDescription = stringResource(Res.string.close_add_paper))
                         }
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -1323,12 +1468,15 @@ fun PaperMetadataDialog(
                     ) {
                         val metadata: @Composable () -> Unit = {
                             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                PaperFormSection("Paper details", "Only a title is required. You can edit everything later.")
+                                PaperFormSection(
+                                    stringResource(Res.string.paper_details_section),
+                                    stringResource(Res.string.title_required_edit_later),
+                                )
                                 PaperFormField(
                                     value = titleValue,
                                     onValueChange = onTitleChange,
-                                    label = "Paper title *",
-                                    placeholder = "Enter the full title",
+                                    label = stringResource(Res.string.paper_title_label),
+                                    placeholder = stringResource(Res.string.enter_full_title),
                                     modifier = Modifier.focusRequester(titleFocus),
                                     singleLine = false,
                                     enabled = !saving,
@@ -1336,16 +1484,16 @@ fun PaperMetadataDialog(
                                 PaperFormField(
                                     value = authorsValue,
                                     onValueChange = onAuthorsChange,
-                                    label = "Authors",
-                                    placeholder = "e.g. Ada Lovelace, Alan Turing",
+                                    label = stringResource(Res.string.authors),
+                                    placeholder = stringResource(Res.string.authors_example),
                                     enabled = !saving,
                                 )
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     PaperFormField(
                                         value = yearValue,
                                         onValueChange = onYearChange,
-                                        label = "Year",
-                                        placeholder = "2026",
+                                        label = stringResource(Res.string.year),
+                                        placeholder = stringResource(Res.string.year_placeholder),
                                         modifier = Modifier.weight(0.35f),
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         isError = invalidYear,
@@ -1354,15 +1502,15 @@ fun PaperMetadataDialog(
                                     PaperFormField(
                                         value = doiValue,
                                         onValueChange = onDoiChange,
-                                        label = "DOI",
-                                        placeholder = "10.1234/example",
+                                        label = stringResource(Res.string.doi),
+                                        placeholder = stringResource(Res.string.doi_placeholder),
                                         modifier = Modifier.weight(0.65f),
                                         enabled = !saving,
                                     )
                                 }
                                 if (invalidYear) {
                                     Text(
-                                        "Enter a year between 1 and 9999, or leave it empty.",
+                                        stringResource(Res.string.year_validation),
                                         color = MaterialTheme.colorScheme.error,
                                         style = MaterialTheme.typography.bodySmall,
                                     )
@@ -1370,8 +1518,8 @@ fun PaperMetadataDialog(
                                 PaperFormField(
                                     value = abstractValue,
                                     onValueChange = onAbstractChange,
-                                    label = "Abstract",
-                                    placeholder = "What is this paper about?",
+                                    label = stringResource(Res.string.abstract_label),
+                                    placeholder = stringResource(Res.string.paper_abstract_placeholder),
                                     singleLine = false,
                                     minLines = 4,
                                     enabled = !saving,
@@ -1379,12 +1527,12 @@ fun PaperMetadataDialog(
                                 PaperFormField(
                                     value = tagsValue,
                                     onValueChange = onTagsChange,
-                                    label = "Tags",
-                                    placeholder = "e.g. machine learning, literature review",
+                                    label = stringResource(Res.string.tags),
+                                    placeholder = stringResource(Res.string.tags_example),
                                     enabled = !saving,
                                 )
                                 Text(
-                                    "Separate authors and tags with commas.",
+                                    stringResource(Res.string.comma_separated_authors_tags),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -1392,7 +1540,10 @@ fun PaperMetadataDialog(
                         }
                         val attachment: @Composable () -> Unit = {
                             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                PaperFormSection("Reading copy", "Optional PDF attachment")
+                                PaperFormSection(
+                                    stringResource(Res.string.reading_copy_section),
+                                    stringResource(Res.string.optional_pdf_attachment),
+                                )
                                 PdfAttachmentCard(
                                     pdfPath = pdfPathValue.ifBlank { null },
                                     onAttached = { onPdfPathChange(it) },
@@ -1404,9 +1555,9 @@ fun PaperMetadataDialog(
                                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                                 ) {
                                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text("Your research stays local", style = MaterialTheme.typography.labelLarge)
+                                        Text(stringResource(Res.string.local_first_workspace), style = MaterialTheme.typography.labelLarge)
                                         Text(
-                                            "A separate PDF copy is kept in app-managed storage. Your original file is never changed.",
+                                            stringResource(Res.string.managed_pdf_copy),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -1441,7 +1592,7 @@ fun PaperMetadataDialog(
                     ) {
                         if (!compact) {
                             Text(
-                                "Local Library / No account required",
+                                stringResource(Res.string.local_library_no_account),
                                 modifier = Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1449,7 +1600,7 @@ fun PaperMetadataDialog(
                         } else {
                             Spacer(Modifier.weight(1f))
                         }
-                        TextButton(onClick = onDismiss, enabled = !busy) { Text("Cancel") }
+                        TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(Res.string.cancel)) }
                         Button(
                             enabled = enabled && !busy && !invalidYear,
                             onClick = onConfirm,

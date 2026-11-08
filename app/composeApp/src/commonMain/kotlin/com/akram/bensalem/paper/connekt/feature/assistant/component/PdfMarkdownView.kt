@@ -1,6 +1,7 @@
 package com.akram.bensalem.paper.connekt.feature.assistant.component
 
 import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import com.paperconnekt.app.resources.filled_article
 import com.paperconnekt.app.resources.filled_error_outline
 import com.paperconnekt.app.resources.filled_key
@@ -35,6 +36,16 @@ import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.model.rememberMarkdownState
 import kotlinx.coroutines.flow.drop
 import kotlin.math.roundToInt
+import com.paperconnekt.app.resources.create_markdown_version
+import com.paperconnekt.app.resources.ocr_copy_no_pages
+import com.paperconnekt.app.resources.retry_ocr_sync
+import com.paperconnekt.app.resources.try_again
+import com.paperconnekt.app.resources.markdown_creating
+import com.paperconnekt.app.resources.markdown_opening_saved
+import com.paperconnekt.app.resources.markdown_long_paper_note
+import com.paperconnekt.app.resources.mistral_key_needed
+import com.paperconnekt.app.resources.markdown_unavailable
+import com.paperconnekt.app.resources.no_markdown_yet
 
 /** Reader body that shows the saved Markdown version of the open PDF. */
 @Composable
@@ -58,35 +69,35 @@ internal fun PdfMarkdownView(
                 )
                 TextButton(onClick = viewModel::retryMarkdown, enabled = !markdown.busy,
                     modifier = Modifier.interactivePointer()) {
-                    Text("Retry OCR sync")
+                    Text(stringResource(Res.string.retry_ocr_sync))
                 }
             }
             if (content != null && !markdown.hasPageBoundaries) {
-                Text("This older saved copy has no page boundaries. Use Convert again to restore the PDF pages.",
+                Text(stringResource(Res.string.ocr_copy_no_pages),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.fillMaxWidth().padding(12.dp))
             }
             when {
                 content != null -> MarkdownPages(viewModel, continuous, spread, fitPage)
                 markdown.busy -> MarkdownStatus(
-                    title = if (markdown.converting) "Creating Markdown with $MISTRAL_OCR_MODEL_NAME…" else "Opening saved Markdown…",
-                    body = if (markdown.converting) "Long papers can take a minute. The result is saved, so this only happens once." else null,
+                    title = if (markdown.converting) stringResource(Res.string.markdown_creating, MISTRAL_OCR_MODEL_NAME) else stringResource(Res.string.markdown_opening_saved),
+                    body = if (markdown.converting) stringResource(Res.string.markdown_long_paper_note) else null,
                 ) { CircularProgressIndicator(Modifier.size(32.dp)) }
                 markdown.error != null -> MarkdownStatus(
-                    title = if (markdown.missingApiKey) "Mistral API key needed" else "Markdown version unavailable",
+                    title = if (markdown.missingApiKey) stringResource(Res.string.mistral_key_needed) else stringResource(Res.string.markdown_unavailable),
                     body = markdown.error,
                     icon = { Icon(if (markdown.missingApiKey) painterResource(Res.drawable.filled_key) else painterResource(Res.drawable.filled_error_outline), null,
                         Modifier.size(32.dp), tint = MaterialTheme.colorScheme.error) },
                 ) {
                     FilledTonalButton(onClick = viewModel::retryMarkdown, modifier = Modifier.interactivePointer()) {
-                        Icon(painterResource(Res.drawable.filled_refresh), null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Try again")
+                        Icon(painterResource(Res.drawable.filled_refresh), null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.try_again))
                     }
                 }
                 else -> MarkdownStatus(
-                    title = "No Markdown version yet",
+                    title = stringResource(Res.string.no_markdown_yet),
                     icon = { Icon(painterResource(Res.drawable.filled_article), null, Modifier.size(32.dp)) },
                 ) {
-                    FilledTonalButton(onClick = viewModel::retryMarkdown, modifier = Modifier.interactivePointer()) { Text("Create Markdown version") }
+                    FilledTonalButton(onClick = viewModel::retryMarkdown, modifier = Modifier.interactivePointer()) { Text(stringResource(Res.string.create_markdown_version)) }
                 }
             }
         }

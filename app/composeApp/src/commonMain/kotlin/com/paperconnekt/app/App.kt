@@ -39,8 +39,13 @@ import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.PersistentResearchStore
 import com.paperconnekt.storage.WorkspaceStorage
 import com.paperconnekt.app.theme.PaperConnektTheme
+import com.paperconnekt.app.localization.AppLocale
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CancellationException
+import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
+import com.paperconnekt.app.resources.retry
+import com.paperconnekt.app.resources.workspace_load_error
 
 @Composable
 fun PaperConnektApp(
@@ -61,6 +66,7 @@ fun PaperConnektApp(
     var focusedWorkspaceOpen by remember { mutableStateOf(false) }
     var initializationError by remember(store) { mutableStateOf<String?>(null) }
     var attempt by remember(store) { mutableStateOf(0) }
+    val workspaceLoadError = stringResource(Res.string.workspace_load_error)
     LaunchedEffect(store, attempt) {
         initializationError = null
         try {
@@ -69,7 +75,7 @@ fun PaperConnektApp(
             throw cancelled
         } catch (error: Exception) {
             Napier.e("Could not load the saved workspace", error)
-            initializationError = error.message ?: "Could not load the saved workspace."
+            initializationError = error.message ?: workspaceLoadError
         }
     }
     val initialized by store.isInitialized.collectAsState()
@@ -96,12 +102,13 @@ fun PaperConnektApp(
         startDestination
     }
     CompositionLocalProvider(LocalPdfAttachments provides pdfAttachments, LocalMcpHost provides mcpHost) {
-        PaperConnektTheme(preference = settings.selectedTheme) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = androidx.compose.material3.MaterialTheme.colorScheme.background,
-            ) {
-                Column(Modifier.fillMaxSize()) {
+        AppLocale(language = settings.selectedLanguage) {
+            PaperConnektTheme(preference = settings.selectedTheme) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.background,
+                ) {
+                    Column(Modifier.fillMaxSize()) {
                     if (showMobileMenu) {
                         BoxWithConstraints(
                             modifier = Modifier.weight(1f).fillMaxSize(),
@@ -216,7 +223,8 @@ fun PaperConnektApp(
                         }
                     }
                 }
-                AppMenuDialogs(menuState, menuDialogHost)
+                    AppMenuDialogs(menuState, menuDialogHost)
+                }
             }
         }
     }
@@ -257,7 +265,7 @@ private fun AppContent(
                 CircularProgressIndicator()
             } else {
                 Text(initializationError)
-                Button(onClick = attempt) { Text("Retry") }
+                Button(onClick = attempt) { Text(stringResource(Res.string.retry)) }
             }
         }
     }

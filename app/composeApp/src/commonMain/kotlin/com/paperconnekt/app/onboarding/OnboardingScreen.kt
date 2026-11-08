@@ -19,7 +19,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.paperconnekt.storage.LocalResearchStore
+import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import kotlinx.coroutines.launch
+import com.paperconnekt.app.resources.back
+import com.paperconnekt.app.resources.continue_action
+import com.paperconnekt.app.resources.create_workspace
+import com.paperconnekt.app.resources.keep_zotero_optional
+import com.paperconnekt.app.resources.name_your_workspace
+import com.paperconnekt.app.resources.onboarding_description
+import com.paperconnekt.app.resources.onboarding_workspace_description
+import com.paperconnekt.app.resources.optional_tools
+import com.paperconnekt.app.resources.optional_tools_description
+import com.paperconnekt.app.resources.welcome_to_paperconnekt
+import com.paperconnekt.app.resources.workspace_name
+import com.paperconnekt.app.resources.zotero_enabled
 
 @Composable
 fun OnboardingScreen(
@@ -76,7 +90,7 @@ fun OnboardingScreen(
                         }
                     },
                 ) {
-                    Text("Back")
+                    Text(stringResource(Res.string.back))
                 }
             }
 
@@ -89,7 +103,15 @@ fun OnboardingScreen(
                     }
                 },
             ) {
-                Text(if (step == OnboardingStep.OPTIONAL_TOOLS) "Create workspace" else "Continue")
+                Text(
+                    stringResource(
+                        if (step == OnboardingStep.OPTIONAL_TOOLS) {
+                            Res.string.create_workspace
+                        } else {
+                            Res.string.continue_action
+                        },
+                    ),
+                )
             }
         }
     }
@@ -97,8 +119,8 @@ fun OnboardingScreen(
 
 @Composable
 private fun WelcomeStep() {
-    Text("Welcome to PaperConnekt")
-    Text("A private, local-first workspace for discovering papers, building graphs, and thinking with AI.")
+    Text(stringResource(Res.string.welcome_to_paperconnekt))
+    Text(stringResource(Res.string.onboarding_description))
 }
 
 @Composable
@@ -106,12 +128,12 @@ private fun WorkspaceStep(
     workspaceName: String,
     onWorkspaceNameChanged: (String) -> Unit,
 ) {
-    Text("Name your workspace")
-    Text("Your research stays on this device and can be organized into one or more local workspaces.")
+    Text(stringResource(Res.string.name_your_workspace))
+    Text(stringResource(Res.string.onboarding_workspace_description))
     OutlinedTextField(
         value = workspaceName,
         onValueChange = onWorkspaceNameChanged,
-        label = { Text("Workspace name") },
+        label = { Text(stringResource(Res.string.workspace_name)) },
         singleLine = true,
     )
 }
@@ -121,10 +143,13 @@ private fun OptionalToolsStep(
     zoteroEnabled: Boolean,
     onZoteroEnabledChanged: (Boolean) -> Unit,
 ) {
-    Text("Optional tools")
-    Text("PaperConnekt works without remote services. Enable Zotero only if you want to connect it later.")
+    Text(stringResource(Res.string.optional_tools))
+    Text(stringResource(Res.string.optional_tools_description))
     OutlinedButton(onClick = { onZoteroEnabledChanged(!zoteroEnabled) }) {
-        Text(if (zoteroEnabled) "Zotero enabled" else "Keep Zotero optional")
+        Text(
+            stringResource(
+                if (zoteroEnabled) Res.string.zotero_enabled else Res.string.keep_zotero_optional,
+            ),
+        )
     }
 }
-

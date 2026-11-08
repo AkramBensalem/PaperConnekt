@@ -1,10 +1,12 @@
 package com.paperconnekt.app.legacygraph.components
 
+import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.graphics.painter.Painter
 
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
 
-import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.filled_account_balance
 import com.paperconnekt.app.resources.filled_arrow_drop_down
 import com.paperconnekt.app.resources.filled_auto_awesome
@@ -98,23 +100,141 @@ import kotlin.math.roundToInt
 import kotlin.math.pow
 import kotlin.math.log10
 import kotlinx.coroutines.launch
+import com.paperconnekt.app.resources.abstract_label
+import com.paperconnekt.app.resources.ai_rationale
+import com.paperconnekt.app.resources.apply_interval
+import com.paperconnekt.app.resources.cancel
+import com.paperconnekt.app.resources.changes_apply_to_charts
+import com.paperconnekt.app.resources.color_by
+import com.paperconnekt.app.resources.discard_not_relevant
+import com.paperconnekt.app.resources.evaluate_count
+import com.paperconnekt.app.resources.evaluate_research_target_hint
+import com.paperconnekt.app.resources.focus_your_view
+import com.paperconnekt.app.resources.hide_outliers_hint
+import com.paperconnekt.app.resources.horizontal_chart_position
+import com.paperconnekt.app.resources.how_to_read_it
+import com.paperconnekt.app.resources.insight_filters
+import com.paperconnekt.app.resources.keep
+import com.paperconnekt.app.resources.kept_while_reviewing
+import com.paperconnekt.app.resources.legend_count
+import com.paperconnekt.app.resources.max_citations
+import com.paperconnekt.app.resources.min_citations
+import com.paperconnekt.app.resources.missing_publication_year
+import com.paperconnekt.app.resources.no_abstract_available
+import com.paperconnekt.app.resources.no_dated_cited_papers
+import com.paperconnekt.app.resources.no_duplicate_author_venue
+import com.paperconnekt.app.resources.no_paper_evaluated
+import com.paperconnekt.app.resources.no_publication_years
+import com.paperconnekt.app.resources.only_kept_articles
+import com.paperconnekt.app.resources.peak_papers
+import com.paperconnekt.app.resources.percent_match_target
+import com.paperconnekt.app.resources.research_target
+import com.paperconnekt.app.resources.reset
+import com.paperconnekt.app.resources.seed_paper_remove_hint
+import com.paperconnekt.app.resources.skip
+import com.paperconnekt.app.resources.undo
+import com.paperconnekt.app.resources.y_axis
+import com.paperconnekt.app.resources.year_from
+import com.paperconnekt.app.resources.year_to
+import com.paperconnekt.app.resources.graph_insights
+import com.paperconnekt.app.resources.neighborhood_insights
+import com.paperconnekt.app.resources.close_insights
+import com.paperconnekt.app.resources.all_relations
+import com.paperconnekt.app.resources.close_insight_filters
+import com.paperconnekt.app.resources.relevance_measure
+import com.paperconnekt.app.resources.color_points_by
+import com.paperconnekt.app.resources.focus_interval
+import com.paperconnekt.app.resources.no_extra_filters
+import com.paperconnekt.app.resources.seeds_kept_all_reviews
+import com.paperconnekt.app.resources.showing_selected_relation
+import com.paperconnekt.app.resources.back_to_chart
+import com.paperconnekt.app.resources.loading_citations_references
+import com.paperconnekt.app.resources.no_articles_interval
+import com.paperconnekt.app.resources.no_seeds_kept_articles
+import com.paperconnekt.app.resources.no_kept_articles_selection
+import com.paperconnekt.app.resources.no_citations_references_selection
+import com.paperconnekt.app.resources.reset_focus_interval
+import com.paperconnekt.app.resources.any_value
+import com.paperconnekt.app.resources.citations_range
+import com.paperconnekt.app.resources.invalid_insight_interval
+import com.paperconnekt.app.resources.insight_interval_applies
+import com.paperconnekt.app.resources.since_year
+import com.paperconnekt.app.resources.this_paper_year
+import com.paperconnekt.app.resources.publication_citations_description
+import com.paperconnekt.app.resources.split_median_description
+import com.paperconnekt.app.resources.point_similarity_description
+import com.paperconnekt.app.resources.graph_seed
+import com.paperconnekt.app.resources.evaluating_progress
+import com.paperconnekt.app.resources.research_target_empty
+import com.paperconnekt.app.resources.match_citations
+import com.paperconnekt.app.resources.ai_match_target
+import com.paperconnekt.app.resources.text_similarity
+import com.paperconnekt.app.resources.versus_publication_citations
+import com.paperconnekt.app.resources.frequent_authors
+import com.paperconnekt.app.resources.frequent_venues
+import com.paperconnekt.app.resources.swipe_chart
+import com.paperconnekt.app.resources.showing_whole_chart
+import com.paperconnekt.app.resources.fit_chart
+import com.paperconnekt.app.resources.expand_chart
+import com.paperconnekt.app.resources.citation_velocity_description
+import com.paperconnekt.app.resources.articles_label
+import com.paperconnekt.app.resources.kept_label
+import com.paperconnekt.app.resources.this_paper
+import com.paperconnekt.app.resources.click_paper_details
+import com.paperconnekt.app.resources.click_paper_keep_skip
+import com.paperconnekt.app.resources.similar_to_seeds
+import com.paperconnekt.app.resources.similar_percent
+import com.paperconnekt.app.resources.papers_not_evaluated
+import com.paperconnekt.app.resources.timeline_content_description
+import com.paperconnekt.app.resources.citation_count
+import com.paperconnekt.app.resources.reference
+import com.paperconnekt.app.resources.citation
+import com.paperconnekt.app.resources.discarded_from_graph
+import com.paperconnekt.app.resources.papers
+import com.paperconnekt.app.resources.impact_map
+import com.paperconnekt.app.resources.relevance_map
+import com.paperconnekt.app.resources.fastest_rising
+import com.paperconnekt.app.resources.timeline
+import com.paperconnekt.app.resources.authors_and_venues
+import com.paperconnekt.app.resources.quadrant
+import com.paperconnekt.app.resources.review_status
+import com.paperconnekt.app.resources.relation
+import com.paperconnekt.app.resources.ai_target_match
+import com.paperconnekt.app.resources.seed_similarity
+import com.paperconnekt.app.resources.citations
+import com.paperconnekt.app.resources.publication_year
+import com.paperconnekt.app.resources.references
+import com.paperconnekt.app.resources.paper_details_section
+import com.paperconnekt.app.resources.references_and_citations
+import com.paperconnekt.app.resources.paper
+import com.paperconnekt.app.resources.dismiss
 
-private enum class InsightTab(val label: String, val icon: DrawableResource) {
-    IMPACT("Impact map", Res.drawable.filled_scatter_plot),
-    RELEVANCE("Relevance map", Res.drawable.filled_bubble_chart),
-    RISING("Fastest rising", Res.drawable.filled_whatshot),
-    TIMELINE("Timeline", Res.drawable.filled_bar_chart),
-    PEOPLE("Authors & venues", Res.drawable.filled_groups)
+private enum class InsightTab(val label: StringResource, val icon: DrawableResource) {
+    IMPACT(Res.string.impact_map, Res.drawable.filled_scatter_plot),
+    RELEVANCE(Res.string.relevance_map, Res.drawable.filled_bubble_chart),
+    RISING(Res.string.fastest_rising, Res.drawable.filled_whatshot),
+    TIMELINE(Res.string.timeline, Res.drawable.filled_bar_chart),
+    PEOPLE(Res.string.authors_and_venues, Res.drawable.filled_groups)
 }
 
 private fun Float.coerceInSafe(minimum: Float, maximum: Float): Float =
     if (maximum < minimum) minimum else coerceIn(minimum, maximum)
 
-private enum class InsightColorMode(val label: String) { QUADRANT("Quadrant"), STATUS("Review status"), RELATION("Relation") }
+private enum class InsightColorMode(val label: StringResource) {
+    QUADRANT(Res.string.quadrant),
+    STATUS(Res.string.review_status),
+    RELATION(Res.string.relation),
+}
 
-private enum class RelevanceSource(val label: String) { AI("AI target match"), SIMILARITY("Seed similarity") }
+private enum class RelevanceSource(val label: StringResource) {
+    AI(Res.string.ai_target_match),
+    SIMILARITY(Res.string.seed_similarity),
+}
 
-private enum class RelevanceYAxis(val label: String) { CITATIONS("Citations"), YEAR("Publication year") }
+private enum class RelevanceYAxis(val label: StringResource) {
+    CITATIONS(Res.string.citations),
+    YEAR(Res.string.publication_year),
+}
 
 /**
  * Plots of the selected paper's citations and references (year × citations, similarity × citations,
@@ -203,7 +323,11 @@ fun GuidedInsightsDialog(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Icon(painterResource(Res.drawable.filled_insights), null, tint = MaterialTheme.colorScheme.primary)
                     Column(Modifier.weight(1f)) {
-                        Text(if (graphOverview) "Graph insights" else "Neighborhood insights", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            stringResource(if (graphOverview) Res.string.graph_insights else Res.string.neighborhood_insights),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                         Text(
                             if (graphOverview) "${visible.size} articles in “${graphTitle.orEmpty()}”"
                             else "${review.referenceCount} references · ${review.citationCount} citations of “${node?.paper?.title}”",
@@ -213,7 +337,9 @@ fun GuidedInsightsDialog(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    IconButton(onClick = onDismiss, modifier = Modifier.interactivePointer()) { Icon(painterResource(Res.drawable.filled_close), "Close insights") }
+                    IconButton(onClick = onDismiss, modifier = Modifier.interactivePointer()) {
+                        Icon(painterResource(Res.drawable.filled_close), stringResource(Res.string.close_insights))
+                    }
                 }
 
                 val relationFilter: @Composable () -> Unit = {
@@ -223,9 +349,9 @@ fun GuidedInsightsDialog(
                             onClick = { relation = direction },
                             label = {
                                 Text(when (direction) {
-                                    GuidedReviewDirection.BOTH -> "All"
-                                    GuidedReviewDirection.REFERENCES -> "References"
-                                    GuidedReviewDirection.CITATIONS -> "Citations"
+                                    GuidedReviewDirection.BOTH -> stringResource(Res.string.all_relations)
+                                    GuidedReviewDirection.REFERENCES -> stringResource(Res.string.references)
+                                    GuidedReviewDirection.CITATIONS -> stringResource(Res.string.citations)
                                 })
                             },
                             colors = insightChipColors(),
@@ -239,7 +365,7 @@ fun GuidedInsightsDialog(
                         FilterChip(
                             selected = colorMode == mode,
                             onClick = { selectedColorMode = mode },
-                            label = { Text(mode.label) },
+                            label = { Text(stringResource(mode.label)) },
                             colors = insightChipColors(),
                             border = insightChipBorder(colorMode == mode),
                             modifier = Modifier.clipChipInteraction().interactivePointer(),
@@ -256,7 +382,7 @@ fun GuidedInsightsDialog(
                         FilterChip(
                             selected = relevanceYAxis == axis,
                             onClick = { relevanceYAxis = axis },
-                            label = { Text(axis.label) },
+                            label = { Text(stringResource(axis.label)) },
                             leadingIcon = {
                                 Icon(if (axis == RelevanceYAxis.YEAR) painterResource(Res.drawable.filled_calendar_month) else painterResource(Res.drawable.filled_format_quote),
                                     null, Modifier.size(16.dp))
@@ -279,11 +405,11 @@ fun GuidedInsightsDialog(
                         }
                         if (showRelevanceSource) relevanceSourceFilter()
                         if (showRelevanceYAxis) {
-                            Text("Y axis", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(Res.string.y_axis), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             relevanceYAxisFilter()
                         }
                         if (isScatter && !graphOverview) {
-                            Text("Color by", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(Res.string.color_by), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             colorFilter()
                         }
                         if (isScatter && review.isQueueLoaded) {
@@ -307,45 +433,37 @@ fun GuidedInsightsDialog(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(painterResource(Res.drawable.filled_tune), null, tint = MaterialTheme.colorScheme.primary)
                                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                                    Text("Insight filters", style = MaterialTheme.typography.titleMedium)
-                                    Text("Changes apply to the charts immediately",
+                                    Text(stringResource(Res.string.insight_filters), style = MaterialTheme.typography.titleMedium)
+                                    Text(stringResource(Res.string.changes_apply_to_charts),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                GraphAction(painterResource(Res.drawable.filled_close), "Close insight filters", { showControls = false })
+                                GraphAction(painterResource(Res.drawable.filled_close), stringResource(Res.string.close_insight_filters), { showControls = false })
                             }
                             if (!graphOverview) {
-                                InsightFilterSection("Relation") {
+                                InsightFilterSection(stringResource(Res.string.relation)) {
                                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { relationFilter() }
                                 }
                                 OnlyKeptToggle(onlyKept, { onlyKept = it }, Modifier.fillMaxWidth())
                             }
-                            if (showRelevanceSource) InsightFilterSection("Relevance measure") { relevanceSourceFilter() }
-                            if (showRelevanceYAxis) InsightFilterSection("Y axis") {
+                            if (showRelevanceSource) InsightFilterSection(stringResource(Res.string.relevance_measure)) { relevanceSourceFilter() }
+                            if (showRelevanceYAxis) InsightFilterSection(stringResource(Res.string.y_axis)) {
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { relevanceYAxisFilter() }
                             }
-                            if (isScatter && !graphOverview) InsightFilterSection("Color points by") {
+                            if (isScatter && !graphOverview) InsightFilterSection(stringResource(Res.string.color_points_by)) {
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { colorFilter() }
                             }
-                            if (isScatter && review.isQueueLoaded) InsightFilterSection("Focus interval") {
+                            if (isScatter && review.isQueueLoaded) InsightFilterSection(stringResource(Res.string.focus_interval)) {
                                 InsightIntervalForm(interval, onApply = { interval = it })
                             }
                             if (!isScatter && graphOverview) Text(
-                                "This view has no extra filters.",
+                                stringResource(Res.string.no_extra_filters),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 }
-
-                /*Text(
-                    if (graphOverview) "Seeds + kept articles across all reviews"
-                    else if (onlyKept) "${visible.size} kept articles · Uncheck to explore all"
-                    else "Showing all ${visible.size} articles in the selected relation.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )*/
 
                 PrimaryScrollableTabRow(selectedTabIndex = tabs.indexOf(tab), containerColor = Color.Transparent, edgePadding = 0.dp) {
                     tabs.forEach { entry ->
@@ -358,7 +476,7 @@ fun GuidedInsightsDialog(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     Icon(painterResource(entry.icon), null, Modifier.size(16.dp))
-                                    Text(entry.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(stringResource(entry.label), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             },
                             modifier = Modifier.clipChipInteraction().interactivePointer()
@@ -370,16 +488,20 @@ fun GuidedInsightsDialog(
                     Modifier.fillMaxWidth(),
                     itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
-                    GraphAction(painterResource(Res.drawable.filled_tune), "Insight filters", { showControls = true })
+                    GraphAction(painterResource(Res.drawable.filled_tune), stringResource(Res.string.insight_filters), { showControls = true })
                     TextButton(onClick = { compactDetails = !compactDetails }, modifier = Modifier.interactivePointer()) {
                         Icon(if (compactDetails) painterResource(Res.drawable.filled_scatter_plot) else painterResource(Res.drawable.filled_info), null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(if (compactDetails) "Back to chart" else if (selected != null) "Paper details"
-                            else if (tab == InsightTab.RELEVANCE) "Research target" else "How to read it")
+                        Text(
+                            if (compactDetails) stringResource(Res.string.back_to_chart)
+                            else if (selected != null) stringResource(Res.string.paper_details_section)
+                            else if (tab == InsightTab.RELEVANCE) stringResource(Res.string.research_target)
+                            else stringResource(Res.string.how_to_read_it),
+                        )
                     }
                     if (tab == InsightTab.RELEVANCE && selected != null) {
                         TextButton(onClick = { selectedId = null; compactDetails = true }, modifier = Modifier.interactivePointer()) {
-                            Text("Research target")
+                            Text(stringResource(Res.string.research_target))
                         }
                     }
                 }
@@ -402,14 +524,14 @@ fun GuidedInsightsDialog(
                     !review.isQueueLoaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             CircularProgressIndicator()
-                            Text(review.loadingMessage ?: "Loading citations and references…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(review.loadingMessage ?: stringResource(Res.string.loading_citations_references), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     insights.papers.isEmpty() -> InsightMessage(
-                        if (isScatter && interval != InsightInterval()) "No articles in this interval. Widen the interval or select Reset."
-                        else if (graphOverview) "No seeds or kept articles in this graph yet."
-                        else if (onlyKept) "No kept articles in this selection yet. Uncheck “Only kept articles” to explore all articles."
-                        else "No citations or references in this selection."
+                        if (isScatter && interval != InsightInterval()) stringResource(Res.string.no_articles_interval)
+                        else if (graphOverview) stringResource(Res.string.no_seeds_kept_articles)
+                        else if (onlyKept) stringResource(Res.string.no_kept_articles_selection)
+                        else stringResource(Res.string.no_citations_references_selection)
                     )
                     else -> BoxWithConstraints(Modifier.fillMaxSize()) {
                         val content: @Composable (Modifier) -> Unit = { m ->
@@ -469,7 +591,7 @@ private fun InsightIntervalControls(interval: InsightInterval, onApply: (Insight
             FilterChip(
                 selected = active,
                 onClick = { expanded = true },
-                label = { Text(if (active) interval.summary() else "Focus interval", maxLines = 1) },
+                label = { Text(if (active) interval.summary() else stringResource(Res.string.focus_interval), maxLines = 1) },
                 leadingIcon = { Icon(painterResource(Res.drawable.filled_tune), null, Modifier.size(16.dp)) },
                 trailingIcon = { Icon(painterResource(Res.drawable.filled_arrow_drop_down), null, Modifier.size(16.dp)) },
                 colors = insightChipColors(),
@@ -486,7 +608,7 @@ private fun InsightIntervalControls(interval: InsightInterval, onApply: (Insight
                     Modifier.width(320.dp).padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Focus your view", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(Res.string.focus_your_view), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     InsightIntervalForm(interval, onApply = { onApply(it); expanded = false }, onCancel = { expanded = false })
                 }
             }
@@ -494,13 +616,22 @@ private fun InsightIntervalControls(interval: InsightInterval, onApply: (Insight
         if (active) IconButton(
             onClick = { onApply(InsightInterval()) },
             modifier = Modifier.interactivePointer()
-        ) { Icon(painterResource(Res.drawable.filled_restart_alt), "Reset focus interval", Modifier.size(18.dp)) }
+        ) { Icon(painterResource(Res.drawable.filled_restart_alt), stringResource(Res.string.reset_focus_interval), Modifier.size(18.dp)) }
     }
 }
 
+@Composable
 private fun InsightInterval.summary(): String = listOfNotNull(
-    if (firstYear != null || lastYear != null) "${firstYear ?: "Any"}–${lastYear ?: "Any"}" else null,
-    if (minCitations != null || maxCitations != null) "${minCitations ?: 0}–${maxCitations ?: "Any"} citations" else null
+    if (firstYear != null || lastYear != null) {
+        "${firstYear ?: stringResource(Res.string.any_value)}–${lastYear ?: stringResource(Res.string.any_value)}"
+    } else null,
+    if (minCitations != null || maxCitations != null) {
+        stringResource(
+            Res.string.citations_range,
+            minCitations?.toString() ?: 0.toString(),
+            maxCitations?.toString() ?: stringResource(Res.string.any_value),
+        )
+    } else null,
 ).joinToString(" · ")
 
 /** Year/citation interval fields; shown inline in the compact filter sheet and inside the desktop menu. */
@@ -527,37 +658,37 @@ private fun InsightIntervalForm(
     val draft = InsightInterval(yearFrom, yearTo, citationFrom, citationTo)
     val numeric = KeyboardOptions(keyboardType = KeyboardType.Number)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Hide outliers without changing your graph. Leave a field blank for no limit.",
+        Text(stringResource(Res.string.hide_outliers_hint),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(firstYear, { firstYear = it }, label = { Text("Year from") },
+            OutlinedTextField(firstYear, { firstYear = it }, label = { Text(stringResource(Res.string.year_from)) },
                 singleLine = true, isError = invalid, keyboardOptions = numeric, modifier = Modifier.weight(1f))
-            OutlinedTextField(lastYear, { lastYear = it }, label = { Text("Year to") },
+            OutlinedTextField(lastYear, { lastYear = it }, label = { Text(stringResource(Res.string.year_to)) },
                 singleLine = true, isError = invalid, keyboardOptions = numeric, modifier = Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(minCitations, { minCitations = it }, label = { Text("Min citations") },
+            OutlinedTextField(minCitations, { minCitations = it }, label = { Text(stringResource(Res.string.min_citations)) },
                 singleLine = true, isError = invalid, keyboardOptions = numeric, modifier = Modifier.weight(1f))
-            OutlinedTextField(maxCitations, { maxCitations = it }, label = { Text("Max citations") },
+            OutlinedTextField(maxCitations, { maxCitations = it }, label = { Text(stringResource(Res.string.max_citations)) },
                 singleLine = true, isError = invalid, keyboardOptions = numeric, modifier = Modifier.weight(1f))
         }
         Text(
-            if (invalid) "Use years 1000–9999 and non-negative citation counts. Minimum must not exceed maximum."
-            else "Applies to both maps. Quadrants recalculate for the focused articles.",
+            if (invalid) stringResource(Res.string.invalid_insight_interval)
+            else stringResource(Res.string.insight_interval_applies),
             style = MaterialTheme.typography.labelSmall,
             color = if (invalid) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-            if (onCancel != null) TextButton(onClick = onCancel, modifier = Modifier.interactivePointer()) { Text("Cancel") }
+            if (onCancel != null) TextButton(onClick = onCancel, modifier = Modifier.interactivePointer()) { Text(stringResource(Res.string.cancel)) }
             else if (interval != InsightInterval()) TextButton(
                 onClick = { onApply(InsightInterval()) },
                 modifier = Modifier.interactivePointer(),
-            ) { Text("Reset") }
+            ) { Text(stringResource(Res.string.reset)) }
             Button(
                 onClick = { onApply(draft) },
                 enabled = !invalid && draft != interval,
                 modifier = Modifier.interactivePointer(enabled = !invalid && draft != interval)
-            ) { Text("Apply interval") }
+            ) { Text(stringResource(Res.string.apply_interval)) }
         }
     }
 }
@@ -602,7 +733,7 @@ private fun RelevanceSourceSelector(source: RelevanceSource, onChange: (Relevanc
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(if (entry == RelevanceSource.AI) painterResource(Res.drawable.filled_auto_awesome) else painterResource(Res.drawable.filled_text_fields), null, Modifier.size(14.dp))
-                    Text(entry.label, style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(entry.label), style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -634,7 +765,7 @@ private fun OnlyKeptToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit,
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Only kept articles", Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(Res.string.only_kept_articles), Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelLarge)
             Switch(checked = checked, onCheckedChange = null, modifier = Modifier.scale(0.8f))
         }
     }
@@ -721,7 +852,7 @@ private fun InsightTabContent(
             val dated = visible.filter { it.year != null }
             val allYears = insights.papers.mapNotNull { it.year }
             if (allYears.isEmpty()) {
-                Box(modifier, contentAlignment = Alignment.Center) { Text("No publication years are available for these papers.") }
+                Box(modifier, contentAlignment = Alignment.Center) { Text(stringResource(Res.string.no_publication_years)) }
                 return
             }
             val first = interval.firstYear ?: allYears.min()
@@ -740,7 +871,7 @@ private fun InsightTabContent(
                     xMax = last + 0.5,
                     xTicks = (first..last step step).map { it.toDouble() to it.toString() },
                     xSplit = insights.splitYear?.let { it - 0.5 },
-                    xSplitCaption = insights.splitYear?.let { "since $it" },
+                    xSplitCaption = insights.splitYear?.let { stringResource(Res.string.since_year, it) },
                     ySplitCitations = insights.splitCitations,
                     yMaxCitations = interval.maxCitations ?: insights.papers.maxOf { it.citations },
                     yMinCitations = interval.minCitations ?: 0,
@@ -752,19 +883,19 @@ private fun InsightTabContent(
                             top = quadrant == ImpactQuadrant.RISING_STARS || quadrant == ImpactQuadrant.CLASSICS
                         )
                     },
-                    marker = node?.let(::insightYear)?.let { it.toDouble() to "This paper · $it" },
+                    marker = node?.let(::insightYear)?.let { it.toDouble() to stringResource(Res.string.this_paper_year, it) },
                     tooltip = { "${it.year} · ${it.citations} citations" +
                         if (node == null) "" else " · ${(it.similarity * 100).roundToInt()}% similar" },
-                    description = "Publication year versus citations of ${dated.size} papers.",
+                    description = stringResource(Res.string.publication_citations_description, dated.size),
                     selectedId = selectedId,
                     onSelect = onSelect,
                     modifier = Modifier.weight(1f).fillMaxWidth()
                 )
                 val hidden = insights.missingYear
                 Text(
-                    (if (node == null) "Split at the median year and the median citation count."
-                    else "Point size = text similarity to this paper. Split at the median year and the median citation count.") +
-                        if (hidden > 0) " $hidden papers without a year are not shown." else "",
+                    (if (node == null) stringResource(Res.string.split_median_description)
+                    else stringResource(Res.string.point_similarity_description)) +
+                        if (hidden > 0) " " + stringResource(Res.string.missing_publication_year, hidden) else "",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -789,12 +920,12 @@ private fun InsightTabContent(
                     },
                     ticks = (first..last step step).map { it.toDouble() to it.toString() },
                     split = insights.splitYear?.let { it - 0.5 },
-                    splitCaption = insights.splitYear?.let { "since $it" },
+                    splitCaption = insights.splitYear?.let { stringResource(Res.string.since_year, it) },
                 )
             }
             val maxX = if (ai) 1.0 else (insights.papers.maxOf { it.similarity }.toDouble()).coerceAtLeast(0.05)
             val ticks = (0..4).map { maxX * it / 4 }.map { it to "${(it * 100).roundToInt()}%" }
-            val closeTo = if (node == null) "a graph seed" else "this paper"
+            val closeTo = if (node == null) stringResource(Res.string.graph_seed) else stringResource(Res.string.this_paper)
             fun percent(paper: InsightPaper) = ((insights.relevanceValue(paper) ?: 0f) * 100).roundToInt()
             Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 InsightLegend(colorMode, insights, plotted, InsightTab.RELEVANCE, palette)
@@ -807,26 +938,26 @@ private fun InsightTabContent(
                         Icon(painterResource(Res.drawable.filled_auto_awesome), null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                         Text(
                             when {
-                                relevance.isEvaluating -> "Evaluating… ${relevance.evaluated}/${relevance.total} done"
-                                relevance.profile.isEmpty -> "Open Research target to describe what you are looking for and place papers on this map."
-                                else -> "$notEvaluated of ${visible.size} papers not evaluated for this target yet."
+                                relevance.isEvaluating -> stringResource(Res.string.evaluating_progress, relevance.evaluated, relevance.total)
+                                relevance.profile.isEmpty -> stringResource(Res.string.research_target_empty)
+                                else -> stringResource(Res.string.papers_not_evaluated, notEvaluated, visible.size)
                             },
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.weight(1f)
                         )
                         if (!relevance.isEvaluating && !relevance.profile.isEmpty) TextButton(onClick = onEvaluate, modifier = Modifier.interactivePointer()) {
-                            Text("Evaluate $notEvaluated")
+                            Text(stringResource(Res.string.evaluate_count, notEvaluated))
                         }
                     }
                 }
                 if (byYear && evaluated.isNotEmpty() && plotted.isEmpty()) Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("No publication years are available for these papers.")
+                    Text(stringResource(Res.string.no_publication_years))
                 } else if (plotted.isEmpty()) Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(painterResource(Res.drawable.filled_psychology), null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
-                        Text("No paper evaluated for this target yet", style = MaterialTheme.typography.titleSmall)
-                        Text("Open Research target, then evaluate. Each paper gets a 0–100 % match.",
+                        Text(stringResource(Res.string.no_paper_evaluated), style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(Res.string.evaluate_research_target_hint),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else InsightScatter(
@@ -884,11 +1015,11 @@ private fun InsightTabContent(
         InsightTab.TIMELINE -> InsightTimeline(insights, visible, node?.let(::insightYear), palette, showKeptOverlay, modifier, node == null)
         InsightTab.PEOPLE -> BoxWithConstraints(modifier) {
             if (maxWidth < 600.dp) Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                RankedBars("Most frequent authors", painterResource(Res.drawable.filled_person), insights.topAuthors, palette, Modifier.weight(1f).fillMaxWidth())
-                RankedBars("Most frequent venues", painterResource(Res.drawable.filled_account_balance), insights.topVenues, palette, Modifier.weight(1f).fillMaxWidth())
+                RankedBars(stringResource(Res.string.frequent_authors), painterResource(Res.drawable.filled_person), insights.topAuthors, palette, Modifier.weight(1f).fillMaxWidth())
+                RankedBars(stringResource(Res.string.frequent_venues), painterResource(Res.drawable.filled_account_balance), insights.topVenues, palette, Modifier.weight(1f).fillMaxWidth())
             } else Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                RankedBars("Most frequent authors", painterResource(Res.drawable.filled_person), insights.topAuthors, palette, Modifier.weight(1f).fillMaxHeight())
-                RankedBars("Most frequent venues", painterResource(Res.drawable.filled_account_balance), insights.topVenues, palette, Modifier.weight(1f).fillMaxHeight())
+                RankedBars(stringResource(Res.string.frequent_authors), painterResource(Res.drawable.filled_person), insights.topAuthors, palette, Modifier.weight(1f).fillMaxHeight())
+                RankedBars(stringResource(Res.string.frequent_venues), painterResource(Res.drawable.filled_account_balance), insights.topVenues, palette, Modifier.weight(1f).fillMaxHeight())
             }
         }
     }
@@ -906,8 +1037,8 @@ private fun InsightLegend(mode: InsightColorMode, insights: GuidedInsights, visi
         InsightColorMode.STATUS -> InsightStatus.entries.map { s -> Triple(s.label, palette.status.getValue(s), visible.count { it.status == s }) }
             .filter { it.third > 0 }
         InsightColorMode.RELATION -> listOf(
-            Triple("References", palette.relation.getValue(GuidedRelation.REFERENCE), visible.count { it.candidate.relation == GuidedRelation.REFERENCE }),
-            Triple("Citations", palette.relation.getValue(GuidedRelation.CITATION), visible.count { it.candidate.relation == GuidedRelation.CITATION })
+            Triple(stringResource(Res.string.references), palette.relation.getValue(GuidedRelation.REFERENCE), visible.count { it.candidate.relation == GuidedRelation.REFERENCE }),
+            Triple(stringResource(Res.string.citations), palette.relation.getValue(GuidedRelation.CITATION), visible.count { it.candidate.relation == GuidedRelation.CITATION })
         )
     }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -915,7 +1046,7 @@ private fun InsightLegend(mode: InsightColorMode, insights: GuidedInsights, visi
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(10.dp).clip(CircleShape).background(color))
                 Spacer(Modifier.width(6.dp))
-                Text("$label · $count", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(Res.string.legend_count, label, count), style = MaterialTheme.typography.labelMedium)
             }
         }
     }
@@ -962,13 +1093,14 @@ private fun InsightChartViewport(
                 }
             }
             if (narrow) {
+                val horizontalChartPosition = stringResource(Res.string.horizontal_chart_position)
                 Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        if (expanded) "Swipe chart or drag the bar" else "Showing the whole chart",
+                        if (expanded) stringResource(Res.string.swipe_chart) else stringResource(Res.string.showing_whole_chart),
                         Modifier.weight(1f),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -977,7 +1109,7 @@ private fun InsightChartViewport(
                         onClick = { fitChart = !fitChart },
                         modifier = Modifier.interactivePointer(),
                     ) {
-                        Text(if (expanded) "Fit chart" else "Expand chart")
+                        Text(if (expanded) stringResource(Res.string.fit_chart) else stringResource(Res.string.expand_chart))
                     }
                 }
                 if (expanded) Slider(
@@ -986,7 +1118,7 @@ private fun InsightChartViewport(
                         scope.launch { scroll.scrollTo((fraction * scroll.maxValue).roundToInt()) }
                     },
                     modifier = Modifier.fillMaxWidth().testTag("insight-chart-scroll")
-                        .semantics { contentDescription = "Horizontal chart position" },
+                        .semantics { contentDescription = horizontalChartPosition },
                     thumb = {
                         Box(
                             Modifier.size(18.dp).clip(CircleShape)
@@ -1042,6 +1174,7 @@ private fun InsightScatter(
         points.minByOrNull { val p = area.px(it); hypot(p.x - position.x, p.y - position.y) }
             ?.takeIf { val p = area.px(it); hypot(p.x - position.x, p.y - position.y) <= radius }?.paper?.id
     }
+    val citationSplitLabel = stringResource(Res.string.citation_count, ySplitCitations.toString())
 
     InsightChartViewport(modifier) { chartModifier, narrow ->
         val pointScale = if (!narrow) 1f else when {
@@ -1137,7 +1270,7 @@ private fun InsightScatter(
             if (splitY != null) {
                 drawLine(axisColor, Offset(area.left, splitY), Offset(area.right, splitY), 2.dp.toPx())
                 val citationCaption = measurer.measure(
-                    if (yAxis != null) yAxis.splitCaption.orEmpty() else "> $ySplitCitations citations", labelStyle)
+                    if (yAxis != null) yAxis.splitCaption.orEmpty() else "> $citationSplitLabel", labelStyle)
                 drawText(citationCaption, topLeft = Offset(area.left + 4.dp.toPx(), (splitY - citationCaption.size.height - 2.dp.toPx()).coerceAtLeast(area.top)))
             }
 
@@ -1223,14 +1356,14 @@ private fun RisingList(
 ) {
     Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         if (papers.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No dated, cited papers to rank.") }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {             Text(stringResource(Res.string.no_dated_cited_papers)) }
             return@Card
         }
         val max = papers.maxOf { it.citationsPerYear ?: 0.0 }.coerceAtLeast(1e-9)
         LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             item {
                 Text(
-                    "Citations per year since publication: recent papers that gain citations quickly rank above old classics.",
+                    stringResource(Res.string.citation_velocity_description),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 6.dp)
@@ -1300,14 +1433,19 @@ private fun InsightTimeline(
     val colors = MaterialTheme.colorScheme
     val labelStyle = MaterialTheme.typography.labelSmall.copy(color = colors.onSurfaceVariant)
     val tooltipStyle = MaterialTheme.typography.labelMedium.copy(color = colors.inverseOnSurface)
+    val thisPaperLabel = stringResource(Res.string.this_paper)
+    val articlesLabel = stringResource(Res.string.articles_label)
+    val referencesLabel = stringResource(Res.string.references)
+    val citationsLabel = stringResource(Res.string.citations)
+    val keptLabel = stringResource(Res.string.kept_label)
     var hoverIndex by remember { mutableStateOf<Int?>(null) }
     var barArea by remember { mutableStateOf<Pair<Float, Float>?>(null) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             buildList {
-                add((if (graphOverview) "Articles" else "References") to palette.relation.getValue(GuidedRelation.REFERENCE))
-                if (!graphOverview) add("Citations" to palette.relation.getValue(GuidedRelation.CITATION))
-                if (showKeptOverlay) add("Kept" to palette.status.getValue(InsightStatus.KEPT))
+                add((if (graphOverview) articlesLabel else referencesLabel) to palette.relation.getValue(GuidedRelation.REFERENCE))
+                if (!graphOverview) add(citationsLabel to palette.relation.getValue(GuidedRelation.CITATION))
+                if (showKeptOverlay) add(keptLabel to palette.status.getValue(InsightStatus.KEPT))
             }.forEach { (label, color) ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(10.dp).clip(RoundedCornerShape(2.dp)).background(color))
@@ -1316,10 +1454,10 @@ private fun InsightTimeline(
                 }
             }
             val peak = buckets.maxByOrNull { it.second.first + it.second.second }
-            peak?.let { Text("Peak: ${it.first} (${it.second.first + it.second.second} papers)", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant) }
+            peak?.let { Text(stringResource(Res.string.peak_papers, it.first, it.second.first + it.second.second), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant) }
         }
         if (buckets.isEmpty()) {
-            InsightMessage("No publication years are available.")
+            InsightMessage(stringResource(Res.string.no_publication_years))
             return
         }
         InsightChartViewport(
@@ -1330,9 +1468,17 @@ private fun InsightTimeline(
             val last = buckets.last().first
             val byYear = buckets.associateBy { it.first }
             val maxCount = buckets.maxOf { it.second.first + it.second.second }.coerceAtLeast(1)
+            val timelineDescription = stringResource(
+                Res.string.timeline_content_description,
+                if (graphOverview) stringResource(Res.string.articles_label) else stringResource(Res.string.references_and_citations),
+                first,
+                last,
+            )
             Canvas(
                 chartModifier.padding(16.dp).testTag("insight-timeline")
-                    .semantics { contentDescription = "Number of ${if (graphOverview) "articles" else "references and citations"} per publication year, $first to $last." }
+                    .semantics {
+                        contentDescription = timelineDescription
+                    }
                     .pointerInput(buckets) {
                         awaitPointerEventScope {
                             while (true) {
@@ -1391,15 +1537,15 @@ private fun InsightTimeline(
                     val x = left + (year - first + 0.5f) * slot
                     drawLine(colors.primary, Offset(x, top), Offset(x, bottom), 1.5.dp.toPx(),
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())))
-                    val label = measurer.measure("This paper", labelStyle.copy(color = colors.primary))
+                    val label = measurer.measure(thisPaperLabel, labelStyle.copy(color = colors.primary))
                     drawText(label, topLeft = Offset((x + 4.dp.toPx()).coerceAtMost(size.width - label.size.width), top))
                 }
                 hoverIndex?.let { index ->
                     val year = first + index
                     val bucket = byYear[year] ?: return@let
                     val text = measurer.measure(
-                        if (graphOverview) "$year\n${bucket.second.first + bucket.second.second} articles"
-                        else "$year\n${bucket.second.first} references · ${bucket.second.second} citations · ${bucket.third} kept",
+                        if (graphOverview) "$year\n${bucket.second.first + bucket.second.second} $articlesLabel"
+                        else "$year\n${bucket.second.first} $referencesLabel · ${bucket.second.second} $citationsLabel · ${bucket.third} $keptLabel",
                         tooltipStyle
                     )
                     val pad = 8.dp.toPx()
@@ -1411,7 +1557,7 @@ private fun InsightTimeline(
             }
         }
         if (insights.missingYear > 0) {
-            Text("${insights.missingYear} papers without a publication year are not shown.",
+            Text(stringResource(Res.string.missing_publication_year, insights.missingYear),
                 style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
         }
     }
@@ -1427,7 +1573,7 @@ private fun RankedBars(title: String, icon: Painter, items: List<InsightRankedLa
                 Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             }
             if (items.isEmpty()) {
-                Text("No author or venue appears more than once.", style = MaterialTheme.typography.bodySmall,
+                Text(stringResource(Res.string.no_duplicate_author_venue), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             val max = items.maxOfOrNull { it.count }?.coerceAtLeast(1) ?: 1
@@ -1436,7 +1582,7 @@ private fun RankedBars(title: String, icon: Painter, items: List<InsightRankedLa
                     Row {
                         Text(item.label, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                         Text(
-                            "${item.count} papers${if (item.kept > 0) " · ${item.kept} kept" else ""}",
+                            "${item.count} ${stringResource(Res.string.papers)}${if (item.kept > 0) " · ${item.kept} ${stringResource(Res.string.kept_label)}" else ""}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1469,17 +1615,16 @@ private fun InsightDetails(
     Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
         Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (paper == null) {
-                Text("How to read it", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(Res.string.how_to_read_it), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 val hints = when (tab) {
                     InsightTab.IMPACT -> ImpactQuadrant.entries.map { Triple(it.label, it.hint, palette.impact.getValue(it)) }
                     InsightTab.RELEVANCE -> RelevanceQuadrant.entries.map { Triple(it.label,
                         if (graphOverview) it.hint.replace("this paper", "a graph seed") else it.hint,
                         palette.relevance.getValue(it)) }
-                    InsightTab.RISING -> listOf(Triple("Citation velocity", "Citations divided by years since publication.", MaterialTheme.colorScheme.primary))
-                    InsightTab.TIMELINE -> listOf(Triple("Timeline",
-                        if (graphOverview) "Publication years of all kept nodes and seeds across your graph."
-                        else "When the references were written and when the field cited this paper.", MaterialTheme.colorScheme.primary))
-                    InsightTab.PEOPLE -> listOf(Triple("Recurring names", "Authors and venues that appear several times are often the core of the topic.", MaterialTheme.colorScheme.primary))
+                    InsightTab.RISING -> listOf(Triple(stringResource(InsightTab.RISING.label), stringResource(Res.string.citation_velocity_description), MaterialTheme.colorScheme.primary))
+                    InsightTab.TIMELINE -> listOf(Triple(stringResource(InsightTab.TIMELINE.label),
+                        stringResource(Res.string.timeline_content_description, if (graphOverview) stringResource(Res.string.articles_label) else stringResource(Res.string.references_and_citations), insights.papers.minOfOrNull { it.year ?: 0 } ?: 0, insights.papers.maxOfOrNull { it.year ?: 0 } ?: 0), MaterialTheme.colorScheme.primary))
+                    InsightTab.PEOPLE -> listOf(Triple(stringResource(InsightTab.PEOPLE.label), stringResource(Res.string.no_duplicate_author_venue), MaterialTheme.colorScheme.primary))
                 }
                 hints.forEach { (label, hint, color) ->
                     Row(verticalAlignment = Alignment.Top) {
@@ -1492,7 +1637,7 @@ private fun InsightDetails(
                     }
                 }
                 if (tab == InsightTab.IMPACT || tab == InsightTab.RELEVANCE || tab == InsightTab.RISING) {
-                    Text(if (graphOverview) "Click a paper to see its details or discard it." else "Click a paper to see its details and keep or skip it.",
+                    Text(if (graphOverview) stringResource(Res.string.click_paper_details) else stringResource(Res.string.click_paper_keep_skip),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 return@Column
@@ -1502,7 +1647,7 @@ private fun InsightDetails(
                 StatusDot(paper.status, palette)
                 insights.impactOf(paper)?.let { InsightBadge(it.label, palette.impact.getValue(it)) }
                 insights.relevanceOf(paper)?.let { InsightBadge(it.label, palette.relevance.getValue(it)) }
-                if (!graphOverview) InsightBadge(if (paper.candidate.relation == GuidedRelation.REFERENCE) "Reference" else "Citation",
+                if (!graphOverview) InsightBadge(if (paper.candidate.relation == GuidedRelation.REFERENCE) stringResource(Res.string.reference) else stringResource(Res.string.citation),
                     palette.relation.getValue(paper.candidate.relation))
             }
             Text(p.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -1514,9 +1659,10 @@ private fun InsightDetails(
                 listOfNotNull(
                     paper.year?.toString(),
                     p.source,
-                    "${paper.citations} citations",
+                    stringResource(Res.string.citation_count, paper.citations.toString()),
                     paper.citationsPerYear?.let { "${formatRate(it)}/yr" },
-                    "${(paper.similarity * 100).roundToInt()}% ${if (graphOverview) "similar to seeds" else "similar"}"
+                    if (graphOverview) stringResource(Res.string.similar_to_seeds, (paper.similarity * 100).roundToInt())
+                    else stringResource(Res.string.similar_percent, (paper.similarity * 100).roundToInt())
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.labelMedium
             )
@@ -1526,7 +1672,7 @@ private fun InsightDetails(
                     Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Icon(painterResource(Res.drawable.filled_auto_awesome), null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                            Text("$percent% match with your target", style = MaterialTheme.typography.labelLarge,
+                            Text(stringResource(Res.string.percent_match_target, percent), style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer)
                         }
                         LinearProgressIndicator(progress = { score }, modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)))
@@ -1538,13 +1684,13 @@ private fun InsightDetails(
             }
             review.batch.firstOrNull { it.paperId == paper.id }?.aiRationale?.let { rationale ->
                 Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.tertiaryContainer) {
-                    Text("AI: $rationale", style = MaterialTheme.typography.bodySmall,
+                    Text(stringResource(Res.string.ai_rationale, rationale), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.padding(10.dp))
                 }
             }
             val isSeed = paper.candidate.node.connectionType == ConnectionType.CENTRAL
             if (graphOverview) {
-                if (isSeed) Text("Seed paper · remove it from the seed list to drop it.",
+                if (isSeed) Text(stringResource(Res.string.seed_paper_remove_hint),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 else onDiscard?.let { DiscardButton { it(paper.id) } }
             } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1553,10 +1699,10 @@ private fun InsightDetails(
                         OutlinedButton(onClick = { onUndo(paper.id) }, modifier = Modifier.interactivePointer()) {
                             Icon(painterResource(Res.drawable.filled_undo), null, Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Undo")
+                            Text(stringResource(Res.string.undo))
                         }
                     } else {
-                        Text("Kept while reviewing another paper.", style = MaterialTheme.typography.bodySmall,
+                        Text(stringResource(Res.string.kept_while_reviewing), style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                         if (!isSeed) onDiscard?.let { DiscardButton { it(paper.id) } }
                     }
@@ -1564,20 +1710,20 @@ private fun InsightDetails(
                         Button(onClick = { onKeep(paper.id) }, modifier = Modifier.interactivePointer()) {
                             Icon(painterResource(Res.drawable.filled_check), null, Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Keep")
+                            Text(stringResource(Res.string.keep))
                         }
                         OutlinedButton(onClick = { onSkip(paper.id) }, modifier = Modifier.interactivePointer()) {
                             Icon(painterResource(Res.drawable.filled_close), null, Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Skip")
+                            Text(stringResource(Res.string.skip))
                         }
                     }
                 }
             }
             p.abstractText?.takeIf { it.isNotBlank() }?.let {
-                Text("Abstract", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(Res.string.abstract_label), style = MaterialTheme.typography.labelLarge)
                 Text(it, style = MaterialTheme.typography.bodySmall)
-            } ?: Text("No abstract available.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } ?: Text(stringResource(Res.string.no_abstract_available), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -1592,7 +1738,7 @@ private fun DiscardButton(onClick: () -> Unit) {
     ) {
         Icon(painterResource(Res.drawable.filled_remove_circle_outline), null, Modifier.size(16.dp))
         Spacer(Modifier.width(6.dp))
-        Text("Discard · not what I'm looking for")
+        Text(stringResource(Res.string.discard_not_relevant))
     }
 }
 
@@ -1606,7 +1752,7 @@ private fun DiscardedBar(title: String, onUndo: () -> Unit, onClose: () -> Unit)
         ) {
             Icon(painterResource(Res.drawable.filled_remove_circle_outline), null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.inverseOnSurface)
             Text(
-                "Discarded “${title.ifBlank { "paper" }}” from the graph.",
+                stringResource(Res.string.discarded_from_graph, title.ifBlank { stringResource(Res.string.paper) }),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.inverseOnSurface,
                 maxLines = 1,
@@ -1614,10 +1760,10 @@ private fun DiscardedBar(title: String, onUndo: () -> Unit, onClose: () -> Unit)
                 modifier = Modifier.weight(1f)
             )
             TextButton(onClick = onUndo, modifier = Modifier.interactivePointer()) {
-                Text("Undo", color = MaterialTheme.colorScheme.inversePrimary)
+                Text(stringResource(Res.string.undo), color = MaterialTheme.colorScheme.inversePrimary)
             }
             IconButton(onClick = onClose, modifier = Modifier.size(32.dp).interactivePointer()) {
-                Icon(painterResource(Res.drawable.filled_close), "Dismiss", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.inverseOnSurface)
+                Icon(painterResource(Res.drawable.filled_close), stringResource(Res.string.dismiss), Modifier.size(16.dp), tint = MaterialTheme.colorScheme.inverseOnSurface)
             }
         }
     }

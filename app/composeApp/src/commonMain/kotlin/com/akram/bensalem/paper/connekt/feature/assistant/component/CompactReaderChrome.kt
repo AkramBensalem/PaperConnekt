@@ -1,10 +1,11 @@
 package com.akram.bensalem.paper.connekt.feature.assistant.component
 
+import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.graphics.painter.Painter
 
 import org.jetbrains.compose.resources.DrawableResource
 
-import com.paperconnekt.app.resources.Res
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -74,6 +75,22 @@ import com.paperconnekt.app.resources.filled_view_day
 import com.paperconnekt.app.resources.filled_zoom_in
 import com.paperconnekt.app.resources.filled_zoom_out
 import kotlinx.coroutines.launch
+import com.paperconnekt.app.resources.annotate
+import com.paperconnekt.app.resources.annotation_color_named
+import com.paperconnekt.app.resources.annotation_tool_hint
+import com.paperconnekt.app.resources.back_to_text_selection
+import com.paperconnekt.app.resources.color
+import com.paperconnekt.app.resources.continuous
+import com.paperconnekt.app.resources.convert_again
+import com.paperconnekt.app.resources.copy_markdown
+import com.paperconnekt.app.resources.fit
+import com.paperconnekt.app.resources.go_to_page
+import com.paperconnekt.app.resources.single_page
+import com.paperconnekt.app.resources.study_time
+import com.paperconnekt.app.resources.study_time_summary
+import com.paperconnekt.app.resources.tap_refresh_annotations
+import com.paperconnekt.app.resources.two_pages
+import com.paperconnekt.app.resources.view
 
 /** Width below which the reader switches to the compact, phone-friendly chrome. */
 internal val CompactReaderMaxWidth = 600.dp
@@ -174,7 +191,7 @@ internal fun CompactReaderTopBar(
                                     syncProblem -> "Not synced · Retry"
                                     else -> "Synced with Zotero"
                                 })
-                                if (!state.syncing && !syncProblem) Text("Tap to refresh annotations",
+                                if (!state.syncing && !syncProblem) Text(stringResource(Res.string.tap_refresh_annotations),
                                     style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                             }
                         },
@@ -186,7 +203,7 @@ internal fun CompactReaderTopBar(
                     HorizontalDivider(Modifier.padding(vertical = 4.dp))
                 }
                 onGoToPage?.let { go ->
-                    DropdownMenuItem(text = { Text("Go to page…") }, leadingIcon = { Icon(painterResource(Res.drawable.filled_find_in_page), null) },
+                    DropdownMenuItem(text = { Text(stringResource(Res.string.go_to_page)) }, leadingIcon = { Icon(painterResource(Res.drawable.filled_find_in_page), null) },
                         onClick = { menu = false; go() }, modifier = Modifier.interactivePointer())
                 }
                 if (toolsCollapsible) DropdownMenuItem(
@@ -201,8 +218,8 @@ internal fun CompactReaderTopBar(
                 DropdownMenuItem(
                     text = {
                         Column {
-                            Text("Study time")
-                            Text("Total ${studyDurationLabel(totalStudyTime)} · Today ${studyDurationLabel(studyTimeToday)}",
+                            Text(stringResource(Res.string.study_time))
+                            Text(stringResource(Res.string.study_time_summary, studyDurationLabel(totalStudyTime), studyDurationLabel(studyTimeToday)),
                                 style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                         }
                     },
@@ -310,8 +327,8 @@ internal fun CompactAnnotationSheet(
     val colors = MaterialTheme.colorScheme
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp).testTag("reader-annotate-sheet")) {
-            Text("Annotate", style = MaterialTheme.typography.titleLarge)
-            Text("Pick a tool, then tap or drag on the page.", style = MaterialTheme.typography.bodySmall,
+            Text(stringResource(Res.string.annotate), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(Res.string.annotation_tool_hint), style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
             BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -348,14 +365,15 @@ internal fun CompactAnnotationSheet(
                 }
             }
             Spacer(Modifier.height(20.dp))
-            Text("Color", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
+            Text(stringResource(Res.string.color), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 annotationColors.forEachIndexed { index, hex ->
                     val current = colorHex.equals(hex, true)
+                    val colorDescription = stringResource(Res.string.annotation_color_named, annotationColorNames[index])
                     Box(Modifier.size(40.dp).clip(CircleShape).background(annotationColor(hex))
                         .border(if (current) 3.dp else 1.dp, if (current) colors.onSurface else colors.outlineVariant, CircleShape)
-                        .semantics { selected = current; contentDescription = "${annotationColorNames[index]} annotation color" }
+                        .semantics { selected = current; contentDescription = colorDescription }
                         .clickable(enabled = enabled, role = Role.RadioButton) { onColorChange(hex) }
                         .interactivePointer(enabled = enabled),
                         contentAlignment = Alignment.Center) {
@@ -391,7 +409,7 @@ internal fun CompactAnnotationSheet(
                     modifier = Modifier.fillMaxWidth().interactivePointer(enabled = !inkOnly)) {
                     Icon(painterResource(Res.drawable.filled_text_fields), null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Back to text selection")
+                    Text(stringResource(Res.string.back_to_text_selection))
                 }
             }
         }
@@ -464,14 +482,14 @@ internal fun CompactReaderBottomBar(
                         modifier = Modifier.interactivePointer(enabled = if (pdfMode) canShowMarkdown else true),
                     )
                     DropdownMenuItem(
-                        text = { Text("Copy Markdown") },
+                        text = { Text(stringResource(Res.string.copy_markdown)) },
                         leadingIcon = { Icon(painterResource(Res.drawable.filled_content_copy), null) },
                         enabled = canCopyMarkdown,
                         onClick = { menu = false; onCopyMarkdown() },
                         modifier = Modifier.interactivePointer(enabled = canCopyMarkdown),
                     )
                     DropdownMenuItem(
-                        text = { Text("Convert again") },
+                        text = { Text(stringResource(Res.string.convert_again)) },
                         leadingIcon = { Icon(painterResource(Res.drawable.filled_refresh), null) },
                         enabled = canRegenerate,
                         onClick = { menu = false; onRegenerate() },
@@ -504,7 +522,7 @@ internal fun CompactViewOptionsSheet(
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
-            Text("View", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(Res.string.view), style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(16.dp))
             SheetLabel("Zoom")
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -518,7 +536,7 @@ internal fun CompactViewOptionsSheet(
                     Icon(painterResource(Res.drawable.filled_zoom_in), "Zoom in")
                 }
                 Spacer(Modifier.width(8.dp))
-                FilterChip(selected = fitPage, onClick = onToggleFit, enabled = fitEnabled, label = { Text("Fit") },
+                FilterChip(selected = fitPage, onClick = onToggleFit, enabled = fitEnabled, label = { Text(stringResource(Res.string.fit)) },
                     leadingIcon = { Icon(painterResource(Res.drawable.filled_fit_screen), "Toggle fit page", Modifier.size(18.dp)) },
                     modifier = Modifier.interactivePointer(enabled = fitEnabled))
             }
@@ -568,7 +586,7 @@ internal fun ReaderLayoutMenu(
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, shape = RoundedCornerShape(16.dp)) {
             DropdownMenuItem(
-                text = { Text("Single page") },
+                text = { Text(stringResource(Res.string.single_page)) },
                 leadingIcon = { Icon(painterResource(Res.drawable.filled_description), null) },
                 trailingIcon = { if (!spread && !continuous) Icon(painterResource(Res.drawable.filled_check), null) },
                 enabled = enabled,
@@ -576,7 +594,7 @@ internal fun ReaderLayoutMenu(
                 modifier = Modifier.interactivePointer(enabled = enabled),
             )
             DropdownMenuItem(
-                text = { Text("Two pages") },
+                text = { Text(stringResource(Res.string.two_pages)) },
                 leadingIcon = { Icon(painterResource(Res.drawable.filled_auto_stories), null) },
                 trailingIcon = { if (spread && !continuous) Icon(painterResource(Res.drawable.filled_check), null) },
                 enabled = enabled,
@@ -584,7 +602,7 @@ internal fun ReaderLayoutMenu(
                 modifier = Modifier.interactivePointer(enabled = enabled),
             )
             DropdownMenuItem(
-                text = { Text("Continuous") },
+                text = { Text(stringResource(Res.string.continuous)) },
                 leadingIcon = { Icon(painterResource(Res.drawable.filled_view_day), null) },
                 trailingIcon = { if (continuous) Icon(painterResource(Res.drawable.filled_check), null) },
                 enabled = enabled,

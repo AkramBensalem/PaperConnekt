@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -17,16 +18,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,14 +39,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.filled_close
 import com.paperconnekt.app.resources.filled_search
+import com.paperconnekt.app.resources.research_workspace
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+import com.paperconnekt.app.resources.clear_search
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -121,7 +123,7 @@ internal fun WorkspaceHeader(
                                 )
                             }
                             Text(
-                                "RESEARCH WORKSPACE",
+                                stringResource(Res.string.research_workspace),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = colors.primary,
                             )
@@ -208,38 +210,42 @@ internal fun HeaderAction(
         scaleX = scale
         scaleY = scale
     }
-    val content: @Composable () -> Unit = {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(18.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge)
-        }
-    }
-    if (primary) {
-        Button(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = modifier,
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-            shape = RoundedCornerShape(12.dp),
-            interactionSource = interaction,
-            colors = ButtonDefaults.buttonColors(containerColor = background),
-        ) { content() }
+    val buttonBackground = if (enabled) {
+        background
     } else {
-        FilledTonalButton(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = modifier,
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-            shape = RoundedCornerShape(12.dp),
-            interactionSource = interaction,
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = background,
-                contentColor = colors.onSecondaryContainer,
-            ),
-        ) { content() }
+        colors.onSurface.copy(alpha = 0.12f)
+    }
+    val buttonContentColor = if (enabled) {
+        if (primary) colors.onPrimary else colors.onSecondaryContainer
+    } else {
+        colors.onSurface.copy(alpha = 0.38f)
+    }
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(buttonBackground)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interaction,
+                indication = null,
+                role = Role.Button,
+                onClick = onClick,
+            )
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painterResource(icon),
+            contentDescription = null,
+            tint = buttonContentColor,
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = buttonContentColor,
+        )
     }
 }
 
@@ -271,7 +277,7 @@ internal fun HeaderSearchField(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AnimatedVisibility(visible = query.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
                     IconButton(onClick = { onQueryChange("") }) {
-                        Icon(painterResource(Res.drawable.filled_close), contentDescription = "Clear search")
+                        Icon(painterResource(Res.drawable.filled_close), contentDescription = stringResource(Res.string.clear_search))
                     }
                 }
                 trailingAction?.invoke()

@@ -1,6 +1,7 @@
 package com.akram.bensalem.paper.connekt.feature.assistant.component
 
 import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import com.paperconnekt.app.resources.filled_add_comment
 import com.paperconnekt.app.resources.filled_article
 import com.paperconnekt.app.resources.filled_bookmark
@@ -61,6 +62,39 @@ import com.paperconnekt.app.resources.filled_check
 import com.paperconnekt.app.resources.filled_close
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import com.paperconnekt.app.resources.all_paper
+import com.paperconnekt.app.resources.ask_about_paper_instruction
+import com.paperconnekt.app.resources.cancel
+import com.paperconnekt.app.resources.command_hint
+import com.paperconnekt.app.resources.compact_conversation
+import com.paperconnekt.app.resources.context
+import com.paperconnekt.app.resources.current
+import com.paperconnekt.app.resources.delete_conversation_action
+import com.paperconnekt.app.resources.earlier_messages_summarized
+import com.paperconnekt.app.resources.earlier_steps_count
+import com.paperconnekt.app.resources.expand_message_composer
+import com.paperconnekt.app.resources.from_page
+import com.paperconnekt.app.resources.loading_saved_chats
+import com.paperconnekt.app.resources.message
+import com.paperconnekt.app.resources.more_actions
+import com.paperconnekt.app.resources.nearby_pages
+import com.paperconnekt.app.resources.new_chat
+import com.paperconnekt.app.resources.no_earlier_chats
+import com.paperconnekt.app.resources.page_context
+import com.paperconnekt.app.resources.passages_retrieved
+import com.paperconnekt.app.resources.pinned_page_context
+import com.paperconnekt.app.resources.quick_range
+import com.paperconnekt.app.resources.recheck
+import com.paperconnekt.app.resources.retry_chat_storage
+import com.paperconnekt.app.resources.send
+import com.paperconnekt.app.resources.source_location
+import com.paperconnekt.app.resources.sources_summary
+import com.paperconnekt.app.resources.steps_summary
+import com.paperconnekt.app.resources.stop
+import com.paperconnekt.app.resources.summary_used_as_context
+import com.paperconnekt.app.resources.to_page
+import com.paperconnekt.app.resources.unverified_citations
+import com.paperconnekt.app.resources.write_question_markdown
 
 
 
@@ -106,7 +140,7 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
     Column(modifier.fillMaxSize().imePadding().testTag("paper-agent-panel")) {
         agent.storageError?.let { error ->
             Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = agent::retryStorage) { Text("Retry chat storage") }
+            TextButton(onClick = agent::retryStorage) { Text(stringResource(Res.string.retry_chat_storage)) }
         }
         if (!agent.providerKeyAvailable) {
             val scope = rememberCoroutineScope()
@@ -125,13 +159,13 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                         style = MaterialTheme.typography.bodySmall,
                     )
                     TextButton(onClick = { scope.launch { agent.refreshProviderKey() } }) {
-                        Text("Recheck")
+                        Text(stringResource(Res.string.recheck))
                     }
                 }
             }
         }
         if (!agent.storageReady && agent.storageError == null) {
-            Text("Loading saved chats...", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(Res.string.loading_saved_chats), style = MaterialTheme.typography.bodySmall)
         }
         AnimatedVisibility(visible = !headerCollapsed) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -181,10 +215,10 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                     }
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text("Compact conversation") }, enabled = agent.canCompact,
+                    DropdownMenuItem(text = { Text(stringResource(Res.string.compact_conversation)) }, enabled = agent.canCompact,
                         leadingIcon = { Icon(painterResource(Res.drawable.filled_compress), null, Modifier.size(18.dp)) },
                         onClick = { menu = false; agent.compact() }, modifier = Modifier.interactivePointer(enabled = agent.canCompact))
-                    DropdownMenuItem(text = { Text("Delete conversation") },
+                    DropdownMenuItem(text = { Text(stringResource(Res.string.delete_conversation_action)) },
                         leadingIcon = { Icon(painterResource(Res.drawable.filled_delete_outline), null, Modifier.size(18.dp)) },
                         onClick = { menu = false; agent.deleteConversation(conversation.id) }, modifier = Modifier.interactivePointer())
                 }
@@ -197,9 +231,9 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                 verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
                 if (agent.messages.isEmpty() && !agent.running) item {
                     Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                        Text("Ask about the paper, annotate it, or create and fill Markdown notes in the Idea Board. I read the paper's Markdown version and see your current page and selection.",
+                        Text(stringResource(Res.string.ask_about_paper_instruction),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("Type / for commands such as /new, /history or /compact.",
+                        Text(stringResource(Res.string.command_hint),
                             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                             modifier = Modifier.padding(top = 4.dp))
                         Spacer(Modifier.height(12.dp))
@@ -243,7 +277,7 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                         }
                         AgentSteps(agent.liveSteps)
                         val retrieved = agent.liveSources.distinctBy { it.chunkId }.size
-                        if (retrieved > 0) Text("$retrieved passage${if (retrieved == 1) "" else "s"} retrieved",
+                        if (retrieved > 0) Text(stringResource(Res.string.passages_retrieved, retrieved),
                             Modifier.padding(top = 4.dp), style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         ActionChips(agent.liveActions, openAction)
@@ -256,7 +290,7 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                     .background(MaterialTheme.colorScheme.secondaryContainer).padding(start = 10.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     Icon(painterResource(Res.drawable.filled_format_quote), null, Modifier.size(16.dp))
-                    Text("p. ${pinned.pageIndex + 1} · ${pinned.text}", Modifier.weight(1f).padding(horizontal = 6.dp),
+                    Text(stringResource(Res.string.pinned_page_context, pinned.pageIndex + 1, pinned.text), Modifier.weight(1f).padding(horizontal = 6.dp),
                         style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     IconButton(onClick = agent::unpin, modifier = Modifier.size(32.dp).interactivePointer()) {
                         Icon(painterResource(Res.drawable.filled_close), "Remove passage", Modifier.size(16.dp))
@@ -318,7 +352,7 @@ private fun AgentComposer(
                     )
                     Icon(
                         painterResource(Res.drawable.filled_expand_more),
-                        contentDescription = "Expand message composer",
+                        contentDescription = stringResource(Res.string.expand_message_composer),
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -345,7 +379,7 @@ private fun AgentComposer(
         ) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!compact) {
-                Text("Context", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text(stringResource(Res.string.context), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
             }
             Row(
                 Modifier.fillMaxWidth(),
@@ -382,7 +416,7 @@ private fun AgentComposer(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (!compact) {
-                    Text("Message", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                    Text(stringResource(Res.string.message), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
                 } else {
                     Spacer(Modifier.weight(1f))
                 }
@@ -429,7 +463,7 @@ private fun AgentComposer(
                                 true
                             } else false
                         },
-                    placeholder = { Text("Write your question in Markdown…") },
+                    placeholder = { Text(stringResource(Res.string.write_question_markdown)) },
                     shape = RoundedCornerShape(14.dp),
                     maxLines = 12,
                 )
@@ -449,7 +483,7 @@ private fun AgentComposer(
                     FilledTonalButton(onClick = agent::stop, modifier = Modifier.interactivePointer()) {
                         Icon(painterResource(Res.drawable.filled_stop), "Stop", Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Stop")
+                        Text(stringResource(Res.string.stop))
                     }
                 } else {
                     Button(
@@ -462,7 +496,7 @@ private fun AgentComposer(
                         Icon(painterResource(Res.drawable.filled_send), "Send", Modifier.size(18.dp))
                         if (!compact) {
                             Spacer(Modifier.width(6.dp))
-                            Text("Send")
+                            Text(stringResource(Res.string.send))
                         }
                         }
                     }
@@ -554,7 +588,7 @@ internal fun PageRangeSelector(
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Page context", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(Res.string.page_context), style = MaterialTheme.typography.titleSmall)
                         Text(
                             "Choose the pages the agent should focus on.",
                             style = MaterialTheme.typography.bodySmall,
@@ -565,7 +599,7 @@ internal fun PageRangeSelector(
                         Icon(painterResource(Res.drawable.filled_close), "Close page context")
                     }
                 }
-                Text("Quick range", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(Res.string.quick_range), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     AssistChip(
                         onClick = {
@@ -574,7 +608,7 @@ internal fun PageRangeSelector(
                             draftEnabled = true
                             draftAllPaper = false
                         },
-                        label = { Text("Current") },
+                        label = { Text(stringResource(Res.string.current)) },
                         modifier = Modifier.height(30.dp).interactivePointer(),
                     )
                     AssistChip(
@@ -585,7 +619,7 @@ internal fun PageRangeSelector(
                             draftEnabled = true
                             draftAllPaper = false
                         },
-                        label = { Text("Nearby ±2") },
+                        label = { Text(stringResource(Res.string.nearby_pages)) },
                         modifier = Modifier.height(30.dp).interactivePointer(),
                     )
                     AssistChip(
@@ -595,7 +629,7 @@ internal fun PageRangeSelector(
                             draftEnabled = true
                             draftAllPaper = true
                         },
-                        label = { Text("All paper") },
+                        label = { Text(stringResource(Res.string.all_paper)) },
                         modifier = Modifier.height(30.dp).interactivePointer(),
                     )
                 }
@@ -606,7 +640,7 @@ internal fun PageRangeSelector(
                             startText = it.filter(Char::isDigit).take(5)
                             draftAllPaper = false
                         },
-                        label = { Text("From page") },
+                        label = { Text(stringResource(Res.string.from_page)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
@@ -616,7 +650,7 @@ internal fun PageRangeSelector(
                             endText = it.filter(Char::isDigit).take(5)
                             draftAllPaper = false
                         },
-                        label = { Text("To page") },
+                        label = { Text(stringResource(Res.string.to_page)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
@@ -669,7 +703,7 @@ internal fun PageRangeSelector(
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = { menu = false }, modifier = Modifier.interactivePointer()) { Text("Cancel") }
+                    TextButton(onClick = { menu = false }, modifier = Modifier.interactivePointer()) { Text(stringResource(Res.string.cancel)) }
                     Button(
                         onClick = {
                             if (!draftEnabled) {
@@ -775,7 +809,7 @@ private fun AgentMessage(message: PaperAgentMessage, onAction: (PaperAgentAction
 private fun AgentSteps(steps: List<PaperAgentLiveStep>, visible: Int = 8) {
     if (steps.isEmpty()) return
     Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        if (steps.size > visible) Text("+${steps.size - visible} earlier step${if (steps.size - visible == 1) "" else "s"}",
+        if (steps.size > visible) Text(stringResource(Res.string.earlier_steps_count, steps.size - visible),
             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         steps.takeLast(visible).forEach { step ->
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -803,7 +837,7 @@ private fun ReplyEvidence(message: PaperAgentMessage, onSource: (PaperAgentSourc
             Row(Modifier.padding(bottom = 4.dp), verticalAlignment = Alignment.Top) {
                 Icon(painterResource(Res.drawable.filled_error_outline), null, Modifier.size(12.dp).padding(top = 1.dp), tint = MaterialTheme.colorScheme.error)
                 Spacer(Modifier.width(6.dp))
-                Text("Cites passages that are not in this paper (${message.unverifiedCitations.joinToString()}); double-check those claims.",
+                Text(stringResource(Res.string.unverified_citations, message.unverifiedCitations.joinToString()),
                     style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
             }
         }
@@ -816,14 +850,14 @@ private fun ReplyEvidence(message: PaperAgentMessage, onSource: (PaperAgentSourc
             .padding(vertical = 4.dp, horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(Res.drawable.filled_find_in_page), null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(6.dp))
-            Text("Sources · $summary", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(Res.string.sources_summary, summary), style = MaterialTheme.typography.labelMedium,  color = MaterialTheme.colorScheme.onSurfaceVariant)
             Icon(painterResource(if (expanded) Res.drawable.filled_expand_less else Res.drawable.filled_expand_more),
                 if (expanded) "Hide sources" else "Show sources", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         AnimatedVisibility(expanded) {
             Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 message.sources.forEach { SourceRow(it, onSource) }
-                if (message.steps.isNotEmpty()) Text("Steps: ${message.steps.joinToString(" → ")}",
+                if (message.steps.isNotEmpty()) Text(stringResource(Res.string.steps_summary, message.steps.joinToString(" → ")),
                     style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -836,7 +870,7 @@ private fun SourceRow(source: PaperAgentSource, onSource: (PaperAgentSource) -> 
         .background(if (source.cited) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer)
         .clickable { onSource(source) }.interactivePointer().testTag("paper-agent-source")
         .padding(horizontal = 8.dp, vertical = 6.dp)) {
-        Text("${source.pageLabel} · ${source.section}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium,
+        Text(stringResource(Res.string.source_location, source.pageLabel, source.section), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(source.excerpt, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -862,7 +896,7 @@ private fun ActionChips(actions: List<PaperAgentAction>, onAction: (PaperAgentAc
                     maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingIcon = { Icon(painterResource(Res.drawable.filled_auto_awesome), null, Modifier.size(14.dp)) })
         }
-        if (actions.size > 30) Text("+${actions.size - 30} more", style = MaterialTheme.typography.labelSmall)
+        if (actions.size > 30) Text(stringResource(Res.string.more_actions, actions.size - 30), style = MaterialTheme.typography.labelSmall)
     }
 }
 
@@ -901,7 +935,7 @@ private fun CompactedDivider(summary: String, count: Int, expanded: Boolean, onT
                 .interactivePointer().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(Res.drawable.filled_compress), null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.width(4.dp))
-                Text("$count earlier message${if (count == 1) "" else "s"} summarized", style = MaterialTheme.typography.labelSmall,
+                Text(stringResource(Res.string.earlier_messages_summarized, count), style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Icon(if (showSummary) painterResource(Res.drawable.filled_expand_less) else painterResource(Res.drawable.filled_expand_more), if (showSummary) "Hide summary" else "Show summary",
                     Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -911,7 +945,7 @@ private fun CompactedDivider(summary: String, count: Int, expanded: Boolean, onT
         if (showSummary && summary.isNotBlank()) {
             Column(Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(12.dp))
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).padding(10.dp)) {
-                Text("Summary used as context", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(Res.string.summary_used_as_context), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(4.dp))
                 SelectionContainer { ChatMarkdown(summary, Modifier.fillMaxWidth()) }
             }
@@ -931,11 +965,11 @@ private fun ChatHistory(agent: PaperAgentViewModel, modifier: Modifier = Modifie
                 .padding(horizontal = 10.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(Res.drawable.filled_add_comment), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(10.dp))
-                Text("New chat", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(Res.string.new_chat), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             }
         }
         if (agent.conversations.isEmpty()) item(key = "empty") {
-            Text("No earlier chats about this paper yet.", style = MaterialTheme.typography.bodySmall,
+            Text(stringResource(Res.string.no_earlier_chats), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(10.dp))
         }
         items(agent.conversations, key = { it.id }) { chat ->

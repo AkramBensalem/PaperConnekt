@@ -12,6 +12,9 @@ import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.add
 import com.paperconnekt.app.resources.remove
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+import com.paperconnekt.app.resources.zoom_in
+import com.paperconnekt.app.resources.zoom_out
 
 @Composable
 fun ZoomControls(
@@ -37,7 +40,7 @@ fun ZoomControls(
             IconButton(onClick = onZoomIn, modifier = Modifier.size(if (compact) 40.dp else 48.dp)) {
                 Icon(
                     painterResource(Res.drawable.add),
-                    contentDescription = "Zoom In",
+                    contentDescription = stringResource(Res.string.zoom_in),
                     modifier = Modifier.size(if (compact) 18.dp else 24.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -51,7 +54,7 @@ fun ZoomControls(
             IconButton(onClick = onZoomOut, modifier = Modifier.size(if (compact) 40.dp else 48.dp)) {
                 Icon(
                     painterResource(Res.drawable.remove),
-                    contentDescription = "Zoom Out",
+                    contentDescription = stringResource(Res.string.zoom_out),
                     modifier = Modifier.size(if (compact) 18.dp else 24.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )

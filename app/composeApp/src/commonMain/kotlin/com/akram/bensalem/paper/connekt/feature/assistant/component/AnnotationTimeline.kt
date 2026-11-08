@@ -23,6 +23,9 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.akram.bensalem.paper.connekt.feature.assistant.*
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroAnnotation
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.page_number
+import org.jetbrains.compose.resources.stringResource
 import kotlinx.coroutines.flow.first
 
 @Composable
@@ -105,7 +108,7 @@ internal fun AnnotationTimeline(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Surface(shape = RoundedCornerShape(6.dp),
                                 color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                                Text("Page ${pageIndex + 1}", style = MaterialTheme.typography.labelMedium,
+                                Text(stringResource(Res.string.page_number, pageIndex + 1), style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                             }

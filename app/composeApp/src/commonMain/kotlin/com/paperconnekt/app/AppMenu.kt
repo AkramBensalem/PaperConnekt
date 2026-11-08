@@ -36,6 +36,33 @@ import com.paperconnekt.app.resources.filled_close
 import com.paperconnekt.app.resources.menu
 import io.github.aakira.napier.Napier
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+import com.paperconnekt.app.resources.about_developer
+import com.paperconnekt.app.resources.about_paperconnekt
+import com.paperconnekt.app.resources.acknowledgements
+import com.paperconnekt.app.resources.add_paper_menu
+import com.paperconnekt.app.resources.app_name
+import com.paperconnekt.app.resources.appearance
+import com.paperconnekt.app.resources.close
+import com.paperconnekt.app.resources.contact_developer
+import com.paperconnekt.app.resources.dark_theme
+import com.paperconnekt.app.resources.error_action_failed
+import com.paperconnekt.app.resources.getting_started
+import com.paperconnekt.app.resources.help_about
+import com.paperconnekt.app.resources.keyboard_shortcuts
+import com.paperconnekt.app.resources.light_theme
+import com.paperconnekt.app.resources.local_first_workspace
+import com.paperconnekt.app.resources.manage
+import com.paperconnekt.app.resources.nav_assistant
+import com.paperconnekt.app.resources.nav_dashboard
+import com.paperconnekt.app.resources.nav_graph
+import com.paperconnekt.app.resources.nav_library
+import com.paperconnekt.app.resources.nav_settings
+import com.paperconnekt.app.resources.quick_actions
+import com.paperconnekt.app.resources.quit
+import com.paperconnekt.app.resources.release_notes
+import com.paperconnekt.app.resources.report_issue
+import com.paperconnekt.app.resources.use_system_theme
 
 enum class AppMenuGroup(val title: String) {
     FILE("File"), VIEW("View"), HELP("Help"), ABOUT("About"),
@@ -64,6 +91,28 @@ enum class AppMenuAction(
     CONTACT("Contact the developer", AppMenuGroup.ABOUT, false),
     ACKNOWLEDGEMENTS("Acknowledgements", AppMenuGroup.ABOUT, false),
     QUIT("Quit", AppMenuGroup.FILE, false),
+}
+
+@Composable
+private fun AppMenuAction.localizedTitle(): String = when (this) {
+    AppMenuAction.ADD_PAPER -> stringResource(Res.string.add_paper_menu)
+    AppMenuAction.SETTINGS -> stringResource(Res.string.nav_settings)
+    AppMenuAction.DASHBOARD -> stringResource(Res.string.nav_dashboard)
+    AppMenuAction.LIBRARY -> stringResource(Res.string.nav_library)
+    AppMenuAction.GRAPH -> stringResource(Res.string.nav_graph)
+    AppMenuAction.ASSISTANT -> stringResource(Res.string.nav_assistant)
+    AppMenuAction.THEME_SYSTEM -> stringResource(Res.string.use_system_theme)
+    AppMenuAction.THEME_LIGHT -> stringResource(Res.string.light_theme)
+    AppMenuAction.THEME_DARK -> stringResource(Res.string.dark_theme)
+    AppMenuAction.GETTING_STARTED -> stringResource(Res.string.getting_started)
+    AppMenuAction.SHORTCUTS -> stringResource(Res.string.keyboard_shortcuts)
+    AppMenuAction.REPORT_ISSUE -> stringResource(Res.string.report_issue)
+    AppMenuAction.RELEASES -> stringResource(Res.string.release_notes)
+    AppMenuAction.ABOUT_APP -> stringResource(Res.string.about_paperconnekt)
+    AppMenuAction.ABOUT_DEVELOPER -> stringResource(Res.string.about_developer)
+    AppMenuAction.CONTACT -> stringResource(Res.string.contact_developer)
+    AppMenuAction.ACKNOWLEDGEMENTS -> stringResource(Res.string.acknowledgements)
+    AppMenuAction.QUIT -> stringResource(Res.string.quit)
 }
 
 class AppMenuState(private val onExit: () -> Unit = {}) {
@@ -106,16 +155,20 @@ internal fun MobileAppMenu(
         ) {
             Icon(
                 painter = painterResource(if (drawerOpen) Res.drawable.filled_close else Res.drawable.menu),
-                contentDescription = if (drawerOpen) "Close navigation" else "Open navigation",
+                contentDescription = if (drawerOpen) {
+                    stringResource(Res.string.close)
+                } else {
+                    stringResource(Res.string.app_name)
+                },
             )
         }
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(1.dp),
         ) {
-            Text("PaperConnekt", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(Res.string.app_name), style = MaterialTheme.typography.titleMedium)
             Text(
-                "Research workspace",
+                stringResource(Res.string.local_first_workspace),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -155,7 +208,7 @@ internal fun MobileAppDrawer(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("PaperConnekt", style = MaterialTheme.typography.titleLarge)
                     Text(
-                        "Quick actions and support",
+                        stringResource(Res.string.quick_actions),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -163,7 +216,7 @@ internal fun MobileAppDrawer(
             }
 
             DrawerSection(
-                title = "Appearance",
+                title = stringResource(Res.string.appearance),
                 expanded = appearanceExpanded,
                 onToggle = { appearanceExpanded = !appearanceExpanded },
             ) {
@@ -184,7 +237,7 @@ internal fun MobileAppDrawer(
             }
 
             DrawerSection(
-                title = "Help & about",
+                title = stringResource(Res.string.help_about),
                 expanded = supportExpanded,
                 onToggle = { supportExpanded = !supportExpanded },
             ) {
@@ -198,7 +251,7 @@ internal fun MobileAppDrawer(
                         title = when (action) {
                             AppMenuAction.ABOUT_APP -> "About us"
                             AppMenuAction.CONTACT -> "Contact us"
-                            else -> action.title
+                            else -> action.localizedTitle()
                         },
                         enabled = !action.requiresWorkspace || state.workspaceReady,
                         onClick = { state.perform(action) },
@@ -207,7 +260,7 @@ internal fun MobileAppDrawer(
             }
 
             DrawerSection(
-                title = "Manage",
+                title = stringResource(Res.string.manage),
                 expanded = manageExpanded,
                 onToggle = { manageExpanded = !manageExpanded },
             ) {
@@ -268,7 +321,7 @@ private fun DrawerSection(
 @Composable
 private fun DrawerAction(
     action: AppMenuAction,
-    title: String = action.title,
+    title: String? = null,
     enabled: Boolean,
     onClick: () -> Unit,
     selected: Boolean = false,
@@ -288,7 +341,7 @@ private fun DrawerAction(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                title,
+                title ?: action.localizedTitle(),
                 modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -302,7 +355,7 @@ internal fun AppMenuDialogs(state: AppMenuState, dialogHost: AppMenuDialogHost) 
     val error = state.error
     if (error != null) {
         dialogHost.Dialog(
-            title = "Action could not be completed",
+            title = stringResource(Res.string.error_action_failed),
             onDismiss = { state.error = null },
         ) {
             SelectionContainer { Text(error) }
@@ -311,7 +364,7 @@ internal fun AppMenuDialogs(state: AppMenuState, dialogHost: AppMenuDialogHost) 
         state.information?.let { action ->
             val content = informationContent(action)
             dialogHost.Dialog(
-                title = action.title,
+                title = action.localizedTitle(),
                 onDismiss = { state.information = null },
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -351,7 +404,7 @@ object MaterialAppMenuDialogHost : AppMenuDialogHost {
                     content()
                 }
             },
-            confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+            confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.close)) } },
         )
     }
 }

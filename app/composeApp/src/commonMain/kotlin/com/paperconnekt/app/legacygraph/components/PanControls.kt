@@ -17,6 +17,11 @@ import com.paperconnekt.app.resources.arrow_downward
 import com.paperconnekt.app.resources.arrow_forward
 import com.paperconnekt.app.resources.arrow_upward
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+import com.paperconnekt.app.resources.move_graph_down
+import com.paperconnekt.app.resources.move_graph_left
+import com.paperconnekt.app.resources.move_graph_right
+import com.paperconnekt.app.resources.move_graph_up
 
 @Composable
 fun PanControls(
@@ -40,7 +45,7 @@ fun PanControls(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
             contentColor = MaterialTheme.colorScheme.primary
         ) {
-            Icon(painterResource(Res.drawable.arrow_upward), contentDescription = "Move graph up", modifier = iconModifier)
+            Icon(painterResource(Res.drawable.arrow_upward), contentDescription = stringResource(Res.string.move_graph_up), modifier = iconModifier)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             SmallFloatingActionButton(
@@ -49,7 +54,7 @@ fun PanControls(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
                 contentColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(painterResource(Res.drawable.arrow_back_material), contentDescription = "Move graph left", modifier = iconModifier)
+                Icon(painterResource(Res.drawable.arrow_back_material), contentDescription = stringResource(Res.string.move_graph_left), modifier = iconModifier)
             }
             Spacer(modifier = Modifier.size(if (compact) 32.dp else 40.dp))
             SmallFloatingActionButton(
@@ -58,7 +63,7 @@ fun PanControls(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
                 contentColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(painterResource(Res.drawable.arrow_forward), contentDescription = "Move graph right", modifier = iconModifier)
+                Icon(painterResource(Res.drawable.arrow_forward), contentDescription = stringResource(Res.string.move_graph_right), modifier = iconModifier)
             }
         }
         SmallFloatingActionButton(
@@ -67,7 +72,7 @@ fun PanControls(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
             contentColor = MaterialTheme.colorScheme.primary
         ) {
-            Icon(painterResource(Res.drawable.arrow_downward), contentDescription = "Move graph down", modifier = iconModifier)
+            Icon(painterResource(Res.drawable.arrow_downward), contentDescription = stringResource(Res.string.move_graph_down), modifier = iconModifier)
         }
     }
 }

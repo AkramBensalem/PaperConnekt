@@ -1,6 +1,7 @@
 package com.paperconnekt.app.legacygraph.components
 
 import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import com.paperconnekt.app.resources.filled_account_tree
 import com.paperconnekt.app.resources.filled_add
 import com.paperconnekt.app.resources.filled_archive
@@ -45,6 +46,62 @@ import com.paperconnekt.app.legacygraph.PaperTriageResult
 import com.paperconnekt.app.legacygraph.clipChipInteraction
 import com.paperconnekt.app.legacygraph.interactivePointer
 import com.paperconnekt.storage.GraphExpansionDirection
+import com.paperconnekt.app.resources.abstract_label
+import com.paperconnekt.app.resources.active_count
+import com.paperconnekt.app.resources.add_paper_to_graph
+import com.paperconnekt.app.resources.apa_citation
+import com.paperconnekt.app.resources.archive_reference
+import com.paperconnekt.app.resources.archived_count
+import com.paperconnekt.app.resources.bibtex
+import com.paperconnekt.app.resources.citation
+import com.paperconnekt.app.resources.citation_count
+import com.paperconnekt.app.resources.citations
+import com.paperconnekt.app.resources.close_details_panel
+import com.paperconnekt.app.resources.collapse_references
+import com.paperconnekt.app.resources.connections_discovered
+import com.paperconnekt.app.resources.copy_abstract
+import com.paperconnekt.app.resources.copy_authors
+import com.paperconnekt.app.resources.copy_item
+import com.paperconnekt.app.resources.copy_paper_title
+import com.paperconnekt.app.resources.direct_references
+import com.paperconnekt.app.resources.discovering_connections
+import com.paperconnekt.app.resources.disqualified
+import com.paperconnekt.app.resources.disqualify_from_graph
+import com.paperconnekt.app.resources.expand_references
+import com.paperconnekt.app.resources.find_connections_with_graph
+import com.paperconnekt.app.resources.graph_order
+import com.paperconnekt.app.resources.keywords
+import com.paperconnekt.app.resources.next
+import com.paperconnekt.app.resources.no_abstract_available
+import com.paperconnekt.app.resources.no_archived_references
+import com.paperconnekt.app.resources.no_references_loaded
+import com.paperconnekt.app.resources.page_of
+import com.paperconnekt.app.resources.paper_statistics
+import com.paperconnekt.app.resources.papers_citing_this
+import com.paperconnekt.app.resources.previous_page
+import com.paperconnekt.app.resources.publication_venue
+import com.paperconnekt.app.resources.publication_year
+import com.paperconnekt.app.resources.reference
+import com.paperconnekt.app.resources.reference_count
+import com.paperconnekt.app.resources.references
+import com.paperconnekt.app.resources.references_archive
+import com.paperconnekt.app.resources.refresh_paper_information
+import com.paperconnekt.app.resources.restore_paper
+import com.paperconnekt.app.resources.restore_paper_to_graph
+import com.paperconnekt.app.resources.review_connections
+import com.paperconnekt.app.resources.save_to_library
+import com.paperconnekt.app.resources.saved_in_library
+import com.paperconnekt.app.resources.seed_paper
+import com.paperconnekt.app.resources.show_less
+import com.paperconnekt.app.resources.show_more
+import com.paperconnekt.app.resources.similarity
+import com.paperconnekt.app.resources.similarity_to_seed
+import com.paperconnekt.app.resources.sort_label
+import com.paperconnekt.app.resources.toggle_item
+import com.paperconnekt.app.resources.toggle_paper_statistics
+import com.paperconnekt.app.resources.unknown
+import com.paperconnekt.app.resources.use_as_seed_paper
+import com.paperconnekt.app.resources.year_unknown
 
 private const val REFERENCES_PAGE_SIZE = 5
 
@@ -132,7 +189,7 @@ fun PaperSidebar(
                     enabled = !isSavedToLibrary,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(if (isSavedToLibrary) "Saved in Library" else "Save to Library")
+                    Text(stringResource(if (isSavedToLibrary) Res.string.saved_in_library else Res.string.save_to_library))
                 }
             }
             // Top Bar
@@ -174,10 +231,10 @@ fun PaperSidebar(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = when {
-                                isDisqualified -> "Disqualified"
-                                node.connectionType == ConnectionType.CENTRAL -> "Seed Paper"
-                                node.connectionType == ConnectionType.CITED_BY_CENTRAL -> "Reference"
-                                else -> "Citation"
+                                isDisqualified -> stringResource(Res.string.disqualified)
+                                node.connectionType == ConnectionType.CENTRAL -> stringResource(Res.string.seed_paper)
+                                node.connectionType == ConnectionType.CITED_BY_CENTRAL -> stringResource(Res.string.reference)
+                                else -> stringResource(Res.string.citation)
                             },
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
@@ -196,7 +253,7 @@ fun PaperSidebar(
                         onClick = onOpenReview,
                         modifier = Modifier.size(32.dp).interactivePointer(),
                     ) {
-                        Icon(painterResource(Res.drawable.filled_tune), contentDescription = "Review connections", modifier = Modifier.size(18.dp))
+                        Icon(painterResource(Res.drawable.filled_tune), contentDescription = stringResource(Res.string.review_connections), modifier = Modifier.size(18.dp))
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     IconButton(
@@ -207,7 +264,7 @@ fun PaperSidebar(
                         if (isRefreshing) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                         } else {
-                            Icon(painterResource(Res.drawable.filled_refresh), contentDescription = "Refresh paper information", modifier = Modifier.size(18.dp))
+                            Icon(painterResource(Res.drawable.filled_refresh), contentDescription = stringResource(Res.string.refresh_paper_information), modifier = Modifier.size(18.dp))
                         }
                     }
                     Spacer(modifier = Modifier.width(4.dp))
@@ -215,7 +272,7 @@ fun PaperSidebar(
                         onClick = onClose,
                         modifier = Modifier.size(32.dp).interactivePointer()
                     ) {
-                        Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close details panel", modifier = Modifier.size(18.dp))
+                        Icon(painterResource(Res.drawable.filled_close), contentDescription = stringResource(Res.string.close_details_panel), modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -236,7 +293,7 @@ fun PaperSidebar(
                         lineHeight = 22.sp
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    CopyIconButton(textToCopy = paper.title, contentDescription = "Copy paper title")
+                    CopyIconButton(textToCopy = paper.title, contentDescription = stringResource(Res.string.copy_paper_title))
                 }
 
                 if (paper.authors.isNotEmpty()) {
@@ -254,7 +311,7 @@ fun PaperSidebar(
                         )
                         CopyIconButton(
                             textToCopy = paper.authors.joinToString(", "),
-                            contentDescription = "Copy authors",
+                            contentDescription = stringResource(Res.string.copy_authors),
                             size = 28.dp,
                             iconSize = 14.dp
                         )
@@ -352,7 +409,7 @@ fun PaperSidebar(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Citations ($citingThisPaper)", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(Res.string.citation_count, citingThisPaper), style = MaterialTheme.typography.labelSmall)
                         }
                         OutlinedButton(
                             onClick = { onExpand(GraphExpansionDirection.REFERENCES) },
@@ -360,7 +417,7 @@ fun PaperSidebar(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("References ($citedInThisPaper)", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(Res.string.reference_count, citedInThisPaper), style = MaterialTheme.typography.labelSmall)
                         }
                     }
 
@@ -376,7 +433,7 @@ fun PaperSidebar(
                             CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                "Discovering connections ${(connectionProgress * 100).toInt().coerceIn(0, 100)}%",
+                                stringResource(Res.string.discovering_connections, (connectionProgress * 100).toInt().coerceIn(0, 100)),
                                 style = MaterialTheme.typography.labelSmall,
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -388,7 +445,8 @@ fun PaperSidebar(
                             Icon(painterResource(Res.drawable.filled_account_tree), contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                if (connectionDiscoveryComplete) "Connections discovered 100%" else "Find Connections with Graph",
+                                if (connectionDiscoveryComplete) stringResource(Res.string.connections_discovered)
+                                else stringResource(Res.string.find_connections_with_graph),
                                 style = MaterialTheme.typography.labelSmall,
                             )
                         }
@@ -398,13 +456,13 @@ fun PaperSidebar(
                         FilterChip(
                             selected = showReferences,
                             onClick = onToggleReferences,
-                            label = { Text("References") },
+                            label = { Text(stringResource(Res.string.references)) },
                             modifier = Modifier.weight(1f).interactivePointer(),
                         )
                         FilterChip(
                             selected = showCitations,
                             onClick = onToggleCitations,
-                            label = { Text("Citations") },
+                            label = { Text(stringResource(Res.string.citations)) },
                             modifier = Modifier.weight(1f).interactivePointer(),
                         )
                     }
@@ -420,7 +478,7 @@ fun PaperSidebar(
                             ) {
                                 Icon(painterResource(Res.drawable.filled_stars), contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Use as seed paper")
+                                Text(stringResource(Res.string.use_as_seed_paper))
                             }
                             Spacer(Modifier.height(8.dp))
                         }
@@ -436,7 +494,7 @@ fun PaperSidebar(
                             ) {
                                 Icon(painterResource(Res.drawable.filled_check), contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Restore Paper to Graph", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                Text(stringResource(Res.string.restore_paper_to_graph), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                             }
                         } else {
                             OutlinedButton(
@@ -447,7 +505,7 @@ fun PaperSidebar(
                             ) {
                                 Icon(painterResource(Res.drawable.filled_block), contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Disqualify from Graph", style = MaterialTheme.typography.labelSmall)
+                                Text(stringResource(Res.string.disqualify_from_graph), style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
@@ -481,7 +539,7 @@ fun PaperSidebar(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Abstract",
+                            text = stringResource(Res.string.abstract_label),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -489,7 +547,7 @@ fun PaperSidebar(
                         if (!paper.abstractText.isNullOrBlank()) {
                             CopyIconButton(
                                 textToCopy = paper.abstractText ?: "",
-                                contentDescription = "Copy abstract",
+                                contentDescription = stringResource(Res.string.copy_abstract),
                                 size = 28.dp,
                                 iconSize = 14.dp
                             )
@@ -498,7 +556,7 @@ fun PaperSidebar(
                     Spacer(modifier = Modifier.height(6.dp))
                     val abstract = paper.abstractText?.takeIf { it.isNotBlank() }
                     Text(
-                        text = abstract ?: "No abstract available for this publication.",
+                        text = abstract ?: stringResource(Res.string.no_abstract_available),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface,
                         lineHeight = 20.sp,
@@ -511,7 +569,7 @@ fun PaperSidebar(
                             onClick = { abstractExpanded = !abstractExpanded },
                             contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp),
                         ) {
-                            Text(if (abstractExpanded) "Show less" else "Show more")
+                            Text(stringResource(if (abstractExpanded) Res.string.show_less else Res.string.show_more))
                         }
                     }
                 }
@@ -535,7 +593,7 @@ fun PaperSidebar(
                             contentPadding = PaddingValues(0.dp),
                         ) {
                         Text(
-                            text = "References & Archive",
+                            text = stringResource(Res.string.references_archive),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -544,7 +602,7 @@ fun PaperSidebar(
                         IconButton(onClick = { referencesExpanded = !referencesExpanded }, modifier = Modifier.size(28.dp)) {
                             Icon(
                                 if (referencesExpanded) painterResource(Res.drawable.filled_expand_less) else painterResource(Res.drawable.filled_expand_more),
-                                contentDescription = if (referencesExpanded) "Collapse references" else "Expand references",
+                                contentDescription = if (referencesExpanded) stringResource(Res.string.collapse_references) else stringResource(Res.string.expand_references),
                             )
                         }
                     }
@@ -557,7 +615,7 @@ fun PaperSidebar(
                         FilterChip(
                             selected = !referencesTab,
                             onClick = { referencesTab = false; referencePage = 0 },
-                            label = { Text("Active (${citedPapers.size})") },
+                            label = { Text(stringResource(Res.string.active_count, citedPapers.size)) },
                             colors = FilterChipDefaults.filterChipColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 labelColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -568,7 +626,7 @@ fun PaperSidebar(
                         FilterChip(
                             selected = referencesTab,
                             onClick = { referencesTab = true; referencePage = 0 },
-                            label = { Text("Archived (${archivedPapers.size})") },
+                            label = { Text(stringResource(Res.string.archived_count, archivedPapers.size)) },
                             colors = FilterChipDefaults.filterChipColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 labelColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -597,7 +655,7 @@ fun PaperSidebar(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (referencesTab) "No archived references." else "No references loaded in graph.",
+                                text = if (referencesTab) stringResource(Res.string.no_archived_references) else stringResource(Res.string.no_references_loaded),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -618,10 +676,10 @@ fun PaperSidebar(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Page ${currentPage + 1} of $pageCount", style = MaterialTheme.typography.labelSmall)
+                                Text(stringResource(Res.string.page_of, currentPage + 1, pageCount), style = MaterialTheme.typography.labelSmall)
                                 Row {
-                                    TextButton(onClick = { referencePage-- }, enabled = currentPage > 0, modifier = Modifier.interactivePointer(enabled = currentPage > 0)) { Text("Prev") }
-                                    TextButton(onClick = { referencePage++ }, enabled = currentPage < pageCount - 1, modifier = Modifier.interactivePointer(enabled = currentPage < pageCount - 1)) { Text("Next") }
+                                    TextButton(onClick = { referencePage-- }, enabled = currentPage > 0, modifier = Modifier.interactivePointer(enabled = currentPage > 0)) { Text(stringResource(Res.string.previous_page)) }
+                                    TextButton(onClick = { referencePage++ }, enabled = currentPage < pageCount - 1, modifier = Modifier.interactivePointer(enabled = currentPage < pageCount - 1)) { Text(stringResource(Res.string.next)) }
                                 }
                             }
                         }
@@ -635,7 +693,7 @@ fun PaperSidebar(
             if (paper.tags.isNotEmpty()) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Keywords",
+                        text = stringResource(Res.string.keywords),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -664,8 +722,8 @@ fun PaperSidebar(
             }
 
             // Citations Formatted Section
-            CollapsibleCitationSection(title = "APA Citation", content = generateAPA(node), initiallyExpanded = false)
-            CollapsibleCitationSection(title = "BibTeX", content = generateBibTeX(node), initiallyExpanded = false)
+            CollapsibleCitationSection(title = stringResource(Res.string.apa_citation), content = generateAPA(node), initiallyExpanded = false)
+            CollapsibleCitationSection(title = stringResource(Res.string.bibtex), content = generateBibTeX(node), initiallyExpanded = false)
 
             // Metadata & Statistics Table
             Card(
@@ -677,19 +735,19 @@ fun PaperSidebar(
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = { statisticsExpanded = !statisticsExpanded }, contentPadding = PaddingValues(0.dp)) {
-                            Text("Paper Statistics", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text(stringResource(Res.string.paper_statistics), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         }
                         IconButton(onClick = { statisticsExpanded = !statisticsExpanded }, modifier = Modifier.size(28.dp)) {
-                            Icon(if (statisticsExpanded) painterResource(Res.drawable.filled_expand_less) else painterResource(Res.drawable.filled_expand_more), contentDescription = "Toggle paper statistics")
+                            Icon(if (statisticsExpanded) painterResource(Res.drawable.filled_expand_less) else painterResource(Res.drawable.filled_expand_more), contentDescription = stringResource(Res.string.toggle_paper_statistics))
                         }
                     }
                     AnimatedVisibility(visible = statisticsExpanded) {
                         Column {
                             Spacer(modifier = Modifier.height(8.dp))
-                            StatRow("Direct References", citedInThisPaper.toString())
-                            StatRow("Papers Citing This", citingThisPaper.toString())
-                            similarity?.let { StatRow("Similarity to Seed", "${(it * 100).coerceIn(0f, 100f).toInt()}%") }
-                            StatRow("Publication Venue", paper.source ?: "Unknown")
+                            StatRow(stringResource(Res.string.direct_references), citedInThisPaper.toString())
+                            StatRow(stringResource(Res.string.papers_citing_this), citingThisPaper.toString())
+                            similarity?.let { StatRow(stringResource(Res.string.similarity_to_seed), "${(it * 100).coerceIn(0f, 100f).toInt()}%") }
+                            StatRow(stringResource(Res.string.publication_venue), paper.source ?: stringResource(Res.string.unknown))
                             paper.doi?.let { StatRow("DOI", it, copyable = true) }
                             paper.sourceUrl?.let { StatRow("URL", it, copyable = true) }
                         }
@@ -724,7 +782,7 @@ private fun CitationSection(title: String, content: String) {
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
-                CopyIconButton(textToCopy = content, contentDescription = "Copy $title")
+                CopyIconButton(textToCopy = content, contentDescription = stringResource(Res.string.copy_item, title))
             }
             Spacer(modifier = Modifier.height(6.dp))
             Surface(
@@ -754,7 +812,7 @@ private fun StatRow(label: String, value: String, copyable: Boolean = false) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f, fill = false)) {
             Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (copyable) CopyIconButton(textToCopy = value, contentDescription = "Copy $label", size = 26.dp, iconSize = 13.dp)
+            if (copyable) CopyIconButton(textToCopy = value, contentDescription = stringResource(Res.string.copy_item, label), size = 26.dp, iconSize = 13.dp)
         }
     }
 }
@@ -774,9 +832,9 @@ private fun CollapsibleCitationSection(title: String, content: String, initially
                     Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    CopyIconButton(textToCopy = content, contentDescription = "Copy $title")
+                    CopyIconButton(textToCopy = content, contentDescription = stringResource(Res.string.copy_item, title))
                     IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(28.dp)) {
-                        Icon(if (expanded) painterResource(Res.drawable.filled_expand_less) else painterResource(Res.drawable.filled_expand_more), contentDescription = "Toggle $title")
+                        Icon(if (expanded) painterResource(Res.drawable.filled_expand_less) else painterResource(Res.drawable.filled_expand_more), contentDescription = stringResource(Res.string.toggle_item, title))
                     }
                 }
             }
@@ -814,7 +872,7 @@ private fun ReferenceRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "${reference.paper.year?.toString() ?: "Year unknown"} · ${reference.citationCount} citations",
+                    text = "${reference.paper.year?.toString() ?: stringResource(Res.string.year_unknown)} · ${reference.citationCount} ${stringResource(Res.string.citations)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -823,7 +881,8 @@ private fun ReferenceRow(
             IconButton(onClick = onAdd, modifier = Modifier.size(28.dp).interactivePointer()) {
                 Icon(
                     painter = if (restore) painterResource(Res.drawable.filled_unarchive) else painterResource(Res.drawable.filled_add),
-                    contentDescription = if (restore) "Restore paper" else "Add paper to graph",
+                    contentDescription = if (restore) stringResource(Res.string.restore_paper)
+                    else stringResource(Res.string.add_paper_to_graph),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -833,7 +892,7 @@ private fun ReferenceRow(
                 IconButton(onClick = onArchive, modifier = Modifier.size(28.dp).interactivePointer()) {
                     Icon(
                         painter = painterResource(Res.drawable.filled_archive),
-                        contentDescription = "Archive reference",
+                        contentDescription = stringResource(Res.string.archive_reference),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -870,11 +929,12 @@ private fun NodeSortMenu(order: GraphNodeSortOrder, onOrderChanged: (GraphNodeSo
     }
 }
 
+@Composable
 private fun GraphNodeSortOrder.label(): String = when (this) {
-    GraphNodeSortOrder.DEFAULT -> "Graph order"
-    GraphNodeSortOrder.YEAR -> "Publication year"
-    GraphNodeSortOrder.SIMILARITY -> "Similarity"
-    GraphNodeSortOrder.CITATIONS -> "Citations"
+    GraphNodeSortOrder.DEFAULT -> stringResource(Res.string.graph_order)
+    GraphNodeSortOrder.YEAR -> stringResource(Res.string.publication_year)
+    GraphNodeSortOrder.SIMILARITY -> stringResource(Res.string.similarity)
+    GraphNodeSortOrder.CITATIONS -> stringResource(Res.string.citations)
 }
 
 @Composable
@@ -885,7 +945,7 @@ private fun SortMenu(order: ReferenceSortOrder, onOrderChanged: (ReferenceSortOr
             onClick = { expanded = true },
             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp), modifier = Modifier.interactivePointer()
         ) {
-            Text("Sort: ${order.name.lowercase().replaceFirstChar { it.uppercase() }}", style = MaterialTheme.typography.labelSmall)
+            Text(stringResource(Res.string.sort_label, order.name.lowercase().replaceFirstChar { it.uppercase() }), style = MaterialTheme.typography.labelSmall)
             Icon(painterResource(Res.drawable.filled_arrow_drop_down), contentDescription = null, modifier = Modifier.size(14.dp))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {

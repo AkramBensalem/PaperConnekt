@@ -2,9 +2,13 @@ package com.paperconnekt.app
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -43,6 +47,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.BorderStroke
 import com.paperconnekt.domain.model.ResearchGraph
@@ -64,7 +71,24 @@ import com.paperconnekt.app.legacygraph.components.GraphRenameDialog
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import kotlin.random.Random
+import com.paperconnekt.app.resources.cancel
+import com.paperconnekt.app.resources.connected_papers_illustration
+import com.paperconnekt.app.resources.create_graph
+import com.paperconnekt.app.resources.create_research_graph
+import com.paperconnekt.app.resources.create_your_first_graph
+import com.paperconnekt.app.resources.delete
+import com.paperconnekt.app.resources.delete_graph
+import com.paperconnekt.app.resources.delete_graph_message
+import com.paperconnekt.app.resources.graph_name
+import com.paperconnekt.app.resources.new_research_graph
+import com.paperconnekt.app.resources.open_graph
+import com.paperconnekt.app.resources.rename_graph
+import com.paperconnekt.app.resources.research_graphs
+import com.paperconnekt.app.resources.research_graphs_subtitle
+import com.paperconnekt.app.resources.search_title_author_doi
+import com.paperconnekt.app.resources.sort_graphs
 
 @Composable
 fun GraphScreen(
@@ -116,8 +140,8 @@ fun GraphScreen(
 
     if (showCreateDialog) {
         GraphNameDialog(
-            title = "Create research graph",
-            confirmLabel = "Create graph",
+            title = stringResource(Res.string.create_research_graph),
+            confirmLabel = stringResource(Res.string.create_graph),
             onDismiss = { showCreateDialog = false },
             onConfirm = { name ->
                 val graph = ResearchGraph(
@@ -160,8 +184,8 @@ fun GraphScreen(
     graphBeingDeleted?.let { graph ->
         AlertDialog(
             onDismissRequest = { graphBeingDeleted = null },
-            title = { Text("Delete ${graph.name}?") },
-            text = { Text("This removes the graph and its local connections. Saved papers are not deleted.") },
+            title = { Text(stringResource(Res.string.delete_graph, graph.name) + "?") },
+            text = { Text(stringResource(Res.string.delete_graph_message)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -174,12 +198,12 @@ fun GraphScreen(
                         }
                     },
                 ) {
-                    Text("Delete")
+                    Text(stringResource(Res.string.delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { graphBeingDeleted = null }) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.cancel))
                 }
             },
         )
@@ -303,11 +327,11 @@ private fun GraphList(
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 WorkspaceHeader(
-                    title = "Research graphs",
-                    subtitle = "Follow the connections. See where your research leads.",
+                    title = stringResource(Res.string.research_graphs),
+                    subtitle = stringResource(Res.string.research_graphs_subtitle),
                     icon = Res.drawable.outlined_account_tree,
                     actions = {
-                        HeaderAction("New graph", Res.drawable.outlined_add, onCreate)
+                        HeaderAction(stringResource(Res.string.new_research_graph), Res.drawable.outlined_add, onCreate)
                     },
                 )
             }
@@ -343,7 +367,7 @@ private fun GraphList(
                 }
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
-                        "Your research maps",
+                        stringResource(Res.string.research_graphs),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -371,18 +395,13 @@ private fun GraphListCard(
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Card(
+    GraphInteractiveCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(208.dp),
         onClick = onOpen,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant,
-        ),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        hoveredContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column(
             modifier = Modifier
@@ -424,7 +443,10 @@ private fun GraphListCard(
                     )
                 }
                 IconButton(onClick = onOpen) {
-                    Icon(painterResource(Res.drawable.outlined_open_in_new), contentDescription = "Open ${graph.name}")
+                    Icon(
+                        painterResource(Res.drawable.outlined_open_in_new),
+                        contentDescription = stringResource(Res.string.open_graph, graph.name),
+                    )
                 }
             }
             Row(
@@ -451,10 +473,16 @@ private fun GraphListCard(
                 )
                 Row {
                     IconButton(onClick = onRename) {
-                        Icon(painterResource(Res.drawable.outlined_edit), contentDescription = "Rename ${graph.name}")
+                        Icon(
+                            painterResource(Res.drawable.outlined_edit),
+                            contentDescription = stringResource(Res.string.rename_graph, graph.name),
+                        )
                     }
                     IconButton(onClick = onDelete) {
-                        Icon(painterResource(Res.drawable.outlined_delete_outline), contentDescription = "Delete ${graph.name}")
+                        Icon(
+                            painterResource(Res.drawable.outlined_delete_outline),
+                            contentDescription = stringResource(Res.string.delete_graph, graph.name),
+                        )
                     }
                 }
             }
@@ -495,7 +523,7 @@ private fun WorkflowStepCard(
 ) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
     ) {
         Row(
@@ -525,18 +553,18 @@ private fun WorkflowStepCard(
 private fun GraphCreateCard(
     onCreate: () -> Unit,
 ) {
-    Card(
+    GraphInteractiveCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(208.dp),
         onClick = onCreate,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f),
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        hoveredContainerColor = lerp(
+            MaterialTheme.colorScheme.primaryContainer,
+            MaterialTheme.colorScheme.primary,
+            0.12f,
         ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-        ),
+        borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
     ) {
         Column(
             modifier = Modifier
@@ -558,11 +586,15 @@ private fun GraphCreateCard(
                 )
             }
             Spacer(Modifier.height(12.dp))
-            Text("New research graph", style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(Res.string.new_research_graph),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
             Text(
                 "Start mapping a question",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f),
             )
         }
     }
@@ -578,7 +610,7 @@ private fun GraphOrientationCard(
         val compact = maxWidth < 620.dp
         Card(
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
             ),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
         ) {
@@ -688,11 +720,14 @@ private fun GraphSearchControls(
         modifier = modifier,
         query = query,
         onQueryChange = onQueryChange,
-        label = "Search graphs",
+        label = stringResource(Res.string.search_title_author_doi),
         trailingAction = {
             Box {
                 IconButton(onClick = onSortClick) {
-                    Icon(painterResource(Res.drawable.outlined_sort), contentDescription = "Sort graphs")
+                    Icon(
+                        painterResource(Res.drawable.outlined_sort),
+                        contentDescription = stringResource(Res.string.sort_graphs),
+                    )
                 }
                 DropdownMenu(
                     expanded = sortMenuExpanded,
@@ -747,7 +782,13 @@ private fun GraphEmptyState(
 ) {
     BoxWithConstraints {
         val compact = maxWidth < 640.dp
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
             if (compact) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -756,7 +797,7 @@ private fun GraphEmptyState(
                     if (!hasQuery) {
                         Image(
                             painter = painterResource(Res.drawable.research_graph_empty),
-                            contentDescription = "Connected research papers illustration",
+                            contentDescription = stringResource(Res.string.connected_papers_illustration),
                             modifier = Modifier
                                 .size(132.dp)
                                 .align(androidx.compose.ui.Alignment.CenterHorizontally)
@@ -785,7 +826,7 @@ private fun GraphEmptyState(
                     if (!hasQuery) {
                         Image(
                             painter = painterResource(Res.drawable.research_graph_empty),
-                            contentDescription = "Connected research papers illustration",
+                            contentDescription = stringResource(Res.string.connected_papers_illustration),
                             modifier = Modifier
                                 .size(180.dp)
                                 .alpha(0.9f),
@@ -795,6 +836,35 @@ private fun GraphEmptyState(
             }
         }
     }
+}
+
+@Composable
+private fun GraphInteractiveCard(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    containerColor: Color,
+    hoveredContainerColor: Color,
+    borderColor: Color? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    Card(
+        modifier = modifier.clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            role = Role.Button,
+            onClick = onClick,
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (hovered) hoveredContainerColor else containerColor,
+        ),
+        border = BorderStroke(
+            1.dp,
+            borderColor ?: MaterialTheme.colorScheme.outlineVariant,
+        ),
+        content = content,
+    )
 }
 
 @Composable
@@ -827,7 +897,7 @@ private fun GraphEmptyCopy(
             ) {
                 Icon(painterResource(Res.drawable.outlined_add), contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Create your first graph")
+                Text(stringResource(Res.string.create_your_first_graph))
             }
         }
     }
@@ -848,7 +918,7 @@ private fun GraphNameDialog(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Graph name") },
+                label = { Text(stringResource(Res.string.graph_name)) },
                 singleLine = true,
             )
         },
@@ -861,7 +931,7 @@ private fun GraphNameDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) }
         },
     )
 }

@@ -1,5 +1,6 @@
 package com.paperconnekt.app.legacygraph.components
 
+import org.jetbrains.compose.resources.stringResource
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.filled_arrow_back
 import com.paperconnekt.app.resources.filled_arrow_forward
@@ -46,6 +47,33 @@ import com.paperconnekt.app.legacygraph.GuidedReviewState
 import com.paperconnekt.app.legacygraph.GuidedSuggestion
 import com.paperconnekt.app.legacygraph.PaperNode
 import kotlin.math.roundToInt
+import com.paperconnekt.app.resources.all_connections_reviewed
+import com.paperconnekt.app.resources.citations
+import com.paperconnekt.app.resources.citations_and_references
+import com.paperconnekt.app.resources.connections_to_review
+import com.paperconnekt.app.resources.dismiss
+import com.paperconnekt.app.resources.kept_count
+import com.paperconnekt.app.resources.kept_from_paper
+import com.paperconnekt.app.resources.kept_in_graph
+import com.paperconnekt.app.resources.left_count
+import com.paperconnekt.app.resources.manual_browsing_options
+import com.paperconnekt.app.resources.manual_connection_browsing
+import com.paperconnekt.app.resources.next_connections
+import com.paperconnekt.app.resources.papers_per_batch
+import com.paperconnekt.app.resources.references
+import com.paperconnekt.app.resources.references_and_citations
+import com.paperconnekt.app.resources.review_links
+import com.paperconnekt.app.resources.review_settings
+import com.paperconnekt.app.resources.review_settings_subtitle
+import com.paperconnekt.app.resources.review_this_paper
+import com.paperconnekt.app.resources.revisit_skipped
+import com.paperconnekt.app.resources.show_top_connections
+import com.paperconnekt.app.resources.skipped
+import com.paperconnekt.app.resources.skipped_count
+import com.paperconnekt.app.resources.top_connections
+import com.paperconnekt.app.resources.undecided_skip_message
+import com.paperconnekt.app.resources.undo
+import com.paperconnekt.app.resources.working
 
 private val BATCH_SIZES = listOf(3, 5, 10, 100)
 
@@ -147,7 +175,7 @@ fun GuidedReviewPanel(
                                     modifier = Modifier.weight(1f).padding(vertical = 10.dp)
                                 )
                                 IconButton(onClick = onDismissError, modifier = Modifier.interactivePointer()) {
-                                    Icon(painterResource(Res.drawable.filled_close), contentDescription = "Dismiss", tint = MaterialTheme.colorScheme.onErrorContainer)
+                                    Icon(painterResource(Res.drawable.filled_close), contentDescription = stringResource(Res.string.dismiss), tint = MaterialTheme.colorScheme.onErrorContainer)
                                 }
                             }
                         }
@@ -184,17 +212,17 @@ fun GuidedReviewPanel(
                 if (review.isLoading) {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text(
-                        review.loadingMessage ?: "Working…",
+                        review.loadingMessage ?: stringResource(Res.string.working),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Text("Manual connection browsing", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(Res.string.manual_connection_browsing), style = MaterialTheme.typography.titleSmall)
                 val canShowNext = !review.isLoading && !isAiBusy && !review.isExhausted
                 val nextLabel = when {
-                    review.isExhausted -> "All connections reviewed"
-                    review.batch.isEmpty() -> "Show top ${review.batchSize}"
-                    else -> "Next ${review.batchSize}"
+                    review.isExhausted -> stringResource(Res.string.all_connections_reviewed)
+                    review.batch.isEmpty() -> stringResource(Res.string.show_top_connections, review.batchSize)
+                    else -> stringResource(Res.string.next_connections, review.batchSize)
                 }
                     Button(
                         onClick = onShowNext,
@@ -207,7 +235,7 @@ fun GuidedReviewPanel(
                     }
                 if (undecided > 0 && !review.isLoading && !isAiBusy) {
                     Text(
-                        "$undecided undecided ${if (undecided == 1) "paper" else "papers"} will be skipped when you continue. You can revisit skipped papers later.",
+                        stringResource(Res.string.undecided_skip_message, undecided),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -219,7 +247,7 @@ fun GuidedReviewPanel(
                     ) {
                         Icon(painterResource(Res.drawable.filled_refresh), null, Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Revisit skipped (${review.skippedIds.size})")
+                        Text(stringResource(Res.string.revisit_skipped, review.skippedIds.size))
                     }
                 }
             }
@@ -240,10 +268,10 @@ private fun GuidedProgress(review: GuidedReviewState) {
         )
     }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        StatPill("${review.keptIds.size} kept", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
-        StatPill("${review.skippedIds.size} skipped", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
+        StatPill(stringResource(Res.string.kept_count, review.keptIds.size), MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+        StatPill(stringResource(Res.string.skipped_count, review.skippedIds.size), MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
         if (review.isQueueLoaded) {
-            StatPill("${review.remainingCount} left", MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
+            StatPill(stringResource(Res.string.left_count, review.remainingCount), MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
         }
     }
 }
@@ -280,9 +308,9 @@ private fun GuidedSettings(
                 Icon(painterResource(Res.drawable.filled_tune), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Review settings", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(Res.string.review_settings), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "${directionLabel(review)} · research target, AI scores and relevance threshold",
+                        stringResource(Res.string.review_settings_subtitle, directionLabel(review)),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -298,8 +326,8 @@ private fun GuidedSettings(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     researchTargetContent()
                     HorizontalDivider()
-                    Text("Manual browsing options", style = MaterialTheme.typography.titleSmall)
-                    Text("Connections to review", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(Res.string.manual_browsing_options), style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(Res.string.connections_to_review), style = MaterialTheme.typography.labelMedium)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         GuidedReviewDirection.entries.forEach { direction ->
                             FilterChip(
@@ -311,14 +339,14 @@ private fun GuidedSettings(
                             )
                         }
                     }
-                    Text("Papers per batch", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(Res.string.papers_per_batch), style = MaterialTheme.typography.labelMedium)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         BATCH_SIZES.forEach { size ->
                             FilterChip(
                                 selected = review.batchSize == size,
                                 onClick = { onBatchSizeChanged(size) },
                                 enabled = !isBusy,
-                                label = { Text("Top $size") },
+                                label = { Text(stringResource(Res.string.top_connections, size)) },
                                 modifier = Modifier.clipChipInteraction().interactivePointer(enabled = !isBusy)
                             )
                         }
@@ -434,26 +462,26 @@ private fun GuidedSuggestionCard(
                 isKept -> Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(painterResource(Res.drawable.filled_check_circle), null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(4.dp))
-                    Text("Kept in graph", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(Res.string.kept_in_graph), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = onUndo, modifier = Modifier.interactivePointer()) {
                         Icon(painterResource(Res.drawable.filled_undo), null, Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Undo")
+                        Text(stringResource(Res.string.undo))
                     }
                     FilledTonalButton(onClick = onReview, modifier = Modifier.interactivePointer()) {
-                        Text("Review its links")
+                        Text(stringResource(Res.string.review_links))
                         Spacer(Modifier.width(4.dp))
                         Icon(painterResource(Res.drawable.filled_arrow_forward), null, Modifier.size(16.dp))
                     }
                 }
                 isSkipped -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Skipped", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(Res.string.skipped), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = onUndo, modifier = Modifier.interactivePointer()) {
                         Icon(painterResource(Res.drawable.filled_undo), null, Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Undo")
+                        Text(stringResource(Res.string.undo))
                     }
                 }
                 else -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -596,7 +624,7 @@ private fun KeptPapersSection(keptPapers: List<PaperNode>, onReviewPaper: (Strin
     var expanded by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().animateContentSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         TextButton(onClick = { expanded = !expanded }, modifier = Modifier.interactivePointer()) {
-            Text("Kept from this paper (${keptPapers.size})", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(Res.string.kept_from_paper, keptPapers.size), style = MaterialTheme.typography.labelLarge)
             Icon(if (expanded) painterResource(Res.drawable.filled_expand_less) else painterResource(Res.drawable.filled_expand_more), null, Modifier.size(18.dp))
         }
         if (expanded) {
@@ -617,7 +645,7 @@ private fun KeptPapersSection(keptPapers: List<PaperNode>, onReviewPaper: (Strin
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
-                        Icon(painterResource(Res.drawable.filled_arrow_forward), contentDescription = "Review this paper", modifier = Modifier.size(16.dp))
+                        Icon(painterResource(Res.drawable.filled_arrow_forward), contentDescription = stringResource(Res.string.review_this_paper), modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -625,16 +653,18 @@ private fun KeptPapersSection(keptPapers: List<PaperNode>, onReviewPaper: (Strin
     }
 }
 
+@Composable
 private fun directionLabel(direction: GuidedReviewDirection) = when (direction) {
-    GuidedReviewDirection.BOTH -> "References + citations"
-    GuidedReviewDirection.REFERENCES -> "References"
-    GuidedReviewDirection.CITATIONS -> "Citations"
+    GuidedReviewDirection.BOTH -> stringResource(Res.string.references_and_citations)
+    GuidedReviewDirection.REFERENCES -> stringResource(Res.string.references)
+    GuidedReviewDirection.CITATIONS -> stringResource(Res.string.citations)
 }
 
+@Composable
 private fun directionLabel(review: GuidedReviewState) = when (review.direction) {
-    GuidedReviewDirection.BOTH -> "Citations & references"
-    GuidedReviewDirection.REFERENCES -> "References"
-    GuidedReviewDirection.CITATIONS -> "Citations"
+    GuidedReviewDirection.BOTH -> stringResource(Res.string.citations_and_references)
+    GuidedReviewDirection.REFERENCES -> stringResource(Res.string.references)
+    GuidedReviewDirection.CITATIONS -> stringResource(Res.string.citations)
 }
 
 private fun paperMeta(node: PaperNode): String = listOfNotNull(

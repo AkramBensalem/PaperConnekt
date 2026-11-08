@@ -43,6 +43,23 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+import com.paperconnekt.app.resources.cancel
+import com.paperconnekt.app.resources.open_pdf
+import com.paperconnekt.app.resources.replace_attached_pdf
+import com.paperconnekt.app.resources.replace_pdf
+import com.paperconnekt.app.resources.replace_pdf_message
+import com.paperconnekt.app.resources.pdf_attached_saved
+import com.paperconnekt.app.resources.choose_one_pdf
+import com.paperconnekt.app.resources.could_not_attach_pdf
+import com.paperconnekt.app.resources.could_not_open_file_picker
+import com.paperconnekt.app.resources.pdf_copying
+import com.paperconnekt.app.resources.drop_to_attach
+import com.paperconnekt.app.resources.drop_pdf_here
+import com.paperconnekt.app.resources.ready_to_read
+import com.paperconnekt.app.resources.browse_or_choose_pdf
+import com.paperconnekt.app.resources.independent_pdf_copy
+import com.paperconnekt.app.resources.browse_pdf
 
 data class PdfUploadFile(
     val name: String,
@@ -88,6 +105,10 @@ internal fun PdfAttachmentCard(
     val background by animateColorAsState(
         if (hovering) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
     )
+    val attachedSavedMessage = stringResource(Res.string.pdf_attached_saved)
+    val chooseOnePdfMessage = stringResource(Res.string.choose_one_pdf)
+    val couldNotAttachPdfMessage = stringResource(Res.string.could_not_attach_pdf)
+    val couldNotOpenFilePickerMessage = stringResource(Res.string.could_not_open_file_picker)
 
     fun attach(source: String) {
         if (busy || !enabled) return
@@ -100,12 +121,12 @@ internal fun PdfAttachmentCard(
                     val path = platform.storage.importPdf(source)
                     onAttached(path)
                 }
-                message = "PDF attached and saved on this device."
+                message = attachedSavedMessage
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (exception: Exception) {
                 Napier.e("Could not attach PDF", exception)
-                error = exception.message ?: "Could not attach PDF. Please try again."
+                error = exception.message ?: couldNotAttachPdfMessage
             } finally {
                 busy = false
             }
@@ -117,7 +138,7 @@ internal fun PdfAttachmentCard(
         error = null
         message = null
         if (sources.size != 1) {
-            error = "Choose one PDF per item."
+            error = chooseOnePdfMessage
         } else if (pdfPath != null) {
             pendingReplacement = sources.single()
         } else {
@@ -162,7 +183,10 @@ internal fun PdfAttachmentCard(
                 }
             }
             Text(
-                if (busy) "Copying your PDF..." else if (hovering) "Drop to attach" else if (pdfPath == null) "Drop your PDF here" else "Ready to read",
+                if (busy) stringResource(Res.string.pdf_copying)
+                else if (hovering) stringResource(Res.string.drop_to_attach)
+                else if (pdfPath == null) stringResource(Res.string.drop_pdf_here)
+                else stringResource(Res.string.ready_to_read),
                 style = MaterialTheme.typography.titleSmall,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
@@ -176,14 +200,16 @@ internal fun PdfAttachmentCard(
                 )
             }
             Text(
-                if (pdfPath == null) "Or browse to choose a file.\nOne PDF per paper."
-                else "An independent copy is stored on this device.",
+                if (pdfPath == null) stringResource(Res.string.browse_or_choose_pdf)
+                else stringResource(Res.string.independent_pdf_copy),
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (pdfPath != null && onOpen != null) {
-                Button(onClick = onOpen, enabled = enabled && !busy, modifier = Modifier.fillMaxWidth()) { Text("Open PDF") }
+                Button(onClick = onOpen, enabled = enabled && !busy, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(Res.string.open_pdf))
+                }
             }
             OutlinedButton(
                 enabled = enabled && !busy && pendingReplacement == null,
@@ -198,7 +224,7 @@ internal fun PdfAttachmentCard(
                             throw cancelled
                         } catch (exception: Exception) {
                             Napier.e("Could not choose PDF", exception)
-                            error = exception.message ?: "Could not open the file picker."
+                            error = exception.message ?: couldNotOpenFilePickerMessage
                             return@launch
                         } finally {
                             busy = false
@@ -206,7 +232,7 @@ internal fun PdfAttachmentCard(
                         if (source != null) accept(listOf(source))
                     }
                 },
-            ) { Text(if (pdfPath == null) "Browse PDF" else "Replace PDF") }
+            ) { Text(stringResource(if (pdfPath == null) Res.string.browse_pdf else Res.string.replace_pdf)) }
             (error ?: message)?.let { status ->
                 Text(
                     status,
@@ -221,12 +247,18 @@ internal fun PdfAttachmentCard(
     pendingReplacement?.let { source ->
         AlertDialog(
             onDismissRequest = { pendingReplacement = null },
-            title = { Text("Replace attached PDF?") },
-            text = { Text("This item will open the new PDF instead. The original source file will not be changed.") },
+            title = { Text(stringResource(Res.string.replace_attached_pdf)) },
+            text = { Text(stringResource(Res.string.replace_pdf_message)) },
             confirmButton = {
-                Button(onClick = { pendingReplacement = null; attach(source) }) { Text("Replace PDF") }
+                Button(onClick = { pendingReplacement = null; attach(source) }) {
+                    Text(stringResource(Res.string.replace_pdf))
+                }
             },
-            dismissButton = { TextButton(onClick = { pendingReplacement = null }) { Text("Cancel") } },
+            dismissButton = {
+                TextButton(onClick = { pendingReplacement = null }) {
+                    Text(stringResource(Res.string.cancel))
+                }
+            },
         )
     }
 }

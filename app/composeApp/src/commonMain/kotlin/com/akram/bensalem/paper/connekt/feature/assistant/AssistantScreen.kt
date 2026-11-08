@@ -11,6 +11,12 @@ import com.akram.bensalem.paper.connekt.feature.assistant.component.Workplace
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.Clock
+import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
+import com.paperconnekt.app.resources.discard_and_exit
+import com.paperconnekt.app.resources.discard_unsynchronized_changes
+import com.paperconnekt.app.resources.discard_unsynchronized_changes_message
+import com.paperconnekt.app.resources.keep_editing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,10 +38,10 @@ fun AssistantScreen(
     if (confirmExit) {
         AlertDialog(
             onDismissRequest = { confirmExit = false },
-            title = { Text("Discard unsynchronized changes?") },
-            text = { Text("Your annotation draft or queued changes have not finished synchronizing with Zotero. Leaving the workspace will discard local changes that have not reached Zotero.") },
-            confirmButton = { TextButton(onClick = exitWorkspace, modifier = Modifier.interactivePointer()) { Text("Discard and exit") } },
-            dismissButton = { TextButton(onClick = { confirmExit = false }, modifier = Modifier.interactivePointer()) { Text("Keep editing") } }
+            title = { Text(stringResource(Res.string.discard_unsynchronized_changes)) },
+            text = { Text(stringResource(Res.string.discard_unsynchronized_changes_message)) },
+            confirmButton = { TextButton(onClick = exitWorkspace, modifier = Modifier.interactivePointer()) { Text(stringResource(Res.string.discard_and_exit)) } },
+            dismissButton = { TextButton(onClick = { confirmExit = false }, modifier = Modifier.interactivePointer()) { Text(stringResource(Res.string.keep_editing)) } }
         )
     }
     val paper = state.selectedPaper

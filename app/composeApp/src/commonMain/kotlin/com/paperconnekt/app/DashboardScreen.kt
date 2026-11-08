@@ -43,7 +43,10 @@ import io.ktor.client.HttpClient
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
 import kotlin.random.Random
+import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Clock
+import com.paperconnekt.app.resources.add_paper_manually_title
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -219,7 +222,7 @@ internal fun AddPaperDialog(
     val paperId = remember { "manual-${Random.nextLong()}" }
 
     PaperMetadataDialog(
-        title = "Add paper manually",
+        title = stringResource(Res.string.add_paper_manually_title),
         confirmLabel = if (saving) "Saving..." else "Save locally",
         titleValue = title,
         onTitleChange = { title = it },

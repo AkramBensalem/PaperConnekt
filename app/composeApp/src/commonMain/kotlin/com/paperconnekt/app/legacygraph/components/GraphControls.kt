@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -33,6 +34,15 @@ import androidx.compose.runtime.*
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import com.paperconnekt.app.resources.citations
+import com.paperconnekt.app.resources.graph_filters
+import com.paperconnekt.app.resources.hide
+import com.paperconnekt.app.resources.interconnections
+import com.paperconnekt.app.resources.minimum_citations
+import com.paperconnekt.app.resources.minimum_similarity
+import com.paperconnekt.app.resources.references
+import com.paperconnekt.app.resources.show
+import com.paperconnekt.app.resources.show_disqualified
 
 @Composable
 fun GraphControls(
@@ -93,11 +103,11 @@ fun GraphControls(
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Graph Filters", style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Text(stringResource(Res.string.graph_filters), style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                 }
                 Icon(
                     if (isCollapsed) painterResource(Res.drawable.filled_keyboard_arrow_down) else painterResource(Res.drawable.filled_keyboard_arrow_up),
-                    contentDescription = if (isCollapsed) "Expand" else "Collapse",
+                    contentDescription = if (isCollapsed) stringResource(Res.string.show) else stringResource(Res.string.hide),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -111,28 +121,28 @@ fun GraphControls(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     ControlToggle(
-                        label = "References",
+                        label = stringResource(Res.string.references),
                         checked = filterCiting,
                         onCheckedChange = { onToggleCiting() },
                         icon = painterResource(Res.drawable.filled_layers)
                     )
 
                     ControlToggle(
-                        label = "Citations",
+                        label = stringResource(Res.string.citations),
                         checked = filterCited,
                         onCheckedChange = { onToggleCited() },
                         icon = painterResource(Res.drawable.filled_info)
                     )
 
                     ControlToggle(
-                        label = "Show Disqualified",
+                        label = stringResource(Res.string.show_disqualified),
                         checked = showDisqualified,
                         onCheckedChange = { onToggleShowDisqualified() },
                         icon = painterResource(Res.drawable.filled_filter_list)
                     )
 
                     ControlToggle(
-                        label = "Interconnections",
+                        label = stringResource(Res.string.interconnections),
                         checked = showInterconnections,
                         onCheckedChange = { onToggleInterconnections() },
                         icon = painterResource(Res.drawable.filled_layers)
@@ -149,7 +159,7 @@ fun GraphControls(
                             minCitationsText = digits
                             onMinCitationsChanged(digits.toIntOrNull()?.coerceAtLeast(0) ?: 0)
                         },
-                        label = { Text("Minimum Citations") },
+                        label = { Text(stringResource(Res.string.minimum_citations)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         shape = RoundedCornerShape(10.dp),
@@ -159,7 +169,7 @@ fun GraphControls(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        "Minimum Similarity: $minimumSimilarityPercent%",
+                        stringResource(Res.string.minimum_similarity, minimumSimilarityPercent),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
                     )

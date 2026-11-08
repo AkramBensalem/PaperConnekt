@@ -53,6 +53,17 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
+import com.paperconnekt.app.resources.back_to_assistant
+import com.paperconnekt.app.resources.back_to_library
+import com.paperconnekt.app.resources.discard_and_exit
+import com.paperconnekt.app.resources.discard_changes_message
+import com.paperconnekt.app.resources.discard_unsaved_changes
+import com.paperconnekt.app.resources.discard_zotero_changes_message
+import com.paperconnekt.app.resources.keep_editing
+import com.paperconnekt.app.resources.try_again
+import com.paperconnekt.app.resources.unable_to_open_pdf
 
 internal class PdfNavigationGuard {
     var beforeNavigate: ((() -> Unit) -> Unit)? = null
@@ -193,14 +204,14 @@ private fun LocalPaperWorkspace(
     if (pendingExit != null) {
         AlertDialog(
             onDismissRequest = { pendingExit = null },
-            title = { Text("Discard unsaved changes?") },
-            text = { Text("An annotation draft or pending local changes have not been saved. Leaving now may discard them.") },
+            title = { Text(stringResource(Res.string.discard_unsaved_changes)) },
+            text = { Text(stringResource(Res.string.discard_changes_message)) },
             confirmButton = { TextButton(onClick = {
                 val exit = pendingExit
                 pendingExit = null
                 exit?.invoke()
-            }) { Text("Discard and exit") } },
-            dismissButton = { TextButton(onClick = { pendingExit = null }) { Text("Keep editing") } },
+            }) { Text(stringResource(Res.string.discard_and_exit)) } },
+            dismissButton = { TextButton(onClick = { pendingExit = null }) { Text(stringResource(Res.string.keep_editing)) } },
         )
     }
     Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
@@ -211,10 +222,10 @@ private fun LocalPaperWorkspace(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text("Unable to open PDF", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(Res.string.unable_to_open_pdf), style = MaterialTheme.typography.titleLarge)
                 Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
-                Button(onClick = { attempt++ }) { Text("Try again") }
-                TextButton(onClick = onBack) { Text("Back to Assistant") }
+                Button(onClick = { attempt++ }) { Text(stringResource(Res.string.try_again)) }
+                TextButton(onClick = onBack) { Text(stringResource(Res.string.back_to_assistant)) }
             }
             else -> {
                 val state = assistant.state
@@ -369,16 +380,16 @@ private fun ZoteroPaperWorkspace(
     if (pendingExit != null) {
         AlertDialog(
             onDismissRequest = { pendingExit = null },
-            title = { Text("Discard unsaved changes?") },
-            text = { Text("An annotation draft or pending Zotero changes have not been saved. Leaving now may discard them.") },
+            title = { Text(stringResource(Res.string.discard_unsaved_changes)) },
+            text = { Text(stringResource(Res.string.discard_zotero_changes_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     val exit = pendingExit
                     pendingExit = null
                     exit?.invoke()
-                }) { Text("Discard and exit") }
+                }) { Text(stringResource(Res.string.discard_and_exit)) }
             },
-            dismissButton = { TextButton(onClick = { pendingExit = null }) { Text("Keep editing") } },
+            dismissButton = { TextButton(onClick = { pendingExit = null }) { Text(stringResource(Res.string.keep_editing)) } },
         )
     }
     Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
@@ -389,9 +400,9 @@ private fun ZoteroPaperWorkspace(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text("Unable to open PDF", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(Res.string.unable_to_open_pdf), style = MaterialTheme.typography.titleLarge)
                 Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = onBack) { Text("Back to Library") }
+                TextButton(onClick = onBack) { Text(stringResource(Res.string.back_to_library)) }
             }
             else -> {
                 val state = assistant.state

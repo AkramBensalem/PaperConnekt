@@ -7,6 +7,7 @@ import com.paperconnekt.app.resources.filled_lightbulb
 import com.paperconnekt.app.resources.filled_note
 import com.paperconnekt.app.resources.filled_smart_toy
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import com.akram.bensalem.bistosh.core.designsystem.component.interactivePointer
 
 import androidx.compose.foundation.layout.*
@@ -36,6 +37,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.akram.bensalem.paper.connekt.models.Paper
 import com.paperconnekt.app.resources.filled_article
 import com.paperconnekt.secrets.SecretStore
+import com.paperconnekt.app.resources.back_to_library
+import com.paperconnekt.app.resources.next_panel
+import com.paperconnekt.app.resources.previous_panel
 
 @Composable
 fun Workplace(
@@ -139,7 +143,7 @@ fun Workplace(
                             ) {
                                 Icon(
                                     painterResource(Res.drawable.filled_arrow_back),
-                                    contentDescription = "Previous panel"
+                                    contentDescription = stringResource(Res.string.previous_panel)
                                 )
                             }
                             val (title, icon) = detailPanels[selectedPanel]
@@ -174,7 +178,7 @@ fun Workplace(
                             ) {
                                 Icon(
                                     painterResource(Res.drawable.filled_arrow_forward),
-                                    contentDescription = "Next panel"
+                                    contentDescription = stringResource(Res.string.next_panel)
                                 )
                             }
                         }
@@ -265,7 +269,7 @@ fun Workplace(
             })
     } else {
         Column(Modifier.fillMaxSize()) {
-            TextButton(onClick = onExit, modifier = Modifier.interactivePointer()) { Icon(painterResource(Res.drawable.filled_arrow_back), null); Text("Back to library") }
+            TextButton(onClick = onExit, modifier = Modifier.interactivePointer()) { Icon(painterResource(Res.drawable.filled_arrow_back), null); Text(stringResource(Res.string.back_to_library)) }
             BoxWithConstraints(Modifier.weight(1f)) {
                 if (maxWidth >= 900.dp) Row(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f)) { PdfViewer(paper) }

@@ -1,6 +1,7 @@
 package com.akram.bensalem.paper.connekt.feature.assistant.component
 
 import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import com.paperconnekt.app.resources.filled_arrow_forward
 import com.paperconnekt.app.resources.filled_history
 import com.paperconnekt.app.resources.filled_search
@@ -44,6 +45,40 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.Instant
 import kotlin.math.round
+import com.paperconnekt.app.resources.ai_cost_breakdown
+import com.paperconnekt.app.resources.ai_cost_rhythm
+import com.paperconnekt.app.resources.all_history
+import com.paperconnekt.app.resources.browse_zotero
+import com.paperconnekt.app.resources.clear_theme
+import com.paperconnekt.app.resources.continue_research
+import com.paperconnekt.app.resources.cost_breakdown
+import com.paperconnekt.app.resources.done
+import com.paperconnekt.app.resources.estimated_total_usd
+import com.paperconnekt.app.resources.find_studied_paper
+import com.paperconnekt.app.resources.go_to_zotero
+import com.paperconnekt.app.resources.last_7_days
+import com.paperconnekt.app.resources.no_research_tags
+import com.paperconnekt.app.resources.no_studied_papers_match
+import com.paperconnekt.app.resources.open_workspace
+import com.paperconnekt.app.resources.opens_per_day
+import com.paperconnekt.app.resources.peak_count
+import com.paperconnekt.app.resources.peak_usd
+import com.paperconnekt.app.resources.reload_history
+import com.paperconnekt.app.resources.research_in_motion
+import com.paperconnekt.app.resources.research_rhythm
+import com.paperconnekt.app.resources.research_themes
+import com.paperconnekt.app.resources.research_themes_hint
+import com.paperconnekt.app.resources.resume_in_workspace
+import com.paperconnekt.app.resources.study_history
+import com.paperconnekt.app.resources.tag_pdf_count
+import com.paperconnekt.app.resources.title_author_or_tag
+import com.paperconnekt.app.resources.today
+import com.paperconnekt.app.resources.today_usd
+import com.paperconnekt.app.resources.total
+import com.paperconnekt.app.resources.usd_per_day
+import com.paperconnekt.app.resources.workspace_opens_last_14_days
+import com.paperconnekt.app.resources.research_dashboard_description
+import com.paperconnekt.app.resources.study_time
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -91,9 +126,9 @@ fun ResearchDashboard(
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Your research, in motion", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text(stringResource(Res.string.research_in_motion), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Text(
-                        "Pick up where you left off. This space follows your workspace activity, not your entire Zotero library.",
+                        stringResource(Res.string.research_dashboard_description),
                         style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -106,7 +141,7 @@ fun ResearchDashboard(
                     Surface(color = MaterialTheme.colorScheme.errorContainer, shape = MaterialTheme.shapes.medium) {
                         Column(Modifier.padding(16.dp)) {
                             Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
-                            TextButton(onClick = onRetry, modifier = Modifier.interactivePointer()) { Text("Reload history") }
+                            TextButton(onClick = onRetry, modifier = Modifier.interactivePointer()) { Text(stringResource(Res.string.reload_history)) }
                         }
                     }
                 }
@@ -131,7 +166,7 @@ fun ResearchDashboard(
                                 else "Configure Zotero to keep a personal research history and reopen the PDFs you study.",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Button(onClick = onOpenZotero, modifier = Modifier.interactivePointer()) { Text("Go to Zotero") }
+                            Button(onClick = onOpenZotero, modifier = Modifier.interactivePointer()) { Text(stringResource(Res.string.go_to_zotero)) }
                         }
                     }
                 }
@@ -139,7 +174,7 @@ fun ResearchDashboard(
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text("CONTINUE RESEARCH", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text(stringResource(Res.string.continue_research), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
                             Text(latest.title, style = MaterialTheme.typography.headlineSmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
                             Text(
                                 "Last opened ${dateLabel(latest.lastOpenedAt, today)} · ${libraryLabel(latest)}",
@@ -152,7 +187,7 @@ fun ResearchDashboard(
                                 enabled = state.historyAvailable,
                                 modifier = Modifier.clipChipInteraction().interactivePointer()
                             ) {
-                                Text("Resume in workspace")
+                                Text(stringResource(Res.string.resume_in_workspace))
                                 Spacer(Modifier.width(8.dp))
                                 Icon(painterResource(Res.drawable.filled_arrow_forward), null, Modifier.size(18.dp))
                             }
@@ -195,10 +230,10 @@ fun ResearchDashboard(
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     OutlinedCard(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("Research themes", style = MaterialTheme.typography.titleMedium)
-                            Text("Zotero tags on PDFs you've opened. Select a theme to filter your history.", style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(Res.string.research_themes), style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(Res.string.research_themes_hint), style = MaterialTheme.typography.bodySmall)
                             if (tags.isEmpty()) {
-                                Text("No tags on your studied papers yet. Add tags in Zotero to reveal your research themes.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(Res.string.no_research_tags), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -208,7 +243,7 @@ fun ResearchDashboard(
                                     FilterChip(
                                         selected = selectedTag == tag.key,
                                         onClick = { selectedTag = tag.key.takeUnless { selectedTag == it } },
-                                        label = { Text("${tag.key} · ${tag.value} PDF${if (tag.value == 1) "" else "s"}", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                        label = { Text(stringResource(Res.string.tag_pdf_count, tag.key, tag.value), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                         modifier = Modifier.clipChipInteraction().interactivePointer()
                                     )
                                 }
@@ -219,13 +254,13 @@ fun ResearchDashboard(
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("Study history", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                            TextButton(onClick = onOpenZotero, modifier = Modifier.interactivePointer()) { Text("Browse Zotero") }
+                            Text(stringResource(Res.string.study_history), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                            TextButton(onClick = onOpenZotero, modifier = Modifier.interactivePointer()) { Text(stringResource(Res.string.browse_zotero)) }
                         }
                         OutlinedTextField(
                             value = query, onValueChange = { query = it },
-                            label = { Text("Find a studied paper") },
-                            placeholder = { Text("Title, author, or tag") },
+                            label = { Text(stringResource(Res.string.find_studied_paper)) },
+                            placeholder = { Text(stringResource(Res.string.title_author_or_tag)) },
                             leadingIcon = { Icon(painterResource(Res.drawable.filled_search), null) },
                             singleLine = true, modifier = Modifier.fillMaxWidth()
                         )
@@ -233,7 +268,7 @@ fun ResearchDashboard(
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilterChip(
                                     selected = !onlyThisWeek, onClick = { onlyThisWeek = false },
-                                    label = { Text("All history") },
+                                    label = { Text(stringResource(Res.string.all_history)) },
                                     modifier = Modifier.clipChipInteraction().interactivePointer(),
                                     shape = RoundedCornerShape(8.dp),
                                     border = FilterChipDefaults.filterChipBorder(
@@ -245,7 +280,7 @@ fun ResearchDashboard(
                                 )
                                 FilterChip(
                                     selected = onlyThisWeek, onClick = { onlyThisWeek = true },
-                                    label = { Text("Last 7 days") },
+                                    label = { Text(stringResource(Res.string.last_7_days)) },
                                     modifier = Modifier.clipChipInteraction().interactivePointer(),
                                     shape = RoundedCornerShape(8.dp),
                                     border = FilterChipDefaults.filterChipBorder(
@@ -258,7 +293,7 @@ fun ResearchDashboard(
                                 selectedTag?.let { tag ->
                                     InputChip(
                                         selected = true, onClick = { selectedTag = null },
-                                        label = { Text("Clear theme: $tag") },
+                                        label = { Text(stringResource(Res.string.clear_theme, tag)) },
                                         modifier = Modifier.clipChipInteraction().interactivePointer(),
                                         shape = RoundedCornerShape(8.dp)
                                     )
@@ -272,7 +307,7 @@ fun ResearchDashboard(
                     }
                 }
                 if (filtered.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
-                    Text("No studied papers match these filters.", modifier = Modifier.padding(vertical = 16.dp))
+                    Text(stringResource(Res.string.no_studied_papers_match), modifier = Modifier.padding(vertical = 16.dp))
                 }
                 items(filtered, key = { it.id }) { paper ->
                     OutlinedCard(
@@ -297,7 +332,7 @@ fun ResearchDashboard(
                                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Open workspace", style = MaterialTheme.typography.labelLarge)
+                                Text(stringResource(Res.string.open_workspace), style = MaterialTheme.typography.labelLarge)
                                 Spacer(Modifier.width(8.dp))
                                 Icon(painterResource(Res.drawable.filled_arrow_forward), null, Modifier.size(16.dp))
                             }
@@ -340,7 +375,7 @@ private fun UsageCostLabel(paper: StudiedPaper, onShowBreakdown: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         TextButton(onClick = onShowBreakdown, modifier = Modifier.interactivePointer()) {
-            Text("Cost breakdown")
+            Text(stringResource(Res.string.cost_breakdown))
         }
     }
 }
@@ -353,7 +388,7 @@ private fun PaperCostDialog(paper: StudiedPaper, onDismiss: () -> Unit) {
         .toLocalDateTime(TimeZone.currentSystemDefault()).date
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("AI cost breakdown") },
+        title = { Text(stringResource(Res.string.ai_cost_breakdown)) },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
@@ -366,13 +401,13 @@ private fun PaperCostDialog(paper: StudiedPaper, onDismiss: () -> Unit) {
                     shape = MaterialTheme.shapes.medium
                 ) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Estimated total · USD", style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(Res.string.estimated_total_usd), style = MaterialTheme.typography.labelMedium)
                         Text(
                             formatUsd(summary.totalCostUsd),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
-                        Text("Today ${formatUsd(summary.todayCostUsd)}", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(Res.string.today_usd, formatUsd(summary.todayCostUsd)), style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 AiUsageService.entries.forEach { service ->
@@ -418,7 +453,7 @@ private fun PaperCostDialog(paper: StudiedPaper, onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss, modifier = Modifier.interactivePointer()) { Text("Done") }
+            TextButton(onClick = onDismiss, modifier = Modifier.interactivePointer()) { Text(stringResource(Res.string.done)) }
         }
     )
 }
@@ -434,7 +469,7 @@ fun StudyTimeIndicator(todayMillis: Long, totalMillis: Long) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             painterResource(Res.drawable.filled_schedule),
-            contentDescription = "Study time",
+            contentDescription = stringResource(Res.string.study_time),
             modifier = Modifier.size(14.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -472,11 +507,11 @@ private fun ActivityChart(dailyOpens: Map<String, Int>, today: LocalDate, modifi
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
     OutlinedCard(modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text("Your research rhythm", style = MaterialTheme.typography.titleMedium)
-            Text("${values.sum()} workspace opens in the last 14 days", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(Res.string.research_rhythm), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(Res.string.workspace_opens_last_14_days, values.sum()), style = MaterialTheme.typography.bodySmall)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Opens / day", style = MaterialTheme.typography.labelSmall)
-                Text("Peak ${values.maxOrNull() ?: 0}", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(Res.string.opens_per_day), style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(Res.string.peak_count, values.maxOrNull() ?: 0), style = MaterialTheme.typography.labelSmall)
             }
             Canvas(
                 Modifier.fillMaxWidth().height(180.dp).semantics {
@@ -496,7 +531,7 @@ private fun ActivityChart(dailyOpens: Map<String, Int>, today: LocalDate, modifi
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(days.first().toString(), style = MaterialTheme.typography.labelSmall)
-                Text("Today", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(Res.string.today), style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -527,15 +562,15 @@ private fun AiCostChart(events: List<AiUsageEvent>, today: LocalDate, modifier: 
 
     OutlinedCard(modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("AI cost rhythm", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(Res.string.ai_cost_rhythm), style = MaterialTheme.typography.titleMedium)
             Text(
                 "Daily estimated cost over the last 14 days · Total ${formatUsd(total)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("USD / day", style = MaterialTheme.typography.labelSmall)
-                Text("Peak ${formatUsd(totalValues.maxOrNull() ?: 0.0)}", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(Res.string.usd_per_day), style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(Res.string.peak_usd, formatUsd(totalValues.maxOrNull() ?: 0.0)), style = MaterialTheme.typography.labelSmall)
             }
             Canvas(
                 Modifier.fillMaxWidth().height(180.dp).semantics {
@@ -580,7 +615,7 @@ private fun AiCostChart(events: List<AiUsageEvent>, today: LocalDate, modifier: 
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(days.first().toString(), style = MaterialTheme.typography.labelSmall)
-                Text("Today", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(Res.string.today), style = MaterialTheme.typography.labelSmall)
             }
             FlowRow(
                 Modifier.fillMaxWidth(),
@@ -594,7 +629,7 @@ private fun AiCostChart(events: List<AiUsageEvent>, today: LocalDate, modifier: 
                         color = lineColors[index],
                     )
                 }
-                AiCostLegendItem(label = "Total", value = formatUsd(total), color = totalColor, dashed = true)
+                AiCostLegendItem(label = stringResource(Res.string.total), value = formatUsd(total), color = totalColor, dashed = true)
             }
             if (periodEvents.isEmpty()) {
                 Text(

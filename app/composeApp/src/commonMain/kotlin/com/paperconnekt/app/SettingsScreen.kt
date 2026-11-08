@@ -53,6 +53,76 @@ import com.paperconnekt.app.resources.openai
 import com.paperconnekt.app.resources.openalex
 import com.paperconnekt.app.resources.settings
 import com.paperconnekt.app.resources.zotero
+import com.paperconnekt.app.resources.*
+import org.jetbrains.compose.resources.stringResource
+import com.paperconnekt.app.resources.appearance
+import com.paperconnekt.app.resources.appearance_description
+import com.paperconnekt.app.resources.appearance_for
+import com.paperconnekt.app.resources.arabic
+import com.paperconnekt.app.resources.assistant_providers
+import com.paperconnekt.app.resources.assistant_usage
+import com.paperconnekt.app.resources.checking_provider_readiness
+import com.paperconnekt.app.resources.dark
+import com.paperconnekt.app.resources.discovery
+import com.paperconnekt.app.resources.dismiss
+import com.paperconnekt.app.resources.enable_zotero
+import com.paperconnekt.app.resources.english
+import com.paperconnekt.app.resources.follow_device_appearance
+import com.paperconnekt.app.resources.french
+import com.paperconnekt.app.resources.keys_unchanged_retry
+import com.paperconnekt.app.resources.language
+import com.paperconnekt.app.resources.language_description
+import com.paperconnekt.app.resources.language_for
+import com.paperconnekt.app.resources.light
+import com.paperconnekt.app.resources.local_first_workspace
+import com.paperconnekt.app.resources.optional_openalex_discovery
+import com.paperconnekt.app.resources.paper_search
+import com.paperconnekt.app.resources.provider_description
+import com.paperconnekt.app.resources.provider_readiness_unavailable
+import com.paperconnekt.app.resources.readiness
+import com.paperconnekt.app.resources.retry
+import com.paperconnekt.app.resources.save_workspace
+import com.paperconnekt.app.resources.save_zotero_details
+import com.paperconnekt.app.resources.search_papers_by_meaning
+import com.paperconnekt.app.resources.settings_workspace_subtitle
+import com.paperconnekt.app.resources.system_default
+import com.paperconnekt.app.resources.use_arabic
+import com.paperconnekt.app.resources.use_dark_palette
+import com.paperconnekt.app.resources.use_english
+import com.paperconnekt.app.resources.use_french
+import com.paperconnekt.app.resources.use_light_palette
+import com.paperconnekt.app.resources.workspace
+import com.paperconnekt.app.resources.openai_provider_description
+import com.paperconnekt.app.resources.mistral_provider_description
+import com.paperconnekt.app.resources.zotero_provider_description
+import com.paperconnekt.app.resources.openalex_provider_description
+import com.paperconnekt.app.resources.workspace_description
+import com.paperconnekt.app.resources.workspace_name
+import com.paperconnekt.app.resources.workspace_saved
+import com.paperconnekt.app.resources.zotero_library
+import com.paperconnekt.app.resources.zotero_library_id_optional
+import com.paperconnekt.app.resources.zotero_user_id
+import com.paperconnekt.app.resources.zotero_local_description
+import com.paperconnekt.app.resources.openalex_rate_limit_description
+import com.paperconnekt.app.resources.openalex_discovery_description
+import com.paperconnekt.app.resources.semantic_search_description
+import com.paperconnekt.app.resources.provider_key_saved_message
+import com.paperconnekt.app.resources.provider_key_needed_message
+import com.paperconnekt.app.resources.configured_providers_summary
+import com.paperconnekt.app.resources.provider_key_saved_locally
+import com.paperconnekt.app.resources.provider_cleared_locally
+import com.paperconnekt.app.resources.provider_key_valid
+import com.paperconnekt.app.resources.zotero_identifiers_saved
+import com.paperconnekt.app.resources.provider_key_saved_chip
+import com.paperconnekt.app.resources.provider_not_set_chip
+import com.paperconnekt.app.resources.provider_rejected_not_saved
+import com.paperconnekt.app.resources.provider_check_failed_not_saved
+import com.paperconnekt.app.resources.provider_unreachable_not_saved
+import com.paperconnekt.app.resources.provider_save_failed
+import com.paperconnekt.app.resources.provider_clear_failed
+import com.paperconnekt.app.resources.provider_no_key
+import com.paperconnekt.app.resources.provider_rejected
+import com.paperconnekt.app.resources.provider_check_failed
 
 @Composable
 fun SettingsScreen(
@@ -85,6 +155,32 @@ fun SettingsScreen(
     val uriHandler = LocalUriHandler.current
     val httpClient = remember { HttpClient() }
     val mcpHost = LocalMcpHost.current
+    val workspaceSavedMessage = stringResource(Res.string.workspace_saved)
+    val enableZoteroDescription = stringResource(Res.string.enable_zotero)
+    val optionalOpenAlexDescription = stringResource(Res.string.optional_openalex_discovery)
+    val searchByMeaningDescription = stringResource(Res.string.search_papers_by_meaning)
+    val providerSettingsReadError = stringResource(Res.string.provider_readiness_unavailable)
+    val openAiName = stringResource(Res.string.openai)
+    val mistralName = stringResource(Res.string.mistral)
+    val zoteroName = stringResource(Res.string.zotero)
+    val openAlexName = stringResource(Res.string.openalex)
+    val openAiSavedMessage = stringResource(Res.string.provider_key_saved_locally, openAiName)
+    val openAiClearedMessage = stringResource(Res.string.provider_cleared_locally, openAiName)
+    val openAiValidMessage = stringResource(Res.string.provider_key_valid, openAiName)
+    val mistralSavedMessage = stringResource(Res.string.provider_key_saved_locally, mistralName)
+    val mistralClearedMessage = stringResource(Res.string.provider_cleared_locally, mistralName)
+    val mistralValidMessage = stringResource(Res.string.provider_key_valid, mistralName)
+    val zoteroSavedMessage = stringResource(Res.string.provider_key_saved_locally, zoteroName)
+    val zoteroClearedMessage = stringResource(Res.string.provider_cleared_locally, zoteroName)
+    val zoteroValidMessage = stringResource(Res.string.provider_key_valid, zoteroName)
+    val openAlexSavedMessage = stringResource(Res.string.provider_key_saved_locally, openAlexName)
+    val openAlexClearedMessage = stringResource(Res.string.provider_cleared_locally, openAlexName)
+    val openAlexValidMessage = stringResource(Res.string.provider_key_valid, openAlexName)
+    val zoteroIdentifiersSavedMessage = stringResource(Res.string.zotero_identifiers_saved)
+    val openAiErrors = providerErrorMessages(openAiName)
+    val mistralErrors = providerErrorMessages(mistralName)
+    val zoteroErrors = providerErrorMessages(zoteroName)
+    val openAlexErrors = providerErrorMessages(openAlexName)
 
     LaunchedEffect(secretStore, reloadSecretsToken) {
         isLoadingSecrets = true
@@ -98,7 +194,7 @@ fun SettingsScreen(
             throw exception
         } catch (_: Exception) {
             secretLoadFailed = true
-            feedback = SettingsFeedback.Error("Could not read local provider settings.")
+            feedback = SettingsFeedback.Error(providerSettingsReadError)
         } finally {
             isLoadingSecrets = false
         }
@@ -146,18 +242,18 @@ fun SettingsScreen(
                 }
             }
             item {
-                SettingsSection(title = "Workspace") {
+                SettingsSection(title = stringResource(Res.string.workspace)) {
                     SettingsCard {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
-                                "Your workspace stays on this device. Rename it to make the local research context yours.",
+                                stringResource(Res.string.workspace_description),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             OutlinedTextField(
                                 modifier = Modifier.fillMaxWidth(),
                                 value = workspaceName,
                                 onValueChange = { workspaceName = it },
-                                label = { Text("Workspace name") },
+                                label = { Text(stringResource(Res.string.workspace_name)) },
                                 singleLine = true,
                             )
                             Button(
@@ -168,24 +264,26 @@ fun SettingsScreen(
                                         store.updateSettings {
                                             it.copy(workspaceName = workspaceName.trim())
                                         }
-                                        feedback = SettingsFeedback.Success("Workspace name saved locally.")
+                                        feedback = SettingsFeedback.Success(workspaceSavedMessage)
                                     }
                                 },
                             ) {
-                                Text("Save workspace")
+                                Text(stringResource(Res.string.save_workspace))
                             }
                             Divider()
-                            Text("Appearance", style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(Res.string.appearance), style = MaterialTheme.typography.titleMedium)
                             Text(
-                                "Choose how PaperConnekt follows your device or stays light/dark.",
+                                stringResource(Res.string.appearance_description),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             ThemePreference.values().forEach { preference ->
+                                val label = preference.localizedLabel()
+                                val accessibilityLabel = stringResource(Res.string.appearance_for, label)
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .semantics {
-                                            contentDescription = "${preference.label} appearance"
+                                            contentDescription = accessibilityLabel
                                         },
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
@@ -200,9 +298,9 @@ fun SettingsScreen(
                                         },
                                     )
                                     Column {
-                                        Text(preference.label)
+                                        Text(label)
                                         Text(
-                                            preference.description,
+                                            preference.localizedDescription(),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -210,17 +308,19 @@ fun SettingsScreen(
                                 }
                             }
                             Divider()
-                            Text("Language", style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(Res.string.language), style = MaterialTheme.typography.titleMedium)
                             Text(
-                                "Choose the language used by PaperConnekt.",
+                                stringResource(Res.string.language_description),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             LanguagePreference.values().forEach { preference ->
+                                val label = preference.localizedLabel()
+                                val accessibilityLabel = stringResource(Res.string.language_for, label)
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .semantics {
-                                            contentDescription = "${preference.label} language"
+                                            contentDescription = accessibilityLabel
                                         },
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
@@ -235,9 +335,9 @@ fun SettingsScreen(
                                         },
                                     )
                                     Column {
-                                        Text(preference.label)
+                                        Text(label)
                                         Text(
-                                            preference.description,
+                                            preference.localizedDescription(),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -249,33 +349,33 @@ fun SettingsScreen(
                 }
             }
             item {
-                SettingsSection(title = "Assistant providers") {
+                SettingsSection(title = stringResource(Res.string.assistant_providers)) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            "Connect only the providers you want to use. Keys are stored locally through the Android Keystore or desktop preferences boundary; they are not synced or logged. A key is validated by its provider when a connected feature makes a request.",
+                            stringResource(Res.string.provider_description),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         if (isLoadingSecrets) {
                             SettingsCard {
-                                Text("Checking local provider readiness…")
+                                Text(stringResource(Res.string.checking_provider_readiness))
                             }
                         } else if (secretLoadFailed) {
                             SettingsCard {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Provider readiness is unavailable.")
+                                    Text(stringResource(Res.string.provider_readiness_unavailable))
                                     Text(
-                                        "Your existing keys were not changed. Retry to check the local secret store again.",
+                                        stringResource(Res.string.keys_unchanged_retry),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     TextButton(onClick = { reloadSecretsToken += 1 }) {
-                                        Text("Retry")
+                                        Text(stringResource(Res.string.retry))
                                     }
                                 }
                             }
                         } else {
                             ProviderCredentialCard(
-                                providerName = "OpenAI",
-                                description = "Store an OpenAI API key locally for connected AI features.",
+                                providerName = stringResource(Res.string.openai),
+                                description = stringResource(Res.string.openai_provider_description),
                                 providerIcon = Res.drawable.openai,
                                 providerIconBackground = MaterialTheme.colorScheme.onSurface,
                                 feedback = providerFeedback?.takeIf { it.provider == "OpenAI" }?.message,
@@ -290,11 +390,12 @@ fun SettingsScreen(
                                         key = SecretKey.OPENAI,
                                         draft = openAiDraft,
                                         label = "OpenAI",
+                                        errors = openAiErrors,
                                         client = httpClient,
                                         onSuccess = {
                                             openAiConfigured = true
                                             openAiDraft = ""
-                                            providerFeedback = ProviderFeedback("OpenAI", "OpenAI key saved locally.", false)
+                                            providerFeedback = ProviderFeedback("OpenAI", openAiSavedMessage, false)
                                         },
                                         onFailure = {
                                             providerFeedback = ProviderFeedback("OpenAI", it, true)
@@ -307,9 +408,10 @@ fun SettingsScreen(
                                         secretStore = secretStore,
                                         key = SecretKey.OPENAI,
                                         label = "OpenAI",
+                                        errors = openAiErrors,
                                         onSuccess = {
                                             openAiConfigured = false
-                                            providerFeedback = ProviderFeedback("OpenAI", "OpenAI was cleared locally.", false)
+                                            providerFeedback = ProviderFeedback("OpenAI", openAiClearedMessage, false)
                                         },
                                         onFailure = {
                                             providerFeedback = ProviderFeedback("OpenAI", it, true)
@@ -318,16 +420,16 @@ fun SettingsScreen(
                                 },
                                 onValidate = {
                                     validateSecret(
-                                        scope, secretStore, SecretKey.OPENAI, "OpenAI", httpClient,
-                                        onSuccess = { providerFeedback = ProviderFeedback("OpenAI", "OpenAI key is valid.", false) },
+                                        scope, secretStore, SecretKey.OPENAI, "OpenAI", openAiErrors, httpClient,
+                                        onSuccess = { providerFeedback = ProviderFeedback("OpenAI", openAiValidMessage, false) },
                                         onFailure = { providerFeedback = ProviderFeedback("OpenAI", it, true) },
                                     )
                                 },
                                 onOpenKeyPage = { uriHandler.openUri("https://platform.openai.com/api-keys") },
                             )
                             ProviderCredentialCard(
-                                providerName = "Mistral",
-                                description = "Store a Mistral API key locally for OCR and connected AI features.",
+                                providerName = stringResource(Res.string.mistral),
+                                description = stringResource(Res.string.mistral_provider_description),
                                 providerIcon = Res.drawable.mistral,
                                 feedback = providerFeedback?.takeIf { it.provider == "Mistral" }?.message,
                                 feedbackIsError = providerFeedback?.takeIf { it.provider == "Mistral" }?.isError ?: true,
@@ -341,11 +443,12 @@ fun SettingsScreen(
                                         key = SecretKey.MISTRAL,
                                         draft = mistralDraft,
                                         label = "Mistral",
+                                        errors = mistralErrors,
                                         client = httpClient,
                                         onSuccess = {
                                             mistralConfigured = true
                                             mistralDraft = ""
-                                            providerFeedback = ProviderFeedback("Mistral", "Mistral key saved locally.", false)
+                                            providerFeedback = ProviderFeedback("Mistral", mistralSavedMessage, false)
                                         },
                                         onFailure = {
                                             providerFeedback = ProviderFeedback("Mistral", it, true)
@@ -358,9 +461,10 @@ fun SettingsScreen(
                                         secretStore = secretStore,
                                         key = SecretKey.MISTRAL,
                                         label = "Mistral",
+                                        errors = mistralErrors,
                                         onSuccess = {
                                             mistralConfigured = false
-                                            providerFeedback = ProviderFeedback("Mistral", "Mistral was cleared locally.", false)
+                                            providerFeedback = ProviderFeedback("Mistral", mistralClearedMessage, false)
                                         },
                                         onFailure = {
                                             providerFeedback = ProviderFeedback("Mistral", it, true)
@@ -369,8 +473,8 @@ fun SettingsScreen(
                                 },
                                 onValidate = {
                                     validateSecret(
-                                        scope, secretStore, SecretKey.MISTRAL, "Mistral", httpClient,
-                                        onSuccess = { providerFeedback = ProviderFeedback("Mistral", "Mistral key is valid.", false) },
+                                        scope, secretStore, SecretKey.MISTRAL, "Mistral", mistralErrors, httpClient,
+                                        onSuccess = { providerFeedback = ProviderFeedback("Mistral", mistralValidMessage, false) },
                                         onFailure = { providerFeedback = ProviderFeedback("Mistral", it, true) },
                                     )
                                 },
@@ -381,7 +485,7 @@ fun SettingsScreen(
                 }
             }
             item {
-                SettingsSection(title = "Zotero library") {
+                SettingsSection(title = stringResource(Res.string.zotero_library)) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         SettingsCard {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -391,9 +495,9 @@ fun SettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Enable optional Zotero", style = MaterialTheme.typography.titleMedium)
+                                        Text(stringResource(Res.string.enable_zotero), style = MaterialTheme.typography.titleMedium)
                                         Text(
-                                            "Use Zotero only when you choose to connect it. It is not required for local research.",
+                                            stringResource(Res.string.zotero_local_description),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             style = MaterialTheme.typography.bodySmall,
                                         )
@@ -406,7 +510,7 @@ fun SettingsScreen(
                                             }
                                         },
                                         modifier = Modifier.semantics {
-                                            contentDescription = "Enable optional Zotero"
+                                            contentDescription = enableZoteroDescription
                                         },
                                     )
                                 }
@@ -415,14 +519,14 @@ fun SettingsScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         value = zoteroUserId,
                                         onValueChange = { zoteroUserId = it },
-                                        label = { Text("Zotero user ID") },
+                                        label = { Text(stringResource(Res.string.zotero_user_id)) },
                                         singleLine = true,
                                     )
                                     OutlinedTextField(
                                         modifier = Modifier.fillMaxWidth(),
                                         value = zoteroLibraryId,
                                         onValueChange = { zoteroLibraryId = it },
-                                        label = { Text("Zotero library ID (optional)") },
+                                        label = { Text(stringResource(Res.string.zotero_library_id_optional)) },
                                         singleLine = true,
                                     )
                                     Button(
@@ -436,18 +540,18 @@ fun SettingsScreen(
                                                         zoteroLibraryId = zoteroLibraryId.trim(),
                                                     )
                                                 }
-                                                feedback = SettingsFeedback.Success("Zotero identifiers saved locally.")
+                                                feedback = SettingsFeedback.Success(zoteroIdentifiersSavedMessage)
                                             }
                                         },
                                     ) {
-                                        Text("Save Zotero details")
+                                        Text(stringResource(Res.string.save_zotero_details))
                                     }
                                 }
                             }
                         }
                         ProviderCredentialCard(
-                            providerName = "Zotero",
-                            description = "Store the optional Zotero API key on this device.",
+                            providerName = stringResource(Res.string.zotero),
+                            description = stringResource(Res.string.zotero_provider_description),
                             feedback = providerFeedback?.takeIf { it.provider == "Zotero" }?.message,
                             feedbackIsError = providerFeedback?.takeIf { it.provider == "Zotero" }?.isError ?: true,
                             configured = zoteroConfigured,
@@ -461,11 +565,12 @@ fun SettingsScreen(
                                     key = SecretKey.ZOTERO,
                                     draft = zoteroDraft,
                                     label = "Zotero",
+                                    errors = zoteroErrors,
                                     client = httpClient,
                                     onSuccess = {
                                         zoteroConfigured = true
                                         zoteroDraft = ""
-                                        providerFeedback = ProviderFeedback("Zotero", "Zotero key saved locally.", false)
+                                        providerFeedback = ProviderFeedback("Zotero", zoteroSavedMessage, false)
                                     },
                                     onFailure = {
                                         providerFeedback = ProviderFeedback("Zotero", it, true)
@@ -478,9 +583,10 @@ fun SettingsScreen(
                                     secretStore = secretStore,
                                     key = SecretKey.ZOTERO,
                                     label = "Zotero",
+                                    errors = zoteroErrors,
                                     onSuccess = {
                                         zoteroConfigured = false
-                                        providerFeedback = ProviderFeedback("Zotero", "Zotero was cleared locally.", false)
+                                        providerFeedback = ProviderFeedback("Zotero", zoteroClearedMessage, false)
                                     },
                                     onFailure = {
                                         providerFeedback = ProviderFeedback("Zotero", it, true)
@@ -489,8 +595,8 @@ fun SettingsScreen(
                             },
                             onValidate = {
                                 validateSecret(
-                                    scope, secretStore, SecretKey.ZOTERO, "Zotero", httpClient,
-                                    onSuccess = { providerFeedback = ProviderFeedback("Zotero", "Zotero key is valid.", false) },
+                                    scope, secretStore, SecretKey.ZOTERO, "Zotero", zoteroErrors, httpClient,
+                                    onSuccess = { providerFeedback = ProviderFeedback("Zotero", zoteroValidMessage, false) },
                                     onFailure = { providerFeedback = ProviderFeedback("Zotero", it, true) },
                                 )
                             },
@@ -500,15 +606,15 @@ fun SettingsScreen(
                 }
             }
             item {
-                SettingsSection(title = "OpenAlex") {
+                SettingsSection(title = stringResource(Res.string.openalex)) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            "OpenAlex works without a key at a lower rate limit. Add your personal key for higher limits; it is stored only on this device.",
+                            stringResource(Res.string.openalex_rate_limit_description),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         ProviderCredentialCard(
-                            providerName = "OpenAlex",
-                            description = "Optional personal key for OpenAlex discovery and graph requests.",
+                            providerName = stringResource(Res.string.openalex),
+                            description = stringResource(Res.string.openalex_provider_description),
                             providerIcon = Res.drawable.openalex,
                             feedback = providerFeedback?.takeIf { it.provider == "OpenAlex" }?.message,
                             feedbackIsError = providerFeedback?.takeIf { it.provider == "OpenAlex" }?.isError ?: true,
@@ -516,26 +622,26 @@ fun SettingsScreen(
                             draft = openAlexDraft,
                             onDraftChange = { openAlexDraft = it },
                             onSave = {
-                                validateAndSaveSecret(scope, secretStore, SecretKey.OPENALEX, openAlexDraft, "OpenAlex", httpClient,
+                                validateAndSaveSecret(scope, secretStore, SecretKey.OPENALEX, openAlexDraft, "OpenAlex", openAlexErrors, httpClient,
                                     onSuccess = {
                                         openAlexConfigured = true
                                         openAlexDraft = ""
-                                        providerFeedback = ProviderFeedback("OpenAlex", "OpenAlex key saved locally.", false)
+                                        providerFeedback = ProviderFeedback("OpenAlex", openAlexSavedMessage, false)
                                     },
                                     onFailure = { providerFeedback = ProviderFeedback("OpenAlex", it, true) })
                             },
                             onClear = {
-                                deleteSecret(scope, secretStore, SecretKey.OPENALEX, "OpenAlex",
+                                deleteSecret(scope, secretStore, SecretKey.OPENALEX, "OpenAlex", openAlexErrors,
                                     onSuccess = {
                                         openAlexConfigured = false
-                                        providerFeedback = ProviderFeedback("OpenAlex", "OpenAlex was cleared locally.", false)
+                                        providerFeedback = ProviderFeedback("OpenAlex", openAlexClearedMessage, false)
                                     },
                                     onFailure = { providerFeedback = ProviderFeedback("OpenAlex", it, true) })
                             },
                             onValidate = {
                                 validateSecret(
-                                    scope, secretStore, SecretKey.OPENALEX, "OpenAlex", httpClient,
-                                    onSuccess = { providerFeedback = ProviderFeedback("OpenAlex", "OpenAlex key is valid.", false) },
+                                    scope, secretStore, SecretKey.OPENALEX, "OpenAlex", openAlexErrors, httpClient,
+                                    onSuccess = { providerFeedback = ProviderFeedback("OpenAlex", openAlexValidMessage, false) },
                                     onFailure = { providerFeedback = ProviderFeedback("OpenAlex", it, true) },
                                 )
                             },
@@ -549,7 +655,7 @@ fun SettingsScreen(
                 }
             }
             item {
-                SettingsSection(title = "Discovery") {
+                SettingsSection(title = stringResource(Res.string.discovery)) {
                     SettingsCard {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -557,9 +663,9 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Optional OpenAlex discovery", style = MaterialTheme.typography.titleMedium)
+                                Text(stringResource(Res.string.optional_openalex_discovery), style = MaterialTheme.typography.titleMedium)
                                 Text(
-                                    "When enabled, dashboard searches may query OpenAlex. Local papers remain available offline.",
+                                    stringResource(Res.string.openalex_discovery_description),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -574,7 +680,7 @@ fun SettingsScreen(
                                     }
                                 },
                                 modifier = Modifier.semantics {
-                                    contentDescription = "Enable optional OpenAlex discovery"
+                                    contentDescription = optionalOpenAlexDescription
                                 },
                             )
                         }
@@ -582,7 +688,7 @@ fun SettingsScreen(
                 }
             }
             item {
-                SettingsSection(title = "Paper search") {
+                SettingsSection(title = stringResource(Res.string.paper_search)) {
                     SettingsCard {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -590,11 +696,9 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Search papers by meaning", style = MaterialTheme.typography.titleMedium)
+                                Text(stringResource(Res.string.search_papers_by_meaning), style = MaterialTheme.typography.titleMedium)
                                 Text(
-                                    "With a Mistral or OpenAI key, the AI agent also finds passages that say the same thing in other words. " +
-                                        "Each paper's text is sent once to that provider to compute embeddings, which are cached on this device " +
-                                        "and cost a fraction of a cent per paper. When off, the agent searches by keywords only.",
+                                    stringResource(Res.string.semantic_search_description),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -609,7 +713,7 @@ fun SettingsScreen(
                                     }
                                 },
                                 modifier = Modifier.semantics {
-                                    contentDescription = "Search papers by meaning"
+                                    contentDescription = searchByMeaningDescription
                                 },
                             )
                         }
@@ -620,10 +724,10 @@ fun SettingsScreen(
                 item { McpSettingsSection(host, store, secretStore, settings) }
             }
             item {
-                SettingsSection(title = "Readiness") {
+                SettingsSection(title = stringResource(Res.string.readiness)) {
                     SettingsCard {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Assistant usage", style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(Res.string.assistant_usage), style = MaterialTheme.typography.titleMedium)
                             Text(
                                 "${sessions.size} local conversation${if (sessions.size == 1) "" else "s"} · ${papers.size} saved paper${if (papers.size == 1) "" else "s"}",
                                 style = MaterialTheme.typography.bodyLarge,
@@ -631,9 +735,9 @@ fun SettingsScreen(
                             Text(
                                 when {
                                     openAiConfigured || mistralConfigured ->
-                                        "A provider key is saved locally. The provider confirms whether it is valid when a connected feature makes a request."
+                                        stringResource(Res.string.provider_key_saved_message)
                                     else ->
-                                        "Add an OpenAI or Mistral key to make provider-backed answers available."
+                                        stringResource(Res.string.provider_key_needed_message)
                                 },
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -684,18 +788,45 @@ private data class ProviderFeedback(
     val isError: Boolean,
 )
 
+private data class ProviderErrorMessages(
+    val rejectedNotSaved: String,
+    val checkFailedNotSaved: String,
+    val unreachableNotSaved: String,
+    val saveFailed: String,
+    val clearFailed: String,
+    val noKey: String,
+    val rejected: String,
+    val checkFailed: String,
+)
+
+@Composable
+private fun providerErrorMessages(name: String) = ProviderErrorMessages(
+    rejectedNotSaved = stringResource(Res.string.provider_rejected_not_saved, name),
+    checkFailedNotSaved = stringResource(Res.string.provider_check_failed_not_saved, name),
+    unreachableNotSaved = stringResource(Res.string.provider_unreachable_not_saved, name),
+    saveFailed = stringResource(Res.string.provider_save_failed, name),
+    clearFailed = stringResource(Res.string.provider_clear_failed, name),
+    noKey = stringResource(Res.string.provider_no_key, name),
+    rejected = stringResource(Res.string.provider_rejected, name),
+    checkFailed = stringResource(Res.string.provider_check_failed, name),
+)
+
 @Composable
 private fun SettingsHeader(
     workspaceName: String,
     configuredProviders: Int,
 ) {
     WorkspaceHeader(
-        title = "Settings",
-        subtitle = "Settings for $workspaceName. Your research, your preferences, your device.",
+        title = stringResource(Res.string.settings),
+        subtitle = stringResource(Res.string.settings_workspace_subtitle, workspaceName),
         icon = Res.drawable.settings,
         summaries = listOf(
-            "Local-first workspace",
-            "$configuredProviders provider key${if (configuredProviders == 1) "" else "s"} saved",
+            stringResource(Res.string.local_first_workspace),
+            stringResource(
+                Res.string.configured_providers_summary,
+                configuredProviders,
+                if (configuredProviders == 1) "" else "s",
+            ),
         ),
     )
 }
@@ -763,9 +894,9 @@ private fun SettingsFeedbackCard(
                 },
             )
             if (isError) {
-                TextButton(onClick = onRetry) { Text("Retry") }
+                TextButton(onClick = onRetry) { Text(stringResource(Res.string.retry)) }
             }
-            TextButton(onClick = onDismiss) { Text("Dismiss") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.dismiss)) }
         }
     }
 }
@@ -781,7 +912,14 @@ private fun ReadinessChip(
         selected = ready,
         onClick = {},
         enabled = false,
-        label = { Text(if (ready) "$label key saved" else "$label not set") },
+        label = {
+            Text(
+                stringResource(
+                    if (ready) Res.string.provider_key_saved_chip else Res.string.provider_not_set_chip,
+                    label,
+                ),
+            )
+        },
     )
 }
 
@@ -791,6 +929,7 @@ private fun validateAndSaveSecret(
     key: SecretKey,
     draft: String,
     label: String,
+    errors: ProviderErrorMessages,
     client: HttpClient,
     onSuccess: () -> Unit,
     onFailure: (String) -> Unit,
@@ -804,9 +943,9 @@ private fun validateAndSaveSecret(
             val response = requestKeyValidation(client, key, value)
             if (response.status.value !in 200..299) {
                 if (response.status.value == 401 || response.status.value == 403) {
-                    onFailure("$label rejected the key (invalid or expired). It was not saved.")
+                    onFailure(errors.rejectedNotSaved)
                 } else {
-                    onFailure("$label key check returned HTTP ${response.status.value}. It was not saved.")
+                    onFailure(errors.checkFailedNotSaved)
                 }
                 return@launch
             }
@@ -815,7 +954,7 @@ private fun validateAndSaveSecret(
         } catch (exception: kotlinx.coroutines.CancellationException) {
             throw exception
         } catch (_: Exception) {
-            onFailure("Could not reach $label to check the key. It was not saved.")
+            onFailure(errors.unreachableNotSaved)
         }
     }
 }
@@ -826,6 +965,7 @@ private fun saveSecret(
     key: SecretKey,
     draft: String,
     label: String,
+    errors: ProviderErrorMessages,
     onSuccess: () -> Unit,
     onFailure: (String) -> Unit,
 ) {
@@ -838,7 +978,7 @@ private fun saveSecret(
         } catch (exception: kotlinx.coroutines.CancellationException) {
             throw exception
         } catch (_: Exception) {
-            onFailure("Could not save the $label key locally. Try again.")
+            onFailure(errors.saveFailed)
         }
     }
 }
@@ -848,6 +988,7 @@ private fun deleteSecret(
     secretStore: SecretStore,
     key: SecretKey,
     label: String,
+    errors: ProviderErrorMessages,
     onSuccess: () -> Unit,
     onFailure: (String) -> Unit,
 ) {
@@ -858,7 +999,7 @@ private fun deleteSecret(
         } catch (exception: kotlinx.coroutines.CancellationException) {
             throw exception
         } catch (_: Exception) {
-            onFailure("Could not clear the $label key locally. Try again.")
+            onFailure(errors.clearFailed)
         }
     }
 }
@@ -868,6 +1009,7 @@ private fun validateSecret(
     secretStore: SecretStore,
     key: SecretKey,
     label: String,
+    errors: ProviderErrorMessages,
     client: HttpClient,
     onSuccess: () -> Unit,
     onFailure: (String) -> Unit,
@@ -876,20 +1018,20 @@ private fun validateSecret(
         try {
             val value = secretStore.read(key)?.filterNot(Char::isWhitespace).orEmpty()
             if (value.isEmpty()) {
-                onFailure("No $label key is saved locally.")
+                onFailure(errors.noKey)
                 return@launch
             }
             val response = requestKeyValidation(client, key, value)
             if (response.status.value in 200..299) onSuccess()
             else if (response.status.value == 401 || response.status.value == 403) {
-                onFailure("$label rejected the key (invalid or expired).")
+                onFailure(errors.rejected)
             } else {
-                onFailure("$label key check returned HTTP ${response.status.value}.")
+                onFailure(errors.checkFailed)
             }
         } catch (exception: kotlinx.coroutines.CancellationException) {
             throw exception
         } catch (_: Exception) {
-            onFailure("Could not reach $label to check the key.")
+            onFailure(errors.checkFailed)
         }
     }
 }
@@ -913,30 +1055,30 @@ private suspend fun requestKeyValidation(
     SecretKey.MCP_TOKEN -> error("The MCP access token is local and has no provider to validate against.")
 }
 
-private val ThemePreference.label: String
-    get() = when (this) {
-        ThemePreference.SYSTEM -> "System default"
-        ThemePreference.LIGHT -> "Light"
-        ThemePreference.DARK -> "Dark"
-    }
+@Composable
+private fun ThemePreference.localizedLabel(): String = when (this) {
+    ThemePreference.SYSTEM -> stringResource(Res.string.system_default)
+    ThemePreference.LIGHT -> stringResource(Res.string.light)
+    ThemePreference.DARK -> stringResource(Res.string.dark)
+}
 
-private val ThemePreference.description: String
-    get() = when (this) {
-        ThemePreference.SYSTEM -> "Follow the device appearance"
-        ThemePreference.LIGHT -> "Use the light PaperConnekt palette"
-        ThemePreference.DARK -> "Use the dark PaperConnekt palette"
-    }
+@Composable
+private fun ThemePreference.localizedDescription(): String = when (this) {
+    ThemePreference.SYSTEM -> stringResource(Res.string.follow_device_appearance)
+    ThemePreference.LIGHT -> stringResource(Res.string.use_light_palette)
+    ThemePreference.DARK -> stringResource(Res.string.use_dark_palette)
+}
 
-private val LanguagePreference.label: String
-    get() = when (this) {
-        LanguagePreference.ENGLISH -> "English"
-        LanguagePreference.FRENCH -> "Français"
-        LanguagePreference.ARABIC -> "العربية"
-    }
+@Composable
+private fun LanguagePreference.localizedLabel(): String = when (this) {
+    LanguagePreference.ENGLISH -> stringResource(Res.string.english)
+    LanguagePreference.FRENCH -> stringResource(Res.string.french)
+    LanguagePreference.ARABIC -> stringResource(Res.string.arabic)
+}
 
-private val LanguagePreference.description: String
-    get() = when (this) {
-        LanguagePreference.ENGLISH -> "Use English throughout the app"
-        LanguagePreference.FRENCH -> "Utiliser le français dans l’application"
-        LanguagePreference.ARABIC -> "استخدم العربية في التطبيق"
-    }
+@Composable
+private fun LanguagePreference.localizedDescription(): String = when (this) {
+    LanguagePreference.ENGLISH -> stringResource(Res.string.use_english)
+    LanguagePreference.FRENCH -> stringResource(Res.string.use_french)
+    LanguagePreference.ARABIC -> stringResource(Res.string.use_arabic)
+}

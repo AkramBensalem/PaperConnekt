@@ -4,6 +4,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -49,6 +52,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -60,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -97,6 +102,91 @@ import com.paperconnekt.app.resources.arrow_back
 import com.paperconnekt.app.resources.research_graph_empty
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.launch
+import com.paperconnekt.app.resources.add_saved_paper
+import com.paperconnekt.app.resources.add_saved_papers
+import com.paperconnekt.app.resources.add_seed
+import com.paperconnekt.app.resources.all_saved_papers_in_graph
+import com.paperconnekt.app.resources.back
+import com.paperconnekt.app.resources.back_to_graphs
+import com.paperconnekt.app.resources.cancel
+import com.paperconnekt.app.resources.citation_count
+import com.paperconnekt.app.resources.citations
+import com.paperconnekt.app.resources.close
+import com.paperconnekt.app.resources.close_paper_picker
+import com.paperconnekt.app.resources.connections
+import com.paperconnekt.app.resources.create
+import com.paperconnekt.app.resources.create_connection
+import com.paperconnekt.app.resources.done
+import com.paperconnekt.app.resources.filter_papers
+import com.paperconnekt.app.resources.graph_actions
+import com.paperconnekt.app.resources.graph_filters
+import com.paperconnekt.app.resources.graph_guide
+import com.paperconnekt.app.resources.graph_relationship_summary
+import com.paperconnekt.app.resources.insights
+import com.paperconnekt.app.resources.interconnections
+import com.paperconnekt.app.resources.load_citations
+import com.paperconnekt.app.resources.load_references
+import com.paperconnekt.app.resources.loading_citation_connections
+import com.paperconnekt.app.resources.minimum_citations
+import com.paperconnekt.app.resources.next
+import com.paperconnekt.app.resources.papers
+import com.paperconnekt.app.resources.previous
+import com.paperconnekt.app.resources.reference_count
+import com.paperconnekt.app.resources.references
+import com.paperconnekt.app.resources.remove
+import com.paperconnekt.app.resources.remove_relationship_message
+import com.paperconnekt.app.resources.remove_seed
+import com.paperconnekt.app.resources.rename
+import com.paperconnekt.app.resources.search_title_author_doi
+import com.paperconnekt.app.resources.saving_graph_changes
+import com.paperconnekt.app.resources.connection_path
+import com.paperconnekt.app.resources.add_paper_before_loading_connections
+import com.paperconnekt.app.resources.add_seed_to_explore
+import com.paperconnekt.app.resources.adjust_query_hint
+import com.paperconnekt.app.resources.author_details_unavailable
+import com.paperconnekt.app.resources.citation
+import com.paperconnekt.app.resources.click_to_add_paper
+import com.paperconnekt.app.resources.connection_path_hint
+import com.paperconnekt.app.resources.connections_map_hint
+import com.paperconnekt.app.resources.could_not_add_seed
+import com.paperconnekt.app.resources.could_not_discover_graph_connections
+import com.paperconnekt.app.resources.could_not_load_citation_graph
+import com.paperconnekt.app.resources.could_not_load_graph_connections
+import com.paperconnekt.app.resources.find_papers_openalex
+import com.paperconnekt.app.resources.finding_citation_connections
+import com.paperconnekt.app.resources.graph_empty
+import com.paperconnekt.app.resources.inspect
+import com.paperconnekt.app.resources.local_metadata_only
+import com.paperconnekt.app.resources.no_matching_papers
+import com.paperconnekt.app.resources.no_papers_in_graph
+import com.paperconnekt.app.resources.no_research_papers_query
+import com.paperconnekt.app.resources.openalex_id_missing
+import com.paperconnekt.app.resources.paper_search_failed
+import com.paperconnekt.app.resources.ranked_loaded_connections
+import com.paperconnekt.app.resources.recent
+import com.paperconnekt.app.resources.reference
+import com.paperconnekt.app.resources.related_topic
+import com.paperconnekt.app.resources.relationship_exists
+import com.paperconnekt.app.resources.relationship_insight_empty
+import com.paperconnekt.app.resources.results_range
+import com.paperconnekt.app.resources.save_locally
+import com.paperconnekt.app.resources.saved
+import com.paperconnekt.app.resources.saving_paper_locally
+import com.paperconnekt.app.resources.search
+import com.paperconnekt.app.resources.search_academic_add_seed
+import com.paperconnekt.app.resources.search_academic_hint
+import com.paperconnekt.app.resources.search_academic_save
+import com.paperconnekt.app.resources.search_openalex_hint
+import com.paperconnekt.app.resources.search_paper_add_seed
+import com.paperconnekt.app.resources.search_paper_to_save
+import com.paperconnekt.app.resources.searching
+import com.paperconnekt.app.resources.seed_paper
+import com.paperconnekt.app.resources.seed_papers_count
+import com.paperconnekt.app.resources.select_paper_different_target
+import com.paperconnekt.app.resources.select_source_paper
+import com.paperconnekt.app.resources.selected
+import com.paperconnekt.app.resources.shared_reference
+import com.paperconnekt.app.resources.visual_map_empty
 
 @Composable
 fun GraphWorkspace(
@@ -112,6 +202,15 @@ fun GraphWorkspace(
     onError: (String) -> Unit,
     openAlexKey: String? = null,
 ) {
+    val rankedLoadedConnections = stringResource(Res.string.ranked_loaded_connections)
+    val addPaperBeforeLoadingConnections = stringResource(Res.string.add_paper_before_loading_connections)
+    val couldNotLoadGraphConnections = stringResource(Res.string.could_not_load_graph_connections)
+    val couldNotDiscoverGraphConnections = stringResource(Res.string.could_not_discover_graph_connections)
+    val paperSearchFailed = stringResource(Res.string.paper_search_failed)
+    val couldNotAddSeed = stringResource(Res.string.could_not_add_seed)
+    val couldNotLoadCitationGraph = stringResource(Res.string.could_not_load_citation_graph)
+    val openAlexIdMissing = stringResource(Res.string.openalex_id_missing)
+    val selectPaperDifferentTarget = stringResource(Res.string.select_paper_different_target)
     val graphPapers = (papers + graph.discoveredPapers).distinctBy(Paper::id)
         .filter { it.id in graph.paperIds }
     val availablePapers = papers.filterNot { it.id in graph.paperIds }
@@ -190,7 +289,7 @@ fun GraphWorkspace(
                     .map { candidate ->
                 GuidedSuggestion(
                     candidate = candidate,
-                    reason = "Ranked from this paper's loaded references and citations.",
+                    reason = rankedLoadedConnections,
                     aiVerdict = null,
                 )
             },
@@ -275,7 +374,7 @@ fun GraphWorkspace(
     val expandGraph: (GraphExpansionDirection) -> Unit = { direction ->
         val source = selectedPaper ?: graphPapers.firstOrNull()
         if (source == null) {
-            onError("Add a paper to the graph before loading connections.")
+            onError(addPaperBeforeLoadingConnections)
         } else if (!isExpanding) {
             isExpanding = true
             scope.launch {
@@ -293,7 +392,7 @@ fun GraphWorkspace(
                         }
                     }
                     .onFailure {
-                        onError(providerFailureMessage(it, "OpenAlex") ?: "Could not load graph connections.")
+                        onError(providerFailureMessage(it, "OpenAlex") ?: couldNotLoadGraphConnections)
                     }
                 isExpanding = false
             }
@@ -303,7 +402,7 @@ fun GraphWorkspace(
     val discoverConnections: () -> Unit = {
         val source = selectedPaper ?: graphPapers.firstOrNull()
         if (source == null) {
-            onError("Add a paper to the graph before loading connections.")
+            onError(addPaperBeforeLoadingConnections)
         } else if (!isDiscoveringConnections && !isExpanding) {
             isDiscoveringConnections = true
             connectionDiscoveryProgress = 0f
@@ -332,7 +431,7 @@ fun GraphWorkspace(
                 }.onSuccess {
                     connectionDiscoveryComplete = true
                 }.onFailure {
-                    onError(providerFailureMessage(it, "OpenAlex") ?: "Could not discover graph connections.")
+                    onError(providerFailureMessage(it, "OpenAlex") ?: couldNotDiscoverGraphConnections)
                 }
                 isDiscoveringConnections = false
                 connectionDiscoveryProgress = 1f
@@ -361,7 +460,7 @@ fun GraphWorkspace(
                     seedHasNextPage = it.size >= 10
                 }
                     .onFailure {
-                        seedPickerError = providerFailureMessage(it, "OpenAlex") ?: "Paper search failed."
+                        seedPickerError = providerFailureMessage(it, "OpenAlex") ?: paperSearchFailed
                     }
                 isSearchingSeeds = false
             }
@@ -394,7 +493,7 @@ fun GraphWorkspace(
                     selectedPaperId = paper.id
                     showSeedPicker = false
                 }.onFailure {
-                    seedPickerError = providerFailureMessage(it, "OpenAlex") ?: "Could not add this seed paper."
+                    seedPickerError = providerFailureMessage(it, "OpenAlex") ?: couldNotAddSeed
                 }
                 isAddingSeed = false
             }
@@ -457,13 +556,13 @@ fun GraphWorkspace(
                     }.onFailure {
                         onError(
                             providerFailureMessage(it, "OpenAlex")
-                                ?: "Could not load the paper's citation graph.",
+                                ?: couldNotLoadCitationGraph,
                         )
                     }
                     isExpanding = false
                 }
             } else {
-                onError("This local paper has no OpenAlex work id, so references and citations are unavailable.")
+                onError(openAlexIdMissing)
             }
         }
     }
@@ -483,7 +582,7 @@ fun GraphWorkspace(
                     IconButton(onClick = onBack) {
                         Icon(
                             painter = org.jetbrains.compose.resources.painterResource(Res.drawable.arrow_back),
-                            contentDescription = "Back to graphs",
+                            contentDescription = stringResource(Res.string.back),
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
@@ -507,8 +606,8 @@ fun GraphWorkspace(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(onClick = { showSeedPicker = true }) { Text("Add seed") }
-                    TextButton(onClick = { showInsightsDialog = true }) { Text("Insights") }
+                    TextButton(onClick = { showSeedPicker = true }) { Text(stringResource(Res.string.add_seed)) }
+                    TextButton(onClick = { showInsightsDialog = true }) { Text(stringResource(Res.string.insights)) }
                     GraphFilterMenu(
                         expanded = showFilters,
                         onOpen = { showFilters = true },
@@ -531,7 +630,7 @@ fun GraphWorkspace(
                             embedded = true,
                         )
                     }
-                    OutlinedButton(onClick = onRename) { Text("Rename") }
+                    OutlinedButton(onClick = onRename) { Text(stringResource(Res.string.rename)) }
                 }
             }
         } else {
@@ -542,7 +641,7 @@ fun GraphWorkspace(
                 IconButton(onClick = onBack) {
                     Icon(
                         painter = org.jetbrains.compose.resources.painterResource(Res.drawable.arrow_back),
-                        contentDescription = "Back to graphs",
+                        contentDescription = stringResource(Res.string.back_to_graphs),
                     )
                 }
                 Spacer(Modifier.width(8.dp))
@@ -560,8 +659,8 @@ fun GraphWorkspace(
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { showSeedPicker = true }) { Text("Add seed") }
-                TextButton(onClick = { showInsightsDialog = true }) { Text("Insights") }
+                TextButton(onClick = { showSeedPicker = true }) { Text(stringResource(Res.string.add_seed)) }
+                TextButton(onClick = { showInsightsDialog = true }) { Text(stringResource(Res.string.insights)) }
                 GraphFilterMenu(
                     expanded = showFilters,
                     onOpen = { showFilters = true },
@@ -585,12 +684,12 @@ fun GraphWorkspace(
                     )
                 }
                 }
-                OutlinedButton(onClick = onRename) { Text("Rename") }
+                OutlinedButton(onClick = onRename) { Text(stringResource(Res.string.rename)) }
             }
         }
 
         if (isSaving) {
-            GraphStatusCard(message = "Saving graph changes locally…", isError = false)
+            GraphStatusCard(message = stringResource(Res.string.saving_graph_changes), isError = false)
         }
         errorMessage?.let { message ->
             GraphStatusCard(message = message, isError = true)
@@ -871,7 +970,7 @@ fun GraphWorkspace(
             onCreate = { targetId, type ->
                 val sourceId = selectedPaperId
                 if (sourceId == null || sourceId == targetId) {
-                    onError("Select one paper and a different target to create a connection.")
+                    onError(selectPaperDifferentTarget)
                 } else {
                     saveUpdated(
                         graph.copy(
@@ -893,18 +992,18 @@ fun GraphWorkspace(
     connectionToRemove?.let { connection ->
         AlertDialog(
             onDismissRequest = { connectionToRemove = null },
-            title = { Text("Remove connection?") },
-            text = { Text("This only removes the relationship from this graph.") },
+            title = { Text(stringResource(Res.string.remove) + "?") },
+            text = { Text(stringResource(Res.string.remove_relationship_message)) },
             confirmButton = {
                 Button(
                     onClick = {
                         saveUpdated(graph.copy(connections = graph.connections - connection))
                         connectionToRemove = null
                     },
-                ) { Text("Remove") }
+                ) { Text(stringResource(Res.string.remove)) }
             },
             dismissButton = {
-                TextButton(onClick = { connectionToRemove = null }) { Text("Cancel") }
+                TextButton(onClick = { connectionToRemove = null }) { Text(stringResource(Res.string.cancel)) }
             },
         )
     }
@@ -947,7 +1046,7 @@ private fun GraphDetailsPanel(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
-                Text("Graph guide", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(Res.string.graph_guide), style = MaterialTheme.typography.titleMedium)
                 Text(
                     graphGuide(graph, allPapers),
                     style = MaterialTheme.typography.bodySmall,
@@ -955,28 +1054,28 @@ private fun GraphDetailsPanel(
                 )
             }
             item {
-                Text("Graph filters", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(Res.string.graph_filters), style = MaterialTheme.typography.titleSmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     FilterChip(
                         selected = showReferences,
                         onClick = onToggleReferences,
-                        label = { Text("References") },
+                        label = { Text(stringResource(Res.string.references)) },
                     )
                     FilterChip(
                         selected = showCitations,
                         onClick = onToggleCitations,
-                        label = { Text("Citations") },
+                        label = { Text(stringResource(Res.string.citations)) },
                     )
                 }
                 FilterChip(
                     selected = showInterconnections,
                     onClick = onToggleInterconnections,
-                    label = { Text("Interconnections") },
+                    label = { Text(stringResource(Res.string.interconnections)) },
                 )
                 OutlinedTextField(
                     value = minimumCitations.toString(),
                     onValueChange = { onMinimumCitationsChange(it.toIntOrNull()?.coerceAtLeast(0) ?: 0) },
-                    label = { Text("Minimum citations") },
+                    label = { Text(stringResource(Res.string.minimum_citations)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -990,11 +1089,11 @@ private fun GraphDetailsPanel(
                         modifier = Modifier.weight(1f),
                         value = paperQuery,
                         onValueChange = onPaperQueryChange,
-                        label = { Text("Filter papers") },
+                        label = { Text(stringResource(Res.string.filter_papers)) },
                         singleLine = true,
                     )
                     TextButton(onClick = onSortChange) {
-                        Text(if (sortByTitle) "A-Z" else "Recent")
+                        Text(if (sortByTitle) "A-Z" else stringResource(Res.string.recent))
                     }
                 }
             }
@@ -1003,14 +1102,14 @@ private fun GraphDetailsPanel(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = onAddPaper,
                 ) {
-                    Text("Add saved paper")
+                    Text(stringResource(Res.string.add_saved_paper))
                 }
             }
             if (papers.isEmpty()) {
                 item {
                     Text(
                         if (allPapers.isEmpty()) {
-                            "No papers in this graph yet. Add one from your saved collection."
+                            stringResource(Res.string.no_papers_in_graph)
                         } else {
                             "No papers match this filter."
                         },
@@ -1019,7 +1118,7 @@ private fun GraphDetailsPanel(
                 }
             } else {
                 item {
-                    Text("Papers", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(Res.string.papers), style = MaterialTheme.typography.titleSmall)
                 }
                 items(papers, key = Paper::id) { paper ->
                     GraphPaperRow(
@@ -1042,12 +1141,12 @@ private fun GraphDetailsPanel(
                 }
             }
             item {
-                Text("Connections", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(Res.string.connections), style = MaterialTheme.typography.titleSmall)
             }
             if (graph.connections.isEmpty()) {
                 item {
                     Text(
-                        "Connections will appear here as you map citations, shared references, or related topics.",
+                        stringResource(Res.string.connections_map_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1090,13 +1189,15 @@ private fun GraphPaperRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(paper.title, style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    paper.authors.take(2).joinToString().ifEmpty { "Author details unavailable" },
+                    paper.authors.take(2).joinToString().ifEmpty { stringResource(Res.string.author_details_unavailable) },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            TextButton(onClick = onSelect) { Text(if (selected) "Selected" else "Inspect") }
-            TextButton(onClick = onRemove) { Text("Remove") }
+            TextButton(onClick = onSelect) {
+                Text(if (selected) stringResource(Res.string.selected) else stringResource(Res.string.inspect))
+            }
+            TextButton(onClick = onRemove) { Text(stringResource(Res.string.remove)) }
         }
     }
 }
@@ -1113,9 +1214,9 @@ private fun SelectedPaperCard(
     val isSeed = paper.id in seedIds
     val isReference = graph.connections.any { it.fromPaperId in seedIds && it.toPaperId == paper.id }
     val role = when {
-        isSeed -> "Seed paper"
-        isReference -> "Reference"
-        else -> "Citation"
+        isSeed -> stringResource(Res.string.seed_paper)
+        isReference -> stringResource(Res.string.reference)
+        else -> stringResource(Res.string.citation)
     }
     val roleColor = when {
         isSeed -> MaterialTheme.colorScheme.primaryContainer
@@ -1183,7 +1284,7 @@ private fun SelectedPaperCard(
                 listOfNotNull(
                     paper.year?.let { "Year $it" },
                     paper.doi?.let { "DOI $it" },
-                ).joinToString("  •  ").ifEmpty { "Local metadata only" },
+                ).joinToString("  •  ").ifEmpty { stringResource(Res.string.local_metadata_only) },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1209,17 +1310,17 @@ private fun SelectedPaperCard(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Graph actions", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Text(stringResource(Res.string.graph_actions), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { onExpand(GraphExpansionDirection.CITATIONS) }, modifier = Modifier.weight(1f)) {
-                            Text("Citations", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(Res.string.citations), style = MaterialTheme.typography.labelSmall)
                         }
                         OutlinedButton(onClick = { onExpand(GraphExpansionDirection.REFERENCES) }, modifier = Modifier.weight(1f)) {
-                            Text("References", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(Res.string.references), style = MaterialTheme.typography.labelSmall)
                         }
                     }
                     Button(onClick = onConnect, modifier = Modifier.fillMaxWidth()) {
-                        Text("Create connection")
+                        Text(stringResource(Res.string.create_connection))
                     }
                 }
             }
@@ -1227,18 +1328,18 @@ private fun SelectedPaperCard(
                 TextButton(
                     onClick = { onExpand(GraphExpansionDirection.REFERENCES) },
                     enabled = !isExpanding,
-                ) { Text("Load references") }
+                ) { Text(stringResource(Res.string.load_references)) }
                 TextButton(
                     onClick = { onExpand(GraphExpansionDirection.CITATIONS) },
                     enabled = !isExpanding,
-                ) { Text("Load citations") }
+                ) { Text(stringResource(Res.string.load_citations)) }
             }
             if (isExpanding) {
-                Text("Loading citation connections…", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(Res.string.loading_citation_connections), style = MaterialTheme.typography.bodySmall)
             }
             if (graph.connections.none { it.fromPaperId == paper.id || it.toPaperId == paper.id }) {
                 Text(
-                    "Insight: this paper has no mapped relationships yet.",
+                    stringResource(Res.string.relationship_insight_empty),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -1260,14 +1361,14 @@ private fun ConnectionRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text("${from.take(26)} -> ${to.take(26)}", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(Res.string.connection_path, from.take(26), to.take(26)), style = MaterialTheme.typography.bodySmall)
             Text(
-                connection.type.label,
+                connection.type.localizedLabel(),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
             )
         }
-        TextButton(onClick = onRemove) { Text("Remove") }
+        TextButton(onClick = onRemove) { Text(stringResource(Res.string.remove)) }
     }
 }
 
@@ -1279,11 +1380,11 @@ private fun AddGraphPapersDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add saved papers") },
+        title = { Text(stringResource(Res.string.add_saved_papers)) },
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (papers.isEmpty()) {
-                    item { Text("All saved papers are already in this graph.") }
+                    item { Text(stringResource(Res.string.all_saved_papers_in_graph)) }
                 } else {
                     items(papers, key = Paper::id) { paper ->
                         TextButton(onClick = { onAdd(paper) }) {
@@ -1293,7 +1394,7 @@ private fun AddGraphPapersDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.close)) } },
     )
 }
 
@@ -1302,14 +1403,26 @@ private fun EmptyGraphStateCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
     Card(
-        onClick = onClick,
         modifier = modifier
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Button,
+                onClick = onClick,
+            )
             .widthIn(min = 280.dp, max = 420.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            containerColor = if (hovered) {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
         ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
     ) {
         Column(
@@ -1323,18 +1436,18 @@ private fun EmptyGraphStateCard(
                 modifier = Modifier.widthIn(max = 220.dp).fillMaxWidth(),
             )
             Text(
-                text = "Your graph is empty",
+                text = stringResource(Res.string.graph_empty),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "Add a seed paper to start exploring its references and citations.",
+                text = stringResource(Res.string.add_seed_to_explore),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
             Text(
-                text = "Click to add a paper",
+                text = stringResource(Res.string.click_to_add_paper),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -1387,17 +1500,18 @@ internal fun PaperSearchPickerDialog(
                         Icon(painterResource(Res.drawable.filled_stars), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            if (libraryMode) "Find papers on OpenAlex" else "Seed papers (${seeds.size})",
+                            if (libraryMode) stringResource(Res.string.find_papers_openalex)
+                            else stringResource(Res.string.seed_papers_count, seeds.size),
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier.weight(1f),
                         )
                         IconButton(onClick = onDismiss) {
-                            Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close paper picker")
+                            Icon(painterResource(Res.drawable.filled_close), contentDescription = stringResource(Res.string.close_paper_picker))
                         }
                     }
                     Text(
-                        if (libraryMode) "Search academic literature, then save only the papers you choose to your local Library."
-                        else "Add papers to explore direct citations and shared references. Removing a seed keeps its papers and connections.",
+                        if (libraryMode) stringResource(Res.string.search_academic_save)
+                        else stringResource(Res.string.search_academic_add_seed),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1419,7 +1533,7 @@ internal fun PaperSearchPickerDialog(
                                 },
                                 trailingIcon = if (seeds.size > 1) ({
                                     IconButton(onClick = { onRemove(seed.id) }, modifier = Modifier.size(40.dp)) {
-                                        Icon(painterResource(Res.drawable.filled_close), contentDescription = "Remove seed: ${seed.title}", modifier = Modifier.size(18.dp))
+                                        Icon(painterResource(Res.drawable.filled_close), contentDescription = stringResource(Res.string.remove_seed, seed.title), modifier = Modifier.size(18.dp))
                                     }
                                 }) else null,
                             )
@@ -1428,7 +1542,8 @@ internal fun PaperSearchPickerDialog(
                     if (isAdding) {
                         LinearProgressIndicator(Modifier.fillMaxWidth())
                         Text(
-                            if (libraryMode) "Saving paper locally…" else "Finding citation connections…",
+                            if (libraryMode) stringResource(Res.string.saving_paper_locally)
+                            else stringResource(Res.string.finding_citation_connections),
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.padding(vertical = 8.dp),
                         )
@@ -1448,13 +1563,13 @@ internal fun PaperSearchPickerDialog(
                                     value = query,
                                     onValueChange = onQueryChange,
                                     enabled = !isSearching && !isAdding,
-                                    label = { Text("Search title, author, or DOI") },
+                                    label = { Text(stringResource(Res.string.search_title_author_doi)) },
                                     singleLine = true,
                                 )
                                 Button(
                                     onClick = onSearch,
                                     enabled = query.isNotBlank() && !isSearching && !isAdding,
-                                ) { Text(if (isSearching) "Searching…" else "Search") }
+                                ) { Text(if (isSearching) stringResource(Res.string.searching) else stringResource(Res.string.search)) }
                             }
                             if (results.isNotEmpty() || page > 0) {
                                 Row(
@@ -1462,8 +1577,8 @@ internal fun PaperSearchPickerDialog(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(
-                                        if (results.isEmpty()) "No matching papers" else
-                                            "${page * 10 + 1}-${page * 10 + results.size} results",
+                                        if (results.isEmpty()) stringResource(Res.string.no_matching_papers) else
+                                            stringResource(Res.string.results_range, page * 10 + 1, page * 10 + results.size),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.weight(1f),
@@ -1488,22 +1603,22 @@ internal fun PaperSearchPickerDialog(
                                     ) {
                                         Image(
                                             painter = painterResource(Res.drawable.research_graph_empty),
-                                            contentDescription = "Search for research papers",
+                                            contentDescription = stringResource(Res.string.search_title_author_doi),
                                             modifier = Modifier.widthIn(max = 280.dp).fillMaxWidth(),
                                         )
                                         Spacer(Modifier.height(12.dp))
                                         Text(
-                                            if (libraryMode && !hasSearched) "Search for a paper to save"
-                                            else if (query.isBlank()) "Search for a paper to add a seed"
-                                            else "No research papers found for \"$query\"",
+                                            if (libraryMode && !hasSearched) stringResource(Res.string.search_paper_to_save)
+                                            else if (query.isBlank()) stringResource(Res.string.search_paper_add_seed)
+                                            else stringResource(Res.string.no_research_papers_query, query),
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
                                         )
                                         Spacer(Modifier.height(6.dp))
                                         Text(
-                                            if (libraryMode && !hasSearched) "Search OpenAlex by title, author, keywords, or DOI."
-                                            else if (query.isBlank()) "Search across academic literature to start building this graph."
-                                            else "Try adjusting your query, keywords, or DOI.",
+                                            if (libraryMode && !hasSearched) stringResource(Res.string.search_openalex_hint)
+                                            else if (query.isBlank()) stringResource(Res.string.search_academic_hint)
+                                            else stringResource(Res.string.adjust_query_hint),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -1541,11 +1656,11 @@ internal fun PaperSearchPickerDialog(
                                                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                                                         }
                                                         paper.citationCount?.let {
-                                                            Text("⭐ $it citations", style = MaterialTheme.typography.labelSmall,
+                                                            Text(stringResource(Res.string.citation_count, "⭐ $it"), style = MaterialTheme.typography.labelSmall,
                                                                 color = MaterialTheme.colorScheme.tertiary)
                                                         }
                                                         paper.referenceCount?.let {
-                                                            Text("$it references", style = MaterialTheme.typography.labelSmall,
+                                                            Text(stringResource(Res.string.reference_count, it), style = MaterialTheme.typography.labelSmall,
                                                                 color = MaterialTheme.colorScheme.primary)
                                                         }
                                                     }
@@ -1554,7 +1669,9 @@ internal fun PaperSearchPickerDialog(
                                                     onClick = { onAdd(paper) },
                                                     enabled = !isAdding && (!libraryMode || paper.id !in savedPaperIds),
                                                 ) {
-                                                    Text(if (!libraryMode) "Add seed" else if (paper.id in savedPaperIds) "Saved" else "Save locally")
+                                                    Text(if (!libraryMode) stringResource(Res.string.add_seed)
+                                                    else if (paper.id in savedPaperIds) stringResource(Res.string.saved)
+                                                    else stringResource(Res.string.save_locally))
                                                 }
                                             }
                                         }
@@ -1571,7 +1688,7 @@ internal fun PaperSearchPickerDialog(
                         }
                     }
                     TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
-                        Text("Done")
+                        Text(stringResource(Res.string.done))
                     }
                 }
             }
@@ -1592,7 +1709,7 @@ private fun SeedSearchPager(
             onClick = onPrevious,
             enabled = enabled && page > 0,
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-        ) { Text("Previous", style = MaterialTheme.typography.labelSmall) }
+        ) { Text(stringResource(Res.string.previous), style = MaterialTheme.typography.labelSmall) }
         Text(
             "Page ${page + 1}",
             modifier = Modifier.padding(horizontal = 10.dp),
@@ -1603,7 +1720,7 @@ private fun SeedSearchPager(
             onClick = onNext,
             enabled = enabled && hasNext,
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-        ) { Text("Next", style = MaterialTheme.typography.labelSmall) }
+        ) { Text(stringResource(Res.string.next), style = MaterialTheme.typography.labelSmall) }
     }
 }
 
@@ -1620,12 +1737,12 @@ private fun CreateConnectionDialog(
     var typeMenuExpanded by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create connection") },
+        title = { Text(stringResource(Res.string.create) + " connection") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(sourcePaper?.title ?: "Select a source paper first")
+                Text(sourcePaper?.title ?: stringResource(Res.string.select_source_paper))
                 if (papers.none { it.id != sourcePaper?.id }) {
-                    Text("Add another paper to this graph before creating a connection.")
+                    Text(stringResource(Res.string.add_seed))
                 } else {
                     papers.filter { it.id != sourcePaper?.id }.forEach { paper ->
                         FilterChip(
@@ -1636,7 +1753,7 @@ private fun CreateConnectionDialog(
                     }
                     Box {
                         OutlinedButton(onClick = { typeMenuExpanded = true }) {
-                            Text(type.label)
+                            Text(type.localizedLabel())
                         }
                         DropdownMenu(
                             expanded = typeMenuExpanded,
@@ -1644,7 +1761,7 @@ private fun CreateConnectionDialog(
                         ) {
                             ConnectionType.entries.forEach { option ->
                                 DropdownMenuItem(
-                                    text = { Text(option.label) },
+                                    text = { Text(option.localizedLabel()) },
                                     onClick = {
                                         type = option
                                         typeMenuExpanded = false
@@ -1657,7 +1774,7 @@ private fun CreateConnectionDialog(
                             it.fromPaperId == sourcePaper?.id && it.toPaperId == targetId
                         }) {
                         Text(
-                            "This relationship already exists.",
+                            stringResource(Res.string.relationship_exists),
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
@@ -1668,26 +1785,27 @@ private fun CreateConnectionDialog(
             Button(
                 enabled = sourcePaper != null && targetId != null && papers.any { it.id != sourcePaper.id },
                 onClick = { targetId?.let { onCreate(it, type) } },
-            ) { Text("Create") }
+            ) { Text(stringResource(Res.string.create)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } },
     )
 }
 
-private val ConnectionType.label: String
-    get() = when (this) {
-        ConnectionType.CITATION -> "Citation"
-        ConnectionType.SHARED_REFERENCE -> "Shared reference"
-        ConnectionType.RELATED_TOPIC -> "Related topic"
+@Composable
+private fun ConnectionType.localizedLabel(): String = when (this) {
+        ConnectionType.CITATION -> stringResource(Res.string.citation)
+        ConnectionType.SHARED_REFERENCE -> stringResource(Res.string.shared_reference)
+        ConnectionType.RELATED_TOPIC -> stringResource(Res.string.related_topic)
     }
 
+@Composable
 private fun graphGuide(graph: ResearchGraph, papers: List<Paper>): String {
     return when {
-        papers.isEmpty() -> "Add saved papers to build a visual map. Graphs stay local and can be shaped around any research question."
-        graph.connections.isEmpty() -> "Select a node, inspect its metadata, then connect it to another paper with a relationship type."
+        papers.isEmpty() -> stringResource(Res.string.visual_map_empty)
+        graph.connections.isEmpty() -> stringResource(Res.string.connection_path_hint)
         else -> {
             val connectionTypes = graph.connections.map { it.type }.distinct().size
-            "You have mapped ${graph.connections.size} relationship${if (graph.connections.size == 1) "" else "s"} across $connectionTypes type${if (connectionTypes == 1) "" else "s"}. Follow the most connected paper to find a useful reading path."
+            stringResource(Res.string.graph_relationship_summary, graph.connections.size, connectionTypes)
         }
     }
 }

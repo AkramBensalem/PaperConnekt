@@ -37,11 +37,17 @@ import com.paperconnekt.domain.model.ResearchGraph
 import com.paperconnekt.domain.model.ThemePreference
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.paperconnekt_brand
+import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.painterResource
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import io.github.aakira.napier.Napier
 import kotlin.random.Random
+import com.paperconnekt.app.resources.nav_assistant
+import com.paperconnekt.app.resources.nav_dashboard
+import com.paperconnekt.app.resources.nav_graph
+import com.paperconnekt.app.resources.nav_library
+import com.paperconnekt.app.resources.nav_settings
 
 @Composable
 fun AppShell(
@@ -203,11 +209,11 @@ private fun AppShellContent(
     }
 
     val navigationItems = listOf(
-        AppDestination.DASHBOARD to (NavigationGlyph.DASHBOARD to "Dashboard"),
-        AppDestination.ASSISTANT to (NavigationGlyph.ASSISTANT to "Assistant"),
-        AppDestination.GRAPH to (NavigationGlyph.GRAPH to "Graph"),
-        AppDestination.LIBRARY to (NavigationGlyph.LIBRARY to "Library"),
-        AppDestination.SETTINGS to (NavigationGlyph.SETTINGS to "Settings"),
+        AppDestination.DASHBOARD to (NavigationGlyph.DASHBOARD to stringResource(Res.string.nav_dashboard)),
+        AppDestination.ASSISTANT to (NavigationGlyph.ASSISTANT to stringResource(Res.string.nav_assistant)),
+        AppDestination.GRAPH to (NavigationGlyph.GRAPH to stringResource(Res.string.nav_graph)),
+        AppDestination.LIBRARY to (NavigationGlyph.LIBRARY to stringResource(Res.string.nav_library)),
+        AppDestination.SETTINGS to (NavigationGlyph.SETTINGS to stringResource(Res.string.nav_settings)),
     )
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {

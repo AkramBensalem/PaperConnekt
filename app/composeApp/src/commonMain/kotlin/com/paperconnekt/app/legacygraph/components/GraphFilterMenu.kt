@@ -4,6 +4,7 @@ import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.filled_close
 import com.paperconnekt.app.resources.filled_filter_list
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -18,6 +19,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.paperconnekt.app.legacygraph.components.GraphAction
+import com.paperconnekt.app.resources.changes_apply_immediately
+import com.paperconnekt.app.resources.close
+import com.paperconnekt.app.resources.graph_filters
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,7 +35,7 @@ internal fun GraphFilterMenu(
     val width = with(LocalDensity.current) { windowSize.width.toDp() }
     val height = with(LocalDensity.current) { windowSize.height.toDp() }
     Box {
-        GraphAction(painterResource(Res.drawable.filled_filter_list), "Graph filters", onOpen)
+        GraphAction(painterResource(Res.drawable.filled_filter_list), stringResource(Res.string.graph_filters), onOpen)
         when {
             width < 600.dp -> if (expanded) {
                 ModalBottomSheet(
@@ -84,11 +88,11 @@ private fun GraphFilterHeader(onDismiss: () -> Unit) {
     Column(Modifier.padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(Res.drawable.filled_filter_list), null, tint = MaterialTheme.colorScheme.primary)
-            Text("Graph filters", Modifier.weight(1f).padding(start = 12.dp), style = MaterialTheme.typography.titleMedium)
-            GraphAction(painterResource(Res.drawable.filled_close), "Close graph filters", onDismiss)
+            Text(stringResource(Res.string.graph_filters), Modifier.weight(1f).padding(start = 12.dp), style = MaterialTheme.typography.titleMedium)
+            GraphAction(painterResource(Res.drawable.filled_close), stringResource(Res.string.close), onDismiss)
         }
         Text(
-            "Changes apply to the canvas immediately",
+            stringResource(Res.string.changes_apply_immediately),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 12.dp),

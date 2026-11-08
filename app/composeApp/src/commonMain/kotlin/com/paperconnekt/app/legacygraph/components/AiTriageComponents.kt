@@ -1,6 +1,7 @@
 package com.paperconnekt.app.legacygraph.components
 
 import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import com.paperconnekt.app.resources.filled_auto_awesome
 import com.paperconnekt.app.resources.filled_block
 import com.paperconnekt.app.resources.filled_check
@@ -39,6 +40,30 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.paperconnekt.app.legacygraph.PaperTriageResult
 import com.paperconnekt.app.legacygraph.TriageDecision
+import com.paperconnekt.app.resources.ai_literature_triage_report
+import com.paperconnekt.app.resources.all_count
+import com.paperconnekt.app.resources.analyzing_with_ai
+import com.paperconnekt.app.resources.apply_disqualifications
+import com.paperconnekt.app.resources.apply_disqualifications_count
+import com.paperconnekt.app.resources.candidate_papers_evaluated
+import com.paperconnekt.app.resources.clear
+import com.paperconnekt.app.resources.close
+import com.paperconnekt.app.resources.copy_paper_title
+import com.paperconnekt.app.resources.criteria_prefix
+import com.paperconnekt.app.resources.dismiss
+import com.paperconnekt.app.resources.disqualify
+import com.paperconnekt.app.resources.disqualify_count
+import com.paperconnekt.app.resources.evaluate_relevance
+import com.paperconnekt.app.resources.filter_papers_or_rationale
+import com.paperconnekt.app.resources.inspect_report
+import com.paperconnekt.app.resources.keep
+import com.paperconnekt.app.resources.keep_count
+import com.paperconnekt.app.resources.reevaluate_relevance
+import com.paperconnekt.app.resources.total
+import com.paperconnekt.app.resources.triage_criteria_instruction
+import com.paperconnekt.app.resources.triage_description
+import com.paperconnekt.app.resources.triage_instruction_hint
+import com.paperconnekt.app.resources.triage_statistics
 
 private val KeepColor = Color(0xFF0D9488) // Emerald
 private val DisqualifyColor = Color(0xFFDC2626) // Crimson / Red
@@ -120,8 +145,8 @@ fun AiTriageSection(
                     OutlinedTextField(
                         value = instruction,
                         onValueChange = onInstructionChanged,
-                        label = { Text("Triage Criteria / Instruction", style = MaterialTheme.typography.labelSmall) },
-                        placeholder = { Text("e.g. Disqualify papers that do not focus on Transformer attention mechanisms.") },
+                        label = { Text(stringResource(Res.string.triage_criteria_instruction), style = MaterialTheme.typography.labelSmall) },
+                        placeholder = { Text(stringResource(Res.string.triage_instruction_hint)) },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
                         maxLines = 4,
@@ -135,11 +160,7 @@ fun AiTriageSection(
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                "GPT-6 Luna compares each citation or reference with this paper using their titles, abstracts, " +
-                    "and your criteria, evaluating up to 5 articles in parallel. Without an abstract, it uses the title only; " +
-                    "a missing abstract alone is not a reason to disqualify. Each article gets a Keep or Disqualify decision with a reason. " +
-                    "Disqualifications are applied only when you choose Apply. " +
-                    "Estimated token costs are included under Literature triage in AI usage; re-evaluating incurs new cost.",
+                stringResource(Res.string.triage_description),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -159,12 +180,12 @@ fun AiTriageSection(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Analyzing with AI…", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(Res.string.analyzing_with_ai), style = MaterialTheme.typography.labelMedium)
                 } else {
                     Icon(painterResource(Res.drawable.filled_psychology), contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        if (triageResults.isEmpty()) "Evaluate Relevance" else "Re-evaluate Relevance",
+                        if (triageResults.isEmpty()) stringResource(Res.string.evaluate_relevance) else stringResource(Res.string.reevaluate_relevance),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -208,7 +229,7 @@ fun AiTriageSection(
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         Text(
-                            text = "Triage Statistics",
+                            text = stringResource(Res.string.triage_statistics),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -220,21 +241,21 @@ fun AiTriageSection(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             StatBox(
-                                label = "Total",
+                                label = stringResource(Res.string.total),
                                 value = triageResults.size.toString(),
                                 containerColor = MaterialTheme.colorScheme.surface,
                                 contentColor = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(1f)
                             )
                             StatBox(
-                                label = "Keep",
+                                label = stringResource(Res.string.keep),
                                 value = keepCount.toString(),
                                 containerColor = KeepContainer,
                                 contentColor = KeepColor,
                                 modifier = Modifier.weight(1f)
                             )
                             StatBox(
-                                label = "Disqualify",
+                                label = stringResource(Res.string.disqualify),
                                 value = disqualifyCount.toString(),
                                 containerColor = DisqualifyContainer,
                                 contentColor = DisqualifyColor,
@@ -256,7 +277,7 @@ fun AiTriageSection(
                             ) {
                                 Icon(painterResource(Res.drawable.filled_visibility), contentDescription = null, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Inspect Report", style = MaterialTheme.typography.labelSmall)
+                                Text(stringResource(Res.string.inspect_report), style = MaterialTheme.typography.labelSmall)
                             }
 
                             if (disqualifyCount > 0) {
@@ -271,7 +292,7 @@ fun AiTriageSection(
                                 ) {
                                     Icon(painterResource(Res.drawable.filled_block), contentDescription = null, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Apply ($disqualifyCount)", style = MaterialTheme.typography.labelSmall)
+                                    Text(stringResource(Res.string.apply_disqualifications_count, disqualifyCount), style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }
@@ -385,12 +406,12 @@ fun AiTriageDialog(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "AI Literature Triage Report",
+                                text = stringResource(Res.string.ai_literature_triage_report),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "${triageResults.size} candidate papers evaluated",
+                                text = stringResource(Res.string.candidate_papers_evaluated, triageResults.size),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -398,7 +419,7 @@ fun AiTriageDialog(
                     }
 
                     IconButton(onClick = onDismiss, modifier = Modifier.interactivePointer()) {
-                        Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close dialog")
+                        Icon(painterResource(Res.drawable.filled_close), contentDescription = stringResource(Res.string.close))
                     }
                 }
 
@@ -410,7 +431,7 @@ fun AiTriageDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "💡 Criteria: $instruction",
+                            text = stringResource(Res.string.criteria_prefix, instruction),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -426,12 +447,12 @@ fun AiTriageDialog(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Filter papers or rationale keywords…") },
+                    placeholder = { Text(stringResource(Res.string.filter_papers_or_rationale)) },
                     leadingIcon = { Icon(painterResource(Res.drawable.filled_search), contentDescription = null, modifier = Modifier.size(18.dp)) },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { searchQuery = "" }, modifier = Modifier.interactivePointer()) {
-                                Icon(painterResource(Res.drawable.filled_clear), contentDescription = "Clear", modifier = Modifier.size(16.dp))
+                                Icon(painterResource(Res.drawable.filled_clear), contentDescription = stringResource(Res.string.clear), modifier = Modifier.size(16.dp))
                             }
                         }
                     },
@@ -450,19 +471,19 @@ fun AiTriageDialog(
                     FilterChip(
                         selected = filterTab == TriageFilterTab.ALL,
                         onClick = { filterTab = TriageFilterTab.ALL },
-                        label = { Text("All (${triageResults.size})") }, modifier = Modifier.clipChipInteraction().interactivePointer()
+                        label = { Text(stringResource(Res.string.all_count, triageResults.size)) }, modifier = Modifier.clipChipInteraction().interactivePointer()
                     )
                     FilterChip(
                         selected = filterTab == TriageFilterTab.KEEP,
                         onClick = { filterTab = TriageFilterTab.KEEP },
-                        label = { Text("Keep ($keepCount)") },
+                        label = { Text(stringResource(Res.string.keep_count, keepCount)) },
                         leadingIcon = { Icon(painterResource(Res.drawable.filled_check), null, modifier = Modifier.size(14.dp), tint = KeepColor) },
                         modifier = Modifier.clipChipInteraction().interactivePointer()
                     )
                     FilterChip(
                         selected = filterTab == TriageFilterTab.DISQUALIFY,
                         onClick = { filterTab = TriageFilterTab.DISQUALIFY },
-                        label = { Text("Disqualify ($disqualifyCount)") },
+                        label = { Text(stringResource(Res.string.disqualify_count, disqualifyCount)) },
                         leadingIcon = { Icon(painterResource(Res.drawable.filled_block), null, modifier = Modifier.size(14.dp), tint = DisqualifyColor) },
                         modifier = Modifier.clipChipInteraction().interactivePointer()
                     )
@@ -511,7 +532,7 @@ fun AiTriageDialog(
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = onDismiss, modifier = Modifier.interactivePointer()) {
-                            Text("Dismiss")
+                            Text(stringResource(Res.string.dismiss))
                         }
                         if (disqualifyCount > 0) {
                             Button(
@@ -520,7 +541,7 @@ fun AiTriageDialog(
                             ) {
                                 Icon(painterResource(Res.drawable.filled_block), contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Apply Disqualifications")
+                                Text(stringResource(Res.string.apply_disqualifications))
                             }
                         }
                     }
@@ -579,7 +600,7 @@ private fun TriageResultCard(result: PaperTriageResult) {
                     }
                 }
 
-                CopyIconButton(textToCopy = result.title, contentDescription = "Copy paper title")
+                CopyIconButton(textToCopy = result.title, contentDescription = stringResource(Res.string.copy_paper_title))
             }
 
             Spacer(modifier = Modifier.height(6.dp))

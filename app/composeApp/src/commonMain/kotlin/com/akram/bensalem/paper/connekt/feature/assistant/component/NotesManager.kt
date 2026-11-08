@@ -1,6 +1,7 @@
 package com.akram.bensalem.paper.connekt.feature.assistant.component
 
 import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import com.paperconnekt.app.resources.filled_add
 import com.paperconnekt.app.resources.filled_delete
 import org.jetbrains.compose.resources.painterResource
@@ -17,6 +18,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.akram.bensalem.paper.connekt.feature.assistant.Note
+import com.paperconnekt.app.resources.add
+import com.paperconnekt.app.resources.add_note
+import com.paperconnekt.app.resources.cancel
+import com.paperconnekt.app.resources.delete_note
+import com.paperconnekt.app.resources.new_note
+import com.paperconnekt.app.resources.no_notes_yet
+import com.paperconnekt.app.resources.note_placeholder
+import com.paperconnekt.app.resources.research_notes
 
 @Composable
 fun NotesManager(
@@ -37,11 +46,11 @@ fun NotesManager(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "Research Notes", style = MaterialTheme.typography.titleLarge)
+                    Text(text = stringResource(Res.string.research_notes), style = MaterialTheme.typography.titleLarge)
                     Button(onClick = { showDialog = true }, modifier = Modifier.interactivePointer()) {
-                        Icon(painterResource(Res.drawable.filled_add), contentDescription = "Add Note")
+                        Icon(painterResource(Res.drawable.filled_add), contentDescription = stringResource(Res.string.add_note))
                         Spacer(Modifier.width(4.dp))
-                        Text("New Note")
+                        Text(stringResource(Res.string.new_note))
                     }
                 }
 
@@ -51,7 +60,7 @@ fun NotesManager(
 
         if (notes.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text(text = "No notes yet. Start by adding one!", color = MaterialTheme.colorScheme.outline)
+                Text(text = stringResource(Res.string.no_notes_yet), color = MaterialTheme.colorScheme.outline)
             }
         } else {
             LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -65,13 +74,13 @@ fun NotesManager(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text("Add Note") },
+            title = { Text(stringResource(Res.string.add_note)) },
             text = {
                 TextField(
                     value = noteText,
                     onValueChange = { noteText = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Type your note here...") }
+                    placeholder = { Text(stringResource(Res.string.note_placeholder)) }
                 )
             },
             confirmButton = {
@@ -84,12 +93,12 @@ fun NotesManager(
                         }
                     }, modifier = Modifier.interactivePointer()
                 ) {
-                    Text("Add")
+                    Text(stringResource(Res.string.add))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDialog = false }, modifier = Modifier.interactivePointer()) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.cancel))
                 }
             }
         )
@@ -120,7 +129,7 @@ fun NoteItem(note: Note, onDeleteNote: (String) -> Unit) {
                 }
             }
             IconButton(onClick = { onDeleteNote(note.id) }, modifier = Modifier.interactivePointer()) {
-                Icon(painterResource(Res.drawable.filled_delete), contentDescription = "Delete Note", tint = MaterialTheme.colorScheme.error)
+                Icon(painterResource(Res.drawable.filled_delete), contentDescription = stringResource(Res.string.delete_note), tint = MaterialTheme.colorScheme.error)
             }
         }
     }

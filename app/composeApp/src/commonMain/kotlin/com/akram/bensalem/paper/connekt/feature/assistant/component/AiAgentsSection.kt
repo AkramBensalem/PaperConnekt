@@ -1,6 +1,7 @@
 package com.akram.bensalem.paper.connekt.feature.assistant.component
 import com.paperconnekt.app.resources.Res
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 import com.akram.bensalem.bistosh.core.designsystem.component.interactivePointer
 
@@ -19,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import com.akram.bensalem.paper.connekt.feature.assistant.ChatMessage
 import com.akram.bensalem.paper.connekt.feature.assistant.MessageSender
 import com.paperconnekt.app.resources.filled_send
+import com.paperconnekt.app.resources.ask_ai_about_paper
+import com.paperconnekt.app.resources.send
 
 @Composable
 fun AiAgentsSection(
@@ -53,7 +56,7 @@ fun AiAgentsSection(
                 value = textState,
                 onValueChange = { textState = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Ask the AI about this paper...") },
+                placeholder = { Text(stringResource(Res.string.ask_ai_about_paper)) },
                 enabled = false,
                 shape = RoundedCornerShape(24.dp)
             )
@@ -67,7 +70,7 @@ fun AiAgentsSection(
                 },
                 enabled = false, modifier = Modifier.interactivePointer(enabled = false)
             ) {
-                Icon(painterResource(Res.drawable.filled_send), contentDescription = "Send", tint = MaterialTheme.colorScheme.primary)
+                Icon(painterResource(Res.drawable.filled_send), contentDescription = stringResource(Res.string.send), tint = MaterialTheme.colorScheme.primary)
             }
         }
     }

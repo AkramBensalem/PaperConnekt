@@ -32,6 +32,8 @@ import com.paperconnekt.domain.model.AppSettings
 import com.paperconnekt.mcp.McpActivity
 import com.paperconnekt.secrets.SecretStore
 import com.paperconnekt.storage.LocalResearchStore
+import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -41,6 +43,38 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
+import com.paperconnekt.app.resources.access_token
+import com.paperconnekt.app.resources.ai_tools_mcp
+import com.paperconnekt.app.resources.claude_desktop_configuration
+import com.paperconnekt.app.resources.clear
+import com.paperconnekt.app.resources.connect_a_client
+import com.paperconnekt.app.resources.connect_clients_description
+import com.paperconnekt.app.resources.copy
+import com.paperconnekt.app.resources.cursor_configuration
+import com.paperconnekt.app.resources.cursor
+import com.paperconnekt.app.resources.vs_code
+import com.paperconnekt.app.resources.claude_desktop
+import com.paperconnekt.app.resources.copied_message
+import com.paperconnekt.app.resources.hide
+import com.paperconnekt.app.resources.mcp_add_idea_notes
+import com.paperconnekt.app.resources.mcp_add_idea_notes_description
+import com.paperconnekt.app.resources.mcp_create_token_error
+import com.paperconnekt.app.resources.mcp_read_token_error
+import com.paperconnekt.app.resources.mcp_use_library
+import com.paperconnekt.app.resources.mcp_use_library_description
+import com.paperconnekt.app.resources.new_token_created
+import com.paperconnekt.app.resources.no_requests_yet
+import com.paperconnekt.app.resources.not_running
+import com.paperconnekt.app.resources.off
+import com.paperconnekt.app.resources.port
+import com.paperconnekt.app.resources.recent_requests
+import com.paperconnekt.app.resources.regenerate
+import com.paperconnekt.app.resources.running_at
+import com.paperconnekt.app.resources.show
+import com.paperconnekt.app.resources.starting
+import com.paperconnekt.app.resources.token
+import com.paperconnekt.app.resources.use_port
+import com.paperconnekt.app.resources.vs_code_configuration
 
 /**
  * "AI tools (MCP)" settings: lets Claude Desktop, VS Code, Cursor and other MCP clients use the local library, with
@@ -63,6 +97,20 @@ internal fun McpSettingsSection(
     var token by remember { mutableStateOf<String?>(null) }
     var tokenVisible by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
+    val accessTokenLabel = stringResource(Res.string.access_token)
+    val clearLabel = stringResource(Res.string.clear)
+    val noRequestsLabel = stringResource(Res.string.no_requests_yet)
+    val tokenLabel = stringResource(Res.string.token)
+    val newTokenCreatedMessage = stringResource(Res.string.new_token_created)
+    val readTokenError = stringResource(Res.string.mcp_read_token_error)
+    val createTokenError = stringResource(Res.string.mcp_create_token_error)
+    val vsCodeConfigurationLabel = stringResource(Res.string.vs_code_configuration)
+    val cursorConfigurationLabel = stringResource(Res.string.cursor_configuration)
+    val claudeDesktopConfigurationLabel = stringResource(Res.string.claude_desktop_configuration)
+    val vsCodeCopiedMessage = stringResource(Res.string.copied_message, vsCodeConfigurationLabel)
+    val cursorCopiedMessage = stringResource(Res.string.copied_message, cursorConfigurationLabel)
+    val claudeDesktopCopiedMessage = stringResource(Res.string.copied_message, claudeDesktopConfigurationLabel)
+    val tokenCopiedMessage = stringResource(Res.string.copied_message, tokenLabel)
 
     LaunchedEffect(host, enabled) {
         if (enabled && token == null) token = try {
@@ -70,35 +118,33 @@ internal fun McpSettingsSection(
         } catch (exception: CancellationException) {
             throw exception
         } catch (exception: Exception) {
-            message = "Could not read the access token: ${exception.message}"
+            message = readTokenError
             null
         }
     }
 
-    fun copy(label: String, text: String) {
+    fun copy(localizedMessage: String, text: String) {
         clipboard.setText(AnnotatedString(text))
-        message = "$label copied."
+        message = localizedMessage
     }
 
-    SettingsSection(title = "AI tools (MCP)") {
+    SettingsSection(title = stringResource(Res.string.ai_tools_mcp)) {
         SettingsCard {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SettingSwitchRow(
-                    title = "Let AI tools use my library",
-                    description = "Serves your papers to MCP clients such as Claude Desktop, VS Code Copilot or Cursor on this computer " +
-                        "only. They can list papers and retrieve just the passages they need, so answers stay cited and cheap. " +
-                        "Requests need the access token and are listed below.",
+                    title = stringResource(Res.string.mcp_use_library),
+                    description = stringResource(Res.string.mcp_use_library_description),
                     checked = enabled,
-                    contentDescription = "Let AI tools use my library",
+                    contentDescription = stringResource(Res.string.mcp_use_library),
                 ) { value ->
                     enabled = value
                     scope.launch { store.updateSettings { it.copy(mcpServerEnabled = value) } }
                 }
                 SettingSwitchRow(
-                    title = "Allow adding idea notes",
-                    description = "Lets clients add notes to a paper's Idea Board. Everything else is read-only.",
+                    title = stringResource(Res.string.mcp_add_idea_notes),
+                    description = stringResource(Res.string.mcp_add_idea_notes_description),
                     checked = allowWrites,
-                    contentDescription = "Allow MCP clients to add idea notes",
+                    contentDescription = stringResource(Res.string.mcp_add_idea_notes),
                 ) { value ->
                     allowWrites = value
                     scope.launch { store.updateSettings { it.copy(mcpAllowIdeaWrites = value) } }
@@ -107,7 +153,7 @@ internal fun McpSettingsSection(
                     OutlinedTextField(
                         value = portDraft,
                         onValueChange = { portDraft = it.filter(Char::isDigit).take(5) },
-                        label = { Text("Port") },
+                        label = { Text(stringResource(Res.string.port)) },
                         singleLine = true,
                         isError = portDraft.toIntOrNull()?.let { it !in 1024..65535 } ?: true,
                         modifier = Modifier.weight(1f),
@@ -118,14 +164,14 @@ internal fun McpSettingsSection(
                             val port = portDraft.toInt()
                             scope.launch { store.updateSettings { it.copy(mcpServerPort = port) } }
                         },
-                    ) { Text("Use port") }
+                    ) { Text(stringResource(Res.string.use_port)) }
                 }
                 Text(
                     when {
-                        status.running -> "Running at ${status.endpoint}"
-                        status.error != null -> "Not running: ${status.error}"
-                        enabled -> "Starting…"
-                        else -> "Off"
+                        status.running -> stringResource(Res.string.running_at, status.endpoint.orEmpty())
+                        status.error != null -> stringResource(Res.string.not_running, status.error.orEmpty())
+                        enabled -> stringResource(Res.string.starting)
+                        else -> stringResource(Res.string.off)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (status.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -133,42 +179,41 @@ internal fun McpSettingsSection(
                 val currentToken = token
                 if (enabled && currentToken != null) {
                     HorizontalDivider()
-                    Text("Access token", style = MaterialTheme.typography.titleSmall)
+                    Text(accessTokenLabel, style = MaterialTheme.typography.titleSmall)
                     Text(
                         if (tokenVisible) currentToken else "•".repeat(24),
                         fontFamily = FontFamily.Monospace,
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { tokenVisible = !tokenVisible }) { Text(if (tokenVisible) "Hide" else "Show") }
-                        TextButton(onClick = { copy("Token", currentToken) }) { Text("Copy") }
+                        TextButton(onClick = { tokenVisible = !tokenVisible }) { Text(stringResource(if (tokenVisible) Res.string.hide else Res.string.show)) }
+                        TextButton(onClick = { copy(tokenCopiedMessage, currentToken) }) { Text(stringResource(Res.string.copy)) }
                         TextButton(onClick = {
                             scope.launch {
                                 token = try {
-                                    host.regenerateToken(secretStore).also { message = "New token created. Update your clients." }
+                                    host.regenerateToken(secretStore).also { message = newTokenCreatedMessage }
                                 } catch (exception: CancellationException) {
                                     throw exception
                                 } catch (exception: Exception) {
-                                    message = "Could not create a token: ${exception.message}"
+                                    message = createTokenError
                                     currentToken
                                 }
                             }
-                        }) { Text("Regenerate") }
+                        }) { Text(stringResource(Res.string.regenerate)) }
                     }
                     HorizontalDivider()
-                    Text("Connect a client", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(Res.string.connect_a_client), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "VS Code and Cursor connect over HTTP while PaperConnekt is open. Claude Desktop starts its own PaperConnekt " +
-                            "process; notes it adds appear when you reopen the paper.",
+                        stringResource(Res.string.connect_clients_description),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
                     val endpoint = status.endpoint ?: "http://127.0.0.1:${settings.mcpServerPort}/mcp"
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { copy("VS Code configuration", vsCodeConfig(endpoint, currentToken)) }) { Text("VS Code") }
-                        OutlinedButton(onClick = { copy("Cursor configuration", cursorConfig(endpoint, currentToken)) }) { Text("Cursor") }
+                        OutlinedButton(onClick = { copy(vsCodeCopiedMessage, vsCodeConfig(endpoint, currentToken)) }) { Text(stringResource(Res.string.vs_code)) }
+                        OutlinedButton(onClick = { copy(cursorCopiedMessage, cursorConfig(endpoint, currentToken)) }) { Text(stringResource(Res.string.cursor)) }
                         host.stdioCommand?.let { command ->
-                            OutlinedButton(onClick = { copy("Claude Desktop configuration", claudeConfig(command)) }) { Text("Claude Desktop") }
+                            OutlinedButton(onClick = { copy(claudeDesktopCopiedMessage, claudeConfig(command)) }) { Text(stringResource(Res.string.claude_desktop)) }
                         }
                     }
                 }
@@ -178,11 +223,11 @@ internal fun McpSettingsSection(
         if (enabled || activity.isNotEmpty()) SettingsCard {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Recent requests", style = MaterialTheme.typography.titleSmall)
-                    if (activity.isNotEmpty()) TextButton(onClick = host::clearActivity) { Text("Clear") }
+                    Text(stringResource(Res.string.recent_requests), style = MaterialTheme.typography.titleSmall)
+                    if (activity.isNotEmpty()) TextButton(onClick = host::clearActivity) { Text(clearLabel) }
                 }
                 if (activity.isEmpty()) {
-                    Text("No requests yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    Text(noRequestsLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
                 activity.take(30).forEach { entry -> ActivityRow(entry) }
             }

@@ -1,6 +1,7 @@
 package com.paperconnekt.app.legacygraph.components
 
 import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import com.paperconnekt.app.resources.filled_edit
 import org.jetbrains.compose.resources.painterResource
 import com.paperconnekt.app.legacygraph.interactivePointer
@@ -18,6 +19,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.paperconnekt.app.resources.cancel
+import com.paperconnekt.app.resources.graph_name
+import com.paperconnekt.app.resources.rename_graph_title
+import com.paperconnekt.app.resources.save
 
 @Composable
 internal fun GraphRenameDialog(
@@ -29,12 +34,12 @@ internal fun GraphRenameDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(painterResource(Res.drawable.filled_edit), contentDescription = null) },
-        title = { Text("Rename Graph") },
+        title = { Text(stringResource(Res.string.rename_graph_title)) },
         text = {
             OutlinedTextField(
                 value = newTitle,
                 onValueChange = { newTitle = it },
-                label = { Text("Graph name") },
+                label = { Text(stringResource(Res.string.graph_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -44,12 +49,12 @@ internal fun GraphRenameDialog(
                 onClick = { onSave(newTitle.trim()) },
                 enabled = newTitle.isNotBlank(), modifier = Modifier.interactivePointer(enabled = newTitle.isNotBlank())
             ) {
-                Text("Save")
+                Text(stringResource(Res.string.save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss, modifier = Modifier.interactivePointer()) {
-                Text("Cancel")
+                Text(stringResource(Res.string.cancel))
             }
         }
     )

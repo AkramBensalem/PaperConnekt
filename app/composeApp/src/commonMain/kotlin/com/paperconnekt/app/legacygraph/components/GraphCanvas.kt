@@ -43,6 +43,16 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clipToBounds
+import com.paperconnekt.app.resources.Res
+import com.paperconnekt.app.resources.seed_paper
+import com.paperconnekt.app.resources.prior_references
+import com.paperconnekt.app.resources.citing_papers
+import com.paperconnekt.app.resources.disqualified
+import com.paperconnekt.app.resources.references
+import com.paperconnekt.app.resources.citations
+import com.paperconnekt.app.resources.both
+import com.paperconnekt.app.resources.other_papers
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -920,10 +930,10 @@ private fun GeneralGraphLegend(
 ) {
     GraphLegendSurface(
         items = listOf(
-            centralColor to "Seed Papers",
-            referencesColor to "Prior References",
-            citationsColor to "Citing Papers",
-            disqualifiedColor to "Disqualified",
+            centralColor to stringResource(Res.string.seed_paper),
+            referencesColor to stringResource(Res.string.prior_references),
+            citationsColor to stringResource(Res.string.citing_papers),
+            disqualifiedColor to stringResource(Res.string.disqualified),
         ),
         twoRows = twoRows,
         modifier = modifier,
@@ -941,10 +951,10 @@ private fun RelationshipLegend(
 ) {
     GraphLegendSurface(
         items = listOf(
-            referencesColor to "References",
-            citationsColor to "Citations",
-            bothColor to "Both",
-            unrelatedColor to "Other Papers",
+            referencesColor to stringResource(Res.string.references),
+            citationsColor to stringResource(Res.string.citations),
+            bothColor to stringResource(Res.string.both),
+            unrelatedColor to stringResource(Res.string.other_papers),
         ),
         twoRows = twoRows,
         modifier = modifier,

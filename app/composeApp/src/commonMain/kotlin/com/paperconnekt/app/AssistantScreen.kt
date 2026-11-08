@@ -91,8 +91,43 @@ import com.paperconnekt.app.resources.filled_auto_awesome
 import com.paperconnekt.app.resources.filled_content_copy
 import com.paperconnekt.app.resources.filled_stop
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import com.paperconnekt.app.resources.ask_about_research
+import com.paperconnekt.app.resources.ask_across_library
+import com.paperconnekt.app.resources.ask_research_library
+import com.paperconnekt.app.resources.assistant_subtitle
+import com.paperconnekt.app.resources.cancel
+import com.paperconnekt.app.resources.chat_history
+import com.paperconnekt.app.resources.compare_methods_hint
+import com.paperconnekt.app.resources.compare_papers_hint
+import com.paperconnekt.app.resources.conversation_name
+import com.paperconnekt.app.resources.copy_reply
+import com.paperconnekt.app.resources.create_conversation
+import com.paperconnekt.app.resources.delete
+import com.paperconnekt.app.resources.delete_conversation
+import com.paperconnekt.app.resources.delete_local_conversation_message
+import com.paperconnekt.app.resources.nav_assistant
+import com.paperconnekt.app.resources.`new`
+import com.paperconnekt.app.resources.new_research_conversation
+import com.paperconnekt.app.resources.next_recent_paper
+import com.paperconnekt.app.resources.next_saved_paper
+import com.paperconnekt.app.resources.no_conversations_yet
+import com.paperconnekt.app.resources.previous_recent_paper
+import com.paperconnekt.app.resources.previous_saved_paper
+import com.paperconnekt.app.resources.recent_papers_carousel
+import com.paperconnekt.app.resources.recently_visited
+import com.paperconnekt.app.resources.recheck
+import com.paperconnekt.app.resources.rename
+import com.paperconnekt.app.resources.rename_conversation
+import com.paperconnekt.app.resources.research_history
+import com.paperconnekt.app.resources.save
+import com.paperconnekt.app.resources.saved_papers_carousel
+import com.paperconnekt.app.resources.send
+import com.paperconnekt.app.resources.start_research_conversation
+import com.paperconnekt.app.resources.thinking
+import com.paperconnekt.app.resources.what_investigating
 
 @Composable
 fun AssistantScreen(
@@ -329,8 +364,8 @@ private fun AssistantHeader(
     sessionCount: Int,
 ) {
     WorkspaceHeader(
-        title = "Assistant",
-        subtitle = "Explore questions, read deeply, and turn papers into understanding.",
+        title = stringResource(Res.string.nav_assistant),
+        subtitle = stringResource(Res.string.assistant_subtitle),
         icon = Res.drawable.lightbulb,
         summaries = listOf(
             "$sessionCount conversation${if (sessionCount == 1) "" else "s"}",
@@ -347,6 +382,7 @@ private fun SessionSidebar(
     onSelect: (String) -> Unit,
     onNewConversation: () -> Unit,
 ) {
+    val createConversationDescription = stringResource(Res.string.create_conversation)
     Card(
         modifier = modifier.fillMaxHeight(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -363,10 +399,10 @@ private fun SessionSidebar(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Research history", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(Res.string.research_history), style = MaterialTheme.typography.titleMedium)
                 IconButton(
                     onClick = onNewConversation,
-                    modifier = Modifier.semantics { contentDescription = "Create conversation" },
+                    modifier = Modifier.semantics { contentDescription = createConversationDescription },
                 ) {
                     Text("+", style = MaterialTheme.typography.titleLarge)
                 }
@@ -418,7 +454,7 @@ private fun SessionStrip(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Chat history", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(Res.string.chat_history), style = MaterialTheme.typography.titleMedium)
                     Text(
                         if (conversations.isEmpty()) {
                             "Your saved research conversations will appear here."
@@ -433,7 +469,7 @@ private fun SessionStrip(
                     onClick = onNewConversation,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp),
                 ) {
-                    Text("+ New")
+                    Text("+ ${stringResource(Res.string.new)}")
                 }
             }
             if (conversations.isEmpty()) {
@@ -601,7 +637,7 @@ private fun GlobalConversationPanel(
                     IconButton(onClick = onBackToHistory) {
                         Icon(
                             painterResource(Res.drawable.filled_arrow_back),
-                            contentDescription = "Back to chat history",
+                            contentDescription = stringResource(Res.string.chat_history),
                         )
                     }
                     AnimatedVisibility(visible = !headerCollapsed) {
@@ -656,7 +692,7 @@ private fun GlobalConversationPanel(
                         onClick = agent::recheckProviderKey,
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                     ) {
-                        Text("Recheck")
+                        Text(stringResource(Res.string.recheck))
                     }
                 }
             }
@@ -674,7 +710,7 @@ private fun GlobalConversationPanel(
                 if (agent.conversation.messages.isEmpty() && !agent.running) {
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Ask across your research library", style = MaterialTheme.typography.headlineSmall)
+                            Text(stringResource(Res.string.ask_across_library), style = MaterialTheme.typography.headlineSmall)
                             Text(
                                 "Compare a set of papers, search converted PDF text, inspect Idea Board Markdown, or extract connections from a research graph.",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -713,7 +749,7 @@ private fun GlobalConversationPanel(
                                 )
                             }
                             if (agent.streamingText.isBlank() && agent.liveSteps.isEmpty()) {
-                                Text("Thinking…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(Res.string.thinking), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -737,9 +773,9 @@ private fun GlobalConversationPanel(
                         value = draft,
                         onValueChange = { draft = it },
                         enabled = agent.storageReady && !agent.running,
-                        label = { Text("Ask your research library") },
+                        label = { Text(stringResource(Res.string.ask_research_library)) },
                         placeholder = {
-                            Text("Compare papers, inspect a graph, or save an Idea Board note…")
+                            Text(stringResource(Res.string.compare_papers_hint))
                         },
                         minLines = 2,
                         maxLines = 6,
@@ -761,7 +797,7 @@ private fun GlobalConversationPanel(
                             shape = RoundedCornerShape(14.dp),
                             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
                         ) {
-                            Text("Send")
+                            Text(stringResource(Res.string.send))
                         }
                     }
                 }
@@ -807,7 +843,7 @@ private fun GlobalMessageBubble(message: PaperAgentMessage) {
                     ) {
                         Icon(
                             painterResource(Res.drawable.filled_content_copy),
-                            contentDescription = "Copy reply",
+                            contentDescription = stringResource(Res.string.copy_reply),
                             modifier = Modifier.size(14.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -828,12 +864,12 @@ private fun WelcomePanel(onCreate: () -> Unit) {
             modifier = Modifier.padding(28.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Start a research conversation", style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(Res.string.start_research_conversation), style = MaterialTheme.typography.headlineSmall)
             Text(
                 "Ask questions about your saved papers, capture a direction, or open a paper in the reading workspace. Conversations stay local until you connect a provider.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(onClick = onCreate) { Text("Create conversation") }
+            Button(onClick = onCreate) { Text(stringResource(Res.string.create_conversation)) }
         }
     }
 }
@@ -869,8 +905,8 @@ private fun ConversationPanel(
                         color = MaterialTheme.colorScheme.primary,
                     )
                 }
-                TextButton(onClick = { renameDialog = true }) { Text("Rename") }
-                TextButton(onClick = { deleteDialog = true }) { Text("Delete") }
+                TextButton(onClick = { renameDialog = true }) { Text(stringResource(Res.string.rename)) }
+                TextButton(onClick = { deleteDialog = true }) { Text(stringResource(Res.string.delete)) }
             }
             Divider()
             if (session.messages.isEmpty()) {
@@ -880,7 +916,7 @@ private fun ConversationPanel(
                         .padding(22.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Text("What are you investigating?", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(Res.string.what_investigating), style = MaterialTheme.typography.titleMedium)
                     Text(
                         "Draft a question below. The local assistant shell will preserve it and show where a provider can respond.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -911,8 +947,8 @@ private fun ConversationPanel(
                     modifier = Modifier.weight(1f),
                     value = draft,
                     onValueChange = { draft = it },
-                    label = { Text("Ask about your research") },
-                    placeholder = { Text("e.g. Compare the methods in my saved papers") },
+                    label = { Text(stringResource(Res.string.ask_about_research)) },
+                    placeholder = { Text(stringResource(Res.string.compare_methods_hint)) },
                     minLines = 2,
                 )
                 Button(
@@ -941,7 +977,7 @@ private fun ConversationPanel(
                         draft = ""
                     },
                 ) {
-                    Text("Send")
+                    Text(stringResource(Res.string.send))
                 }
             }
         }
@@ -960,15 +996,15 @@ private fun ConversationPanel(
     if (deleteDialog) {
         AlertDialog(
             onDismissRequest = { deleteDialog = false },
-            title = { Text("Delete conversation?") },
-            text = { Text("This removes “${session.title}” from local history.") },
+            title = { Text(stringResource(Res.string.delete_conversation)) },
+            text = { Text(stringResource(Res.string.delete_local_conversation_message, session.title)) },
             confirmButton = {
                 Button(onClick = {
                     onSessionDeleted(session.id)
                     deleteDialog = false
-                }) { Text("Delete") }
+                }) { Text(stringResource(Res.string.delete)) }
             },
-            dismissButton = { TextButton(onClick = { deleteDialog = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { deleteDialog = false }) { Text(stringResource(Res.string.cancel)) } },
         )
     }
 }
@@ -1043,7 +1079,7 @@ private fun PaperShelf(
                     ) {
                         Icon(
                             painterResource(Res.drawable.filled_arrow_back),
-                            contentDescription = "Previous saved paper",
+                            contentDescription = stringResource(Res.string.previous_saved_paper),
                         )
                     }
                     Text(
@@ -1059,7 +1095,7 @@ private fun PaperShelf(
                     ) {
                         Icon(
                             painterResource(Res.drawable.filled_arrow_forward),
-                            contentDescription = "Next saved paper",
+                            contentDescription = stringResource(Res.string.next_saved_paper),
                         )
                     }
                 }
@@ -1095,7 +1131,7 @@ private fun PaperShelf(
                             (slideInHorizontally { it / 3 } + fadeIn()) togetherWith
                                 (slideOutHorizontally { -it / 3 } + fadeOut())
                         },
-                        label = "saved papers carousel",
+                        label = stringResource(Res.string.saved_papers_carousel),
                     ) { page ->
                         Row(
                             Modifier.fillMaxWidth(),
@@ -1171,7 +1207,7 @@ private fun RecentResearchShelf(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("Recently visited", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(Res.string.recently_visited), style = MaterialTheme.typography.titleMedium)
                     Text(
                         "Your latest reading activity from local PDFs and Zotero.",
                         style = MaterialTheme.typography.bodySmall,
@@ -1184,7 +1220,7 @@ private fun RecentResearchShelf(
                 ) {
                     Icon(
                         painterResource(Res.drawable.filled_arrow_back),
-                        contentDescription = "Previous recently visited paper",
+                        contentDescription = stringResource(Res.string.previous_recent_paper),
                     )
                 }
                 Text(
@@ -1200,7 +1236,7 @@ private fun RecentResearchShelf(
                 ) {
                     Icon(
                         painterResource(Res.drawable.filled_arrow_forward),
-                        contentDescription = "Next recently visited paper",
+                        contentDescription = stringResource(Res.string.next_recent_paper),
                     )
                 }
             }
@@ -1223,7 +1259,7 @@ private fun RecentResearchShelf(
                         (slideInHorizontally { it / 3 } + fadeIn()) togetherWith
                             (slideOutHorizontally { -it / 3 } + fadeOut())
                     },
-                    label = "recent papers carousel",
+                    label = stringResource(Res.string.recent_papers_carousel),
                 ) { page ->
                     Row(
                         Modifier.fillMaxWidth(),
@@ -1352,7 +1388,7 @@ private fun EmptyHistory() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("No conversations yet", style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(Res.string.no_conversations_yet), style = MaterialTheme.typography.titleSmall)
         Text(
             "Create one to keep a local trail of your research questions.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1369,12 +1405,12 @@ private fun RenameSessionDialog(
     var title by remember { mutableStateOf(initialTitle) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Rename conversation") },
+        title = { Text(stringResource(Res.string.rename_conversation)) },
         text = {
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Conversation name") },
+                label = { Text(stringResource(Res.string.conversation_name)) },
                 singleLine = true,
             )
         },
@@ -1382,15 +1418,16 @@ private fun RenameSessionDialog(
             Button(
                 enabled = title.isNotBlank(),
                 onClick = { onSave(title.trim()) },
-            ) { Text("Save") }
+            ) { Text(stringResource(Res.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } },
     )
 }
 
+@Composable
 private fun newAssistantSession(): AssistantSession = AssistantSession(
     id = "assistant-${Random.nextLong()}",
-    title = "New research conversation",
+    title = stringResource(Res.string.new_research_conversation),
     updatedAt = kotlinx.datetime.Clock.System.now(),
 )
 

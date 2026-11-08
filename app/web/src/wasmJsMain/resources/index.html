@@ -14,6 +14,24 @@
             overflow: hidden;
         }
     </style>
+    <script>
+        const nativeLanguages = Object.getOwnPropertyDescriptor(Navigator.prototype, "languages");
+        const nativeLanguage = Object.getOwnPropertyDescriptor(Navigator.prototype, "language");
+        Object.defineProperty(Navigator.prototype, "languages", {
+            ...nativeLanguages,
+            get: function () {
+                return window.__customLocale
+                    ? [window.__customLocale]
+                    : nativeLanguages.get.apply(this);
+            }
+        });
+        Object.defineProperty(Navigator.prototype, "language", {
+            ...nativeLanguage,
+            get: function () {
+                return window.__customLocale || nativeLanguage.get.apply(this);
+            }
+        });
+    </script>
     <script type="module" src="paperconnekt.js"></script>
 </head>
 <body>

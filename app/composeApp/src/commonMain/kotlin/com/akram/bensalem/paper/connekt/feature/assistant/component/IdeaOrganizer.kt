@@ -1,8 +1,9 @@
 package com.akram.bensalem.paper.connekt.feature.assistant.component
 
+import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.graphics.painter.Painter
 
-import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.filled_add
 import com.paperconnekt.app.resources.filled_close
 import com.paperconnekt.app.resources.filled_code
@@ -46,6 +47,28 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akram.bensalem.paper.connekt.feature.assistant.Idea
+import com.paperconnekt.app.resources.add
+import com.paperconnekt.app.resources.all_changes_saved
+import com.paperconnekt.app.resources.cancel
+import com.paperconnekt.app.resources.close_editor
+import com.paperconnekt.app.resources.create_idea_note
+import com.paperconnekt.app.resources.create_note
+import com.paperconnekt.app.resources.editing
+import com.paperconnekt.app.resources.idea_board
+import com.paperconnekt.app.resources.idea_editor_hint
+import com.paperconnekt.app.resources.idea_file_name
+import com.paperconnekt.app.resources.idea_title
+import com.paperconnekt.app.resources.markdown_source
+import com.paperconnekt.app.resources.`new`
+import com.paperconnekt.app.resources.new_research_idea
+import com.paperconnekt.app.resources.note_available_in_idea_board
+import com.paperconnekt.app.resources.preview
+import com.paperconnekt.app.resources.save_note
+import com.paperconnekt.app.resources.stored_with_paper
+import com.paperconnekt.app.resources.unsaved_changes
+import com.paperconnekt.app.resources.untitled
+import com.paperconnekt.app.resources.untitled_idea
+import com.paperconnekt.app.resources.write_idea_markdown
 
 @Composable
 fun IdeaOrganizer(
@@ -77,16 +100,16 @@ fun IdeaOrganizer(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "Idea Board", style = MaterialTheme.typography.titleLarge)
+                    Text(text = stringResource(Res.string.idea_board), style = MaterialTheme.typography.titleLarge)
 
                     Button(
                         enabled = !isLoading,
                         onClick = { showDialog = true },
                         modifier = Modifier.interactivePointer(enabled = !isLoading)
                     ) {
-                        Icon(painterResource(Res.drawable.filled_add), contentDescription = "Add")
+                        Icon(painterResource(Res.drawable.filled_add), contentDescription = stringResource(Res.string.add))
                         Spacer(Modifier.width(4.dp))
-                        Text("New")
+                        Text(stringResource(Res.string.new))
                     }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -104,7 +127,7 @@ fun IdeaOrganizer(
             }
         } else if (ideas.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Create an idea to start a Markdown note for this paper.",
+                Text(stringResource(Res.string.create_idea_note),
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
@@ -123,14 +146,14 @@ fun IdeaOrganizer(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text("New Research Idea") },
+            title = { Text(stringResource(Res.string.new_research_idea)) },
             text = {
                 Column {
                     TextField(
                         value = title,
                         onValueChange = { title = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Idea Title") },
+                        placeholder = { Text(stringResource(Res.string.idea_title)) },
                         singleLine = true
                     )
                     Spacer(Modifier.height(8.dp))
@@ -138,7 +161,7 @@ fun IdeaOrganizer(
                         value = description,
                         onValueChange = { description = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Write your idea in Markdown...") },
+                        placeholder = { Text(stringResource(Res.string.write_idea_markdown)) },
                         minLines = 4
                     )
                 }
@@ -154,12 +177,12 @@ fun IdeaOrganizer(
                         }
                     }, modifier = Modifier.interactivePointer()
                 ) {
-                    Text("Create note")
+                    Text(stringResource(Res.string.create_note))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDialog = false }, modifier = Modifier.interactivePointer()) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.cancel))
                 }
             }
         )
@@ -224,6 +247,7 @@ fun IdeaNoteEditorDialog(
     val isDirty = title != idea.title || content.text != idea.description
         || pageColor != idea.pageColor
     val pageBackground = ideaPageColor(pageColor)
+    val fileTitle = title.ifBlank { stringResource(Res.string.untitled) }
     val dialogBackground = Color(0xFFF8F7F3)
     val headerBackground = Color(0xFFF1EFE9)
     val toolbarBackground = Color(0xFFEDEBE5)
@@ -263,7 +287,7 @@ fun IdeaNoteEditorDialog(
                             value = title,
                             onValueChange = { title = it },
                             modifier = Modifier.fillMaxWidth().padding(start = 8.dp),
-                            placeholder = { Text("Untitled idea") },
+                            placeholder = { Text(stringResource(Res.string.untitled_idea)) },
                             singleLine = true,
                             textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -279,18 +303,18 @@ fun IdeaNoteEditorDialog(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.padding(start = 20.dp, top = 2.dp)
                         ) {
-                            Text("${title.ifBlank { "Untitled" }}.md",
+                            Text(stringResource(Res.string.idea_file_name, fileTitle),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1)
                             if (isDirty) {
                                 Surface(shape = CircleShape, color = MaterialTheme.colorScheme.tertiaryContainer) {
-                                    Text("Unsaved changes", Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    Text(stringResource(Res.string.unsaved_changes), Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onTertiaryContainer)
                                 }
                             } else {
-                                Text("All changes saved", style = MaterialTheme.typography.labelSmall,
+                                Text(stringResource(Res.string.all_changes_saved), style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
@@ -299,7 +323,7 @@ fun IdeaNoteEditorDialog(
                         onClick = onDismiss,
                         modifier = Modifier.size(40.dp).interactivePointer()
                     ) {
-                        Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close editor",
+                        Icon(painterResource(Res.drawable.filled_close), contentDescription = stringResource(Res.string.close_editor),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -380,7 +404,7 @@ fun IdeaNoteEditorDialog(
                                         Modifier.fillMaxWidth().padding(start = 18.dp, end = 14.dp, top = 12.dp, bottom = 4.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text("PREVIEW", style = MaterialTheme.typography.labelSmall,
+                                        Text(stringResource(Res.string.preview), style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         Spacer(Modifier.weight(1f))
                                         Icon(painterResource(Res.drawable.filled_description), contentDescription = null,
@@ -424,10 +448,10 @@ fun IdeaNoteEditorDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("Stored with this paper",
+                        Text(stringResource(Res.string.stored_with_paper),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurface)
-                        Text("Your note stays available in this paper’s Idea Board.",
+                        Text(stringResource(Res.string.note_available_in_idea_board),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -438,7 +462,7 @@ fun IdeaNoteEditorDialog(
                         shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 22.dp, vertical = 12.dp)
                     ) {
-                        Text("Save note")
+                        Text(stringResource(Res.string.save_note))
                     }
                 }
             }
@@ -484,10 +508,10 @@ private fun MarkdownSourcePane(
                 Modifier.fillMaxWidth().padding(start = 18.dp, end = 14.dp, top = 12.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("MARKDOWN SOURCE", style = MaterialTheme.typography.labelSmall,
+                Text(stringResource(Res.string.markdown_source), style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.weight(1f))
-                Text("Editing", style = MaterialTheme.typography.labelSmall,
+                Text(stringResource(Res.string.editing), style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary)
             }
             HorizontalDivider(
@@ -498,7 +522,7 @@ private fun MarkdownSourcePane(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                placeholder = { Text("Start writing your idea…\n\nUse the toolbar to format text, create lists, add links, and more.") },
+                placeholder = { Text(stringResource(Res.string.idea_editor_hint)) },
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     fontFamily = FontFamily.Serif,
                     lineHeight = 30.sp

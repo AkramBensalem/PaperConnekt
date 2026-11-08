@@ -2,7 +2,12 @@ package com.akram.bensalem.paper.connekt.feature.assistant.component
 
 import com.paperconnekt.app.resources.Res
 import com.paperconnekt.app.resources.filled_picture_as_pdf
+import com.paperconnekt.app.resources.pdf_icon
+import com.paperconnekt.app.resources.pdf_viewer_placeholder
+import com.paperconnekt.app.resources.paper_url
+import com.paperconnekt.app.resources.viewing_paper
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import com.akram.bensalem.bistosh.core.designsystem.component.interactivePointer
 
 import androidx.compose.foundation.background
@@ -16,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.akram.bensalem.paper.connekt.models.Paper
+import com.paperconnekt.app.resources.open_external_viewer
 
 @Composable
 fun PdfViewer(paper: Paper) {
@@ -31,30 +37,30 @@ fun PdfViewer(paper: Paper) {
         ) {
             Icon(
                 painter = painterResource(Res.drawable.filled_picture_as_pdf),
-                contentDescription = "PDF Icon",
+                contentDescription = stringResource(Res.string.pdf_icon),
                 modifier = Modifier.size(100.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "PDF Viewer Placeholder",
+                text = stringResource(Res.string.pdf_viewer_placeholder),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Viewing: ${paper.title}",
+                text = stringResource(Res.string.viewing_paper, paper.title),
                 style = MaterialTheme.typography.bodyLarge
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "URL: ${paper.url}",
+                text = stringResource(Res.string.paper_url, paper.url.orEmpty()),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.secondary
             )
             Spacer(modifier = Modifier.height(24.dp))
             Button(onClick = { /* Open External PDF if needed */ }, modifier = Modifier.interactivePointer()) {
-                Text("Open in External Viewer")
+                Text(stringResource(Res.string.open_external_viewer))
             }
         }
     }

@@ -119,7 +119,82 @@ import com.paperconnekt.app.resources.filled_sync_problem
 import com.paperconnekt.app.resources.filled_unpublished
 import com.paperconnekt.app.resources.research_graph_empty
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Clock
+import com.paperconnekt.app.resources.abstract_label
+import com.paperconnekt.app.resources.abstract_notes
+import com.paperconnekt.app.resources.add_manually
+import com.paperconnekt.app.resources.add_paper
+import com.paperconnekt.app.resources.add_paper_manually
+import com.paperconnekt.app.resources.all_papers
+import com.paperconnekt.app.resources.archive
+import com.paperconnekt.app.resources.attach_pdf_instruction
+import com.paperconnekt.app.resources.attach_pdf_to_zotero
+import com.paperconnekt.app.resources.authors
+import com.paperconnekt.app.resources.authors_separated_by_semicolon
+import com.paperconnekt.app.resources.browse_collections
+import com.paperconnekt.app.resources.cancel
+import com.paperconnekt.app.resources.close
+import com.paperconnekt.app.resources.close_collections
+import com.paperconnekt.app.resources.collections
+import com.paperconnekt.app.resources.completed
+import com.paperconnekt.app.resources.create_folder
+import com.paperconnekt.app.resources.create_item
+import com.paperconnekt.app.resources.date
+import com.paperconnekt.app.resources.delete
+import com.paperconnekt.app.resources.delete_collection
+import com.paperconnekt.app.resources.delete_collection_message
+import com.paperconnekt.app.resources.delete_collection_question
+import com.paperconnekt.app.resources.delete_folder_message
+import com.paperconnekt.app.resources.delete_folder_question
+import com.paperconnekt.app.resources.delete_paper_message
+import com.paperconnekt.app.resources.delete_permanently
+import com.paperconnekt.app.resources.delete_permanently_question
+import com.paperconnekt.app.resources.deleted_zotero_items
+import com.paperconnekt.app.resources.dismiss
+import com.paperconnekt.app.resources.doi
+import com.paperconnekt.app.resources.edit_details
+import com.paperconnekt.app.resources.find_on_openalex
+import com.paperconnekt.app.resources.folder_name
+import com.paperconnekt.app.resources.item_details
+import com.paperconnekt.app.resources.item_title
+import com.paperconnekt.app.resources.journal_or_publication
+import com.paperconnekt.app.resources.library_changes_not_saved
+import com.paperconnekt.app.resources.library_title
+import com.paperconnekt.app.resources.local
+import com.paperconnekt.app.resources.move_item_to_folder
+import com.paperconnekt.app.resources.move_to_archive
+import com.paperconnekt.app.resources.move_to_collection
+import com.paperconnekt.app.resources.my_library
+import com.paperconnekt.app.resources.new_collection
+import com.paperconnekt.app.resources.new_folder
+import com.paperconnekt.app.resources.new_item
+import com.paperconnekt.app.resources.new_item_manually
+import com.paperconnekt.app.resources.new_subcollection
+import com.paperconnekt.app.resources.new_zotero_item
+import com.paperconnekt.app.resources.next_page
+import com.paperconnekt.app.resources.nothing_here_yet
+import com.paperconnekt.app.resources.open_graph_action
+import com.paperconnekt.app.resources.open_pdf_action
+import com.paperconnekt.app.resources.open_pdf_in_reader
+import com.paperconnekt.app.resources.previous_page
+import com.paperconnekt.app.resources.recent
+import com.paperconnekt.app.resources.rename_collection
+import com.paperconnekt.app.resources.rename_folder
+import com.paperconnekt.app.resources.rename_zotero_collection
+import com.paperconnekt.app.resources.restore
+import com.paperconnekt.app.resources.restore_to_library
+import com.paperconnekt.app.resources.retry
+import com.paperconnekt.app.resources.save_changes
+import com.paperconnekt.app.resources.search_saved_papers
+import com.paperconnekt.app.resources.search_zotero_library
+import com.paperconnekt.app.resources.switch_zotero_library
+import com.paperconnekt.app.resources.title
+import com.paperconnekt.app.resources.unfiled
+import com.paperconnekt.app.resources.year
+import com.paperconnekt.app.resources.zotero
+import com.paperconnekt.app.resources.zotero_item_details
+import com.paperconnekt.app.resources.zotero_library_for_group
 
 private enum class LibraryView {
     ALL,
@@ -856,7 +931,7 @@ fun LibraryScreen(
                                 HeaderSearchField(
                                     query = query,
                                     onQueryChange = { query = it },
-                                    label = "Search saved papers",
+                                    label = stringResource(Res.string.search_saved_papers),
                                 )
                             }
                         } else {
@@ -877,7 +952,7 @@ fun LibraryScreen(
                                 HeaderSearchField(
                                     query = query,
                                     onQueryChange = { query = it },
-                                    label = "Search saved papers",
+                                    label = stringResource(Res.string.search_saved_papers),
                                     modifier = Modifier.widthIn(max = 280.dp).weight(0.7f),
                                 )
                             }
@@ -950,7 +1025,7 @@ fun LibraryScreen(
                                     TextButton(
                                         onClick = { showCollections = false },
                                         modifier = Modifier.align(Alignment.End).padding(8.dp),
-                                    ) { Text("Close collections") }
+                                    ) { Text(stringResource(Res.string.close)) }
                                 }
                             }
                         }
@@ -1069,7 +1144,7 @@ fun LibraryScreen(
                             HeaderSearchField(
                                 query = query,
                                 onQueryChange = { query = it },
-                                label = "Search saved papers",
+                                label = stringResource(Res.string.search_saved_papers),
                                 modifier = Modifier.widthIn(max = 280.dp).weight(0.7f),
                             )
                         }
@@ -1179,7 +1254,7 @@ fun LibraryScreen(
     }
     zoteroRenameTarget?.let { target ->
         FolderNameDialog(
-            title = "Rename Zotero collection",
+            title = stringResource(Res.string.rename_zotero_collection),
             initialValue = target.data.name,
             confirmLabel = "Save",
             onDismiss = { zoteroRenameTarget = null },
@@ -1200,8 +1275,8 @@ fun LibraryScreen(
     zoteroDeleteTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { zoteroDeleteTarget = null },
-            title = { Text("Delete ${target.data.name}?") },
-            text = { Text("This removes the collection from Zotero. Items remain in your library.") },
+            title = { Text(stringResource(Res.string.delete_collection_question, target.data.name)) },
+            text = { Text(stringResource(Res.string.delete_collection_message)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -1214,9 +1289,9 @@ fun LibraryScreen(
                         }
                         zoteroDeleteTarget = null
                     },
-                ) { Text("Delete") }
+                ) { Text(stringResource(Res.string.delete)) }
             },
-            dismissButton = { TextButton(onClick = { zoteroDeleteTarget = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { zoteroDeleteTarget = null }) { Text(stringResource(Res.string.cancel)) } },
         )
     }
     if (showManualPaper) {
@@ -1233,7 +1308,7 @@ fun LibraryScreen(
     }
     if (showCreateFolder) {
         FolderNameDialog(
-            title = "Create folder",
+            title = stringResource(Res.string.create_folder),
             confirmLabel = "Create",
             onDismiss = { showCreateFolder = false },
             onConfirm = { name ->
@@ -1254,7 +1329,7 @@ fun LibraryScreen(
     }
     renameFolder?.let { folder ->
         FolderNameDialog(
-            title = "Rename folder",
+            title = stringResource(Res.string.rename_folder),
             initialValue = folder.label,
             confirmLabel = "Save",
             onDismiss = { renameFolder = null },
@@ -1269,8 +1344,8 @@ fun LibraryScreen(
     deleteFolder?.let { folder ->
         AlertDialog(
             onDismissRequest = { deleteFolder = null },
-            title = { Text("Delete ${folder.label}?") },
-            text = { Text("This removes the folder and its nested library links. Saved papers remain in your local collection.") },
+            title = { Text(stringResource(Res.string.delete_folder_question, folder.label)) },
+            text = { Text(stringResource(Res.string.delete_folder_message)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -1280,10 +1355,10 @@ fun LibraryScreen(
                             deleteFolder = null
                         }
                     },
-                ) { Text("Delete") }
+                ) { Text(stringResource(Res.string.delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteFolder = null }) { Text("Cancel") }
+                TextButton(onClick = { deleteFolder = null }) { Text(stringResource(Res.string.cancel)) }
             },
         )
     }
@@ -1317,8 +1392,8 @@ fun LibraryScreen(
     permanentlyDeletePaper?.let { paper ->
         AlertDialog(
             onDismissRequest = { permanentlyDeletePaper = null },
-            title = { Text("Delete permanently?") },
-            text = { Text("${paper.title} will be removed from this workspace and cannot be restored.") },
+            title = { Text(stringResource(Res.string.delete_permanently_question)) },
+            text = { Text(stringResource(Res.string.delete_paper_message, paper.title)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -1327,18 +1402,18 @@ fun LibraryScreen(
                             permanentlyDeletePaper = null
                         }
                     },
-                ) { Text("Delete permanently") }
+                ) { Text(stringResource(Res.string.delete_permanently)) }
             },
-            dismissButton = { TextButton(onClick = { permanentlyDeletePaper = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { permanentlyDeletePaper = null }) { Text(stringResource(Res.string.cancel)) } },
         )
     }
     storageError?.let { error ->
         AlertDialog(
             onDismissRequest = { storageError = null },
-            title = { Text("Library changes were not saved") },
+            title = { Text(stringResource(Res.string.library_changes_not_saved)) },
             text = { Text(error) },
             confirmButton = {
-                TextButton(onClick = { storageError = null }) { Text("Dismiss") }
+                TextButton(onClick = { storageError = null }) { Text(stringResource(Res.string.dismiss)) }
             },
         )
     }
@@ -1376,8 +1451,8 @@ private fun LibraryFolderList(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text("Collections", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = onNewFolder) { Text("New folder") }
+                Text(stringResource(Res.string.collections), style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = onNewFolder) { Text(stringResource(Res.string.new_folder)) }
             }
             LazyColumn(
                 modifier = Modifier.heightIn(max = 215.dp),
@@ -1524,7 +1599,7 @@ private fun ZoteroLibraryContent(
             OutlinedButton(onClick = onCreateItem, enabled = enabled && !loading) {
                 Icon(painterResource(Res.drawable.filled_add), contentDescription = null)
                 Spacer(Modifier.width(6.dp))
-                Text("New item")
+                Text(stringResource(Res.string.new_item))
             }
         }
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -1572,7 +1647,7 @@ private fun ZoteroLibraryContent(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                     ) {
                                         Column {
-                                            Text("Browse collections", style = MaterialTheme.typography.titleLarge)
+                                            Text(stringResource(Res.string.browse_collections), style = MaterialTheme.typography.titleLarge)
                                             Text(
                                                 "Zotero library · ${selectedGroupName ?: "My library"}",
                                                 style = MaterialTheme.typography.bodySmall,
@@ -1582,7 +1657,7 @@ private fun ZoteroLibraryContent(
                                         IconButton(onClick = { onShowCollections(false) }) {
                                             Icon(
                                                 painterResource(Res.drawable.filled_close),
-                                                contentDescription = "Close collections",
+                                                contentDescription = stringResource(Res.string.close_collections),
                                             )
                                         }
                                     }
@@ -1637,8 +1712,8 @@ private fun ZoteroLibraryContent(
                                         showCreateCollection = false,
                                         showArchive = true,
                                         archiveLabel = "Bin",
-                                        archiveSubtitle = "Deleted Zotero items",
-                                        headerSubtitle = "Zotero library · ${selectedGroupName ?: "My library"}",
+                                        archiveSubtitle = stringResource(Res.string.deleted_zotero_items),
+                                        headerSubtitle = stringResource(Res.string.zotero_library_for_group, selectedGroupName ?: stringResource(Res.string.my_library)),
                                         compact = true,
                                         compactMaxHeight = 560.dp,
                                     )
@@ -1718,8 +1793,8 @@ private fun ZoteroLibraryContent(
                         showCreateCollection = false,
                         showArchive = true,
                         archiveLabel = "Bin",
-                        archiveSubtitle = "Deleted Zotero items",
-                        headerSubtitle = "Zotero library · ${selectedGroupName ?: "My library"}",
+                        archiveSubtitle = stringResource(Res.string.deleted_zotero_items),
+                        headerSubtitle = stringResource(Res.string.zotero_library_for_group, selectedGroupName ?: stringResource(Res.string.my_library)),
                         headerAction = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 ZoteroGroupSelector(
@@ -1820,7 +1895,7 @@ private fun ZoteroTrashCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 TextButton(onClick = { onRestore(item) }) {
-                    Text("Restore", color = error)
+                    Text(stringResource(Res.string.restore), color = error)
                 }
             }
             val authors = item.data.creators.mapNotNull { creator ->
@@ -1861,7 +1936,7 @@ private fun ZoteroCreateItemDialog(
     var abstractText by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Zotero item") },
+        title = { Text(stringResource(Res.string.new_zotero_item)) },
         text = {
             Column(
                 modifier = Modifier
@@ -1877,37 +1952,37 @@ private fun ZoteroCreateItemDialog(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Title") },
+                    label = { Text(stringResource(Res.string.item_title)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = authors,
                     onValueChange = { authors = it },
-                    label = { Text("Authors (separated by ;)") },
+                    label = { Text(stringResource(Res.string.authors_separated_by_semicolon)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = publication,
                     onValueChange = { publication = it },
-                    label = { Text("Journal or publication") },
+                    label = { Text(stringResource(Res.string.journal_or_publication)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = date,
                     onValueChange = { date = it },
-                    label = { Text("Date") },
+                    label = { Text(stringResource(Res.string.date)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = doi,
                     onValueChange = { doi = it },
-                    label = { Text("DOI") },
+                    label = { Text(stringResource(Res.string.doi)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = abstractText,
                     onValueChange = { abstractText = it },
-                    label = { Text("Abstract") },
+                    label = { Text(stringResource(Res.string.abstract_label)) },
                     minLines = 3,
                 )
             }
@@ -1930,9 +2005,9 @@ private fun ZoteroCreateItemDialog(
                         ),
                     )
                 },
-            ) { Text("Create item") }
+            ) { Text(stringResource(Res.string.create_item)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } },
     )
 }
 
@@ -1947,7 +2022,7 @@ private fun ZoteroGroupSelector(
         IconButton(onClick = { expanded = true }) {
             Icon(
                 painter = painterResource(Res.drawable.filled_groups),
-                contentDescription = "Switch Zotero library: ${selectedGroupName ?: "My library"}",
+                contentDescription = stringResource(Res.string.switch_zotero_library, selectedGroupName ?: stringResource(Res.string.my_library)),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
@@ -1957,7 +2032,7 @@ private fun ZoteroGroupSelector(
             onDismissRequest = { expanded = false },
         ) {
             DropdownMenuItem(
-                text = { Text("My library") },
+                text = { Text(stringResource(Res.string.my_library)) },
                 onClick = {
                     expanded = false
                     onSelectGroup(null)
@@ -2048,7 +2123,7 @@ private fun ZoteroPaperList(
                     HeaderSearchField(
                         query = query,
                         onQueryChange = onQueryChange,
-                        label = "Search your Zotero library",
+                        label = stringResource(Res.string.search_zotero_library),
                     )
                 }
             } else {
@@ -2067,7 +2142,7 @@ private fun ZoteroPaperList(
                     HeaderSearchField(
                         query = query,
                         onQueryChange = onQueryChange,
-                        label = "Search your Zotero library",
+                        label = stringResource(Res.string.search_zotero_library),
                         modifier = Modifier.widthIn(max = 320.dp),
                     )
                 }
@@ -2092,7 +2167,7 @@ private fun ZoteroPaperList(
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                     Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
-                        TextButton(onClick = onRefresh) { Text("Retry") }
+                        TextButton(onClick = onRefresh) { Text(stringResource(Res.string.retry)) }
                     }
                 }
             }
@@ -2174,7 +2249,7 @@ private fun ZoteroPaperCard(
                     IconButton(onClick = { onOpenPdf(paper) }) {
                         Icon(
                             painter = painterResource(Res.drawable.filled_picture_as_pdf),
-                            contentDescription = "Open PDF in reader",
+                            contentDescription = stringResource(Res.string.open_pdf_in_reader),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -2239,7 +2314,7 @@ private fun LibraryHeader(
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val compact = maxWidth < 600.dp
         WorkspaceHeader(
-            title = "Library",
+            title = stringResource(Res.string.library_title),
             subtitle = if (source == LibrarySource.LOCAL) {
                 "Local library"
             } else {
@@ -2262,7 +2337,7 @@ private fun LibraryHeader(
             actions = {
                 Box {
                     HeaderAction(
-                        label = "Add paper",
+                        label = stringResource(Res.string.add_paper),
                         icon = Res.drawable.filled_add,
                         onClick = { addMenuExpanded = true },
                     )
@@ -2276,7 +2351,7 @@ private fun LibraryHeader(
                     ) {
                     if (source == LibrarySource.LOCAL) {
                         DropdownMenuItem(
-                            text = { Text("Find on OpenAlex") },
+                            text = { Text(stringResource(Res.string.find_on_openalex)) },
                             leadingIcon = {
                                 Icon(
                                     painterResource(Res.drawable.filled_search),
@@ -2287,7 +2362,7 @@ private fun LibraryHeader(
                             onClick = { addMenuExpanded = false; onFindPaper() },
                         )
                         DropdownMenuItem(
-                            text = { Text("Add manually") },
+                            text = { Text(stringResource(Res.string.add_manually)) },
                             leadingIcon = {
                                 Icon(
                                     painterResource(Res.drawable.filled_description),
@@ -2299,7 +2374,7 @@ private fun LibraryHeader(
                         )
                     } else {
                         DropdownMenuItem(
-                            text = { Text("Add paper") },
+                            text = { Text(stringResource(Res.string.add_paper)) },
                             leadingIcon = {
                                 Icon(
                                     painterResource(Res.drawable.filled_add),
@@ -2316,7 +2391,7 @@ private fun LibraryHeader(
                     }
                 }
                 HeaderAction(
-                    label = "New collection",
+                    label = stringResource(Res.string.new_collection),
                     icon = Res.drawable.filled_create_new_folder,
                     onClick = if (source == LibrarySource.LOCAL) onNewFolder else {
                         onCreateZoteroCollection ?: {}
@@ -2332,12 +2407,12 @@ private fun LibraryHeader(
                     WorkspaceFilterChip(
                         selected = source == LibrarySource.LOCAL,
                         onClick = { onSourceChange(LibrarySource.LOCAL) },
-                        label = { Text("Local") },
+                        label = { Text(stringResource(Res.string.local)) },
                     )
                     WorkspaceFilterChip(
                         selected = source == LibrarySource.ZOTERO,
                         onClick = { onSourceChange(LibrarySource.ZOTERO) },
-                        label = { Text("Zotero") },
+                        label = { Text(stringResource(Res.string.zotero)) },
                     )
                 }
             },
@@ -2363,21 +2438,21 @@ private fun LibraryContextBar(
             WorkspaceFilterChip(
                 selected = view == LibraryView.ALL && selectedFolder == null,
                 onClick = { onViewChange(LibraryView.ALL) },
-                label = { Text("All papers") },
+                label = { Text(stringResource(Res.string.all_papers)) },
             )
         }
         Box(modifier = Modifier.widthIn(min = 96.dp)) {
             WorkspaceFilterChip(
                 selected = view == LibraryView.UNFILED,
                 onClick = { onViewChange(LibraryView.UNFILED) },
-                label = { Text("Unfiled") },
+                label = { Text(stringResource(Res.string.unfiled)) },
             )
         }
         Box(modifier = Modifier.widthIn(min = 96.dp)) {
             WorkspaceFilterChip(
                 selected = view == LibraryView.RECENT,
                 onClick = { onViewChange(LibraryView.RECENT) },
-                label = { Text("Recent") },
+                label = { Text(stringResource(Res.string.recent)) },
             )
         }
         if (showArchive) {
@@ -2385,7 +2460,7 @@ private fun LibraryContextBar(
                 WorkspaceFilterChip(
                     selected = view == LibraryView.ARCHIVE,
                     onClick = { onViewChange(LibraryView.ARCHIVE) },
-                    label = { Text("Archive") },
+                    label = { Text(stringResource(Res.string.archive)) },
                     leadingIcon = { Icon(painterResource(Res.drawable.filled_archive), contentDescription = null) },
                 )
             }
@@ -2451,7 +2526,7 @@ private fun LibraryFolderPane(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column {
-                    Text("Collections", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(Res.string.collections), style = MaterialTheme.typography.titleMedium)
                     Text(
                         headerSubtitle,
                         style = MaterialTheme.typography.labelSmall,
@@ -2462,7 +2537,10 @@ private fun LibraryFolderPane(
                     headerAction()
                 } else if (showCreateCollection) {
                     IconButton(onClick = onNewFolder) {
-                        Icon(painterResource(Res.drawable.filled_create_new_folder), contentDescription = "Create collection")
+                        Icon(
+                            painterResource(Res.drawable.filled_create_new_folder),
+                            contentDescription = stringResource(Res.string.collections),
+                        )
                     }
                 }
             }
@@ -2758,7 +2836,7 @@ private fun LibraryRootRow(
                 style = MaterialTheme.typography.labelLarge,
                 color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
             )
-            Text("Library", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(Res.string.library_title), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -2825,7 +2903,7 @@ private fun FolderActions(
             )
             onFindPaper?.let { onFind ->
                 DropdownMenuItem(
-                    text = { Text("Add paper") },
+                    text = { Text(stringResource(Res.string.add_paper)) },
                     leadingIcon = {
                         Icon(
                             painterResource(Res.drawable.filled_search),
@@ -2841,7 +2919,7 @@ private fun FolderActions(
             }
             onAddManually?.let { onAdd ->
                 DropdownMenuItem(
-                    text = { Text("Add paper manually") },
+                    text = { Text(stringResource(Res.string.add_paper_manually)) },
                     leadingIcon = {
                         Icon(
                             painterResource(Res.drawable.filled_description),
@@ -2857,7 +2935,7 @@ private fun FolderActions(
             }
             onNewItem?.let { onCreateItem ->
                 DropdownMenuItem(
-                    text = { Text("New item manually") },
+                    text = { Text(stringResource(Res.string.new_item_manually)) },
                     leadingIcon = {
                         Icon(
                             painterResource(Res.drawable.filled_add),
@@ -2873,7 +2951,7 @@ private fun FolderActions(
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
             DropdownMenuItem(
-                text = { Text("New subcollection") },
+                text = { Text(stringResource(Res.string.new_subcollection)) },
                 leadingIcon = {
                     Icon(
                         painterResource(Res.drawable.filled_create_new_folder),
@@ -2887,7 +2965,7 @@ private fun FolderActions(
                 },
             )
             DropdownMenuItem(
-                text = { Text("Rename collection") },
+                text = { Text(stringResource(Res.string.rename_collection)) },
                 leadingIcon = {
                     Icon(
                         painterResource(Res.drawable.filled_edit),
@@ -2901,7 +2979,7 @@ private fun FolderActions(
                 },
             )
             DropdownMenuItem(
-                text = { Text("Delete collection", color = MaterialTheme.colorScheme.error) },
+                text = { Text(stringResource(Res.string.delete_collection), color = MaterialTheme.colorScheme.error) },
                 leadingIcon = {
                     Icon(
                         painterResource(Res.drawable.filled_delete),
@@ -2993,7 +3071,7 @@ private fun LibraryPager(
             enabled = page > 0,
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
         ) {
-            Text("Previous", style = MaterialTheme.typography.labelSmall)
+            Text(stringResource(Res.string.previous_page), style = MaterialTheme.typography.labelSmall)
         }
         Text(
             "Page ${page + 1} of $pageCount",
@@ -3005,7 +3083,7 @@ private fun LibraryPager(
             enabled = page < pageCount - 1,
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
         ) {
-            Text("Next", style = MaterialTheme.typography.labelSmall)
+            Text(stringResource(Res.string.next_page), style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -3073,7 +3151,7 @@ private fun PaperLibraryCard(
                     if (paper.completed) {
                         Icon(
                             painterResource(Res.drawable.filled_check_circle),
-                            contentDescription = "Completed",
+                            contentDescription = stringResource(Res.string.completed),
                             tint = MaterialTheme.colorScheme.tertiary,
                         )
                     }
@@ -3130,38 +3208,38 @@ private fun PaperLibraryActionMenu(
     var actionsExpanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { actionsExpanded = true }) {
-            Icon(painterResource(Res.drawable.filled_more_horiz), contentDescription = "Item actions")
+            Icon(painterResource(Res.drawable.filled_more_horiz), contentDescription = stringResource(Res.string.item_details))
         }
         DropdownMenu(expanded = actionsExpanded, onDismissRequest = { actionsExpanded = false }) {
             if (paper.pdfPath != null) {
-                DropdownMenuItem(text = { Text("Open PDF") }, onClick = { actionsExpanded = false; onOpen() })
+                DropdownMenuItem(text = { Text(stringResource(Res.string.open_pdf_action)) }, onClick = { actionsExpanded = false; onOpen() })
             }
             DropdownMenuItem(
                 text = { Text(if (paper.pdfPath == null) "Attach PDF" else "Manage PDF") },
                 leadingIcon = { Icon(painterResource(Res.drawable.filled_attach_file), contentDescription = null) },
                 onClick = { actionsExpanded = false; onSelect() },
             )
-            DropdownMenuItem(text = { Text("Open graph") }, onClick = { actionsExpanded = false; onOpenGraph() })
-            DropdownMenuItem(text = { Text("Edit details") }, onClick = { actionsExpanded = false; onEdit() })
-            DropdownMenuItem(text = { Text("Move to collection") }, onClick = { actionsExpanded = false; onMove() })
+            DropdownMenuItem(text = { Text(stringResource(Res.string.open_graph_action)) }, onClick = { actionsExpanded = false; onOpenGraph() })
+            DropdownMenuItem(text = { Text(stringResource(Res.string.edit_details)) }, onClick = { actionsExpanded = false; onEdit() })
+            DropdownMenuItem(text = { Text(stringResource(Res.string.move_to_collection)) }, onClick = { actionsExpanded = false; onMove() })
             DropdownMenuItem(
                 text = { Text(if (paper.completed) "Mark as to read" else "Mark completed") },
                 onClick = { actionsExpanded = false; onToggleCompleted() },
             )
             if (archiveView) {
                 DropdownMenuItem(
-                    text = { Text("Restore to library") },
+                    text = { Text(stringResource(Res.string.restore_to_library)) },
                     onClick = { actionsExpanded = false; onRestore() },
                     leadingIcon = { Icon(painterResource(Res.drawable.filled_restore_from_trash), contentDescription = null) },
                 )
                 DropdownMenuItem(
-                    text = { Text("Delete permanently") },
+                    text = { Text(stringResource(Res.string.delete_permanently)) },
                     onClick = { actionsExpanded = false; onRemove() },
                     leadingIcon = { Icon(painterResource(Res.drawable.filled_delete), contentDescription = null) },
                 )
             } else if (canRemove) {
                 DropdownMenuItem(
-                    text = { Text("Move to archive") },
+                    text = { Text(stringResource(Res.string.move_to_archive)) },
                     onClick = { actionsExpanded = false; onRemove() },
                     leadingIcon = { Icon(painterResource(Res.drawable.filled_archive), contentDescription = null) },
                 )
@@ -3192,7 +3270,7 @@ private fun LibraryEmptyState(
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.width(150.dp).padding(bottom = 12.dp),
             )
-            Text("Nothing here yet", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(Res.string.nothing_here_yet), style = MaterialTheme.typography.titleLarge)
             Text(
                 label,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -3220,16 +3298,18 @@ private fun PaperDetailsPane(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Item details", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                IconButton(onClick = onClose) { Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close details") }
+                Text(stringResource(Res.string.item_details), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                IconButton(onClick = onClose) {
+                    Icon(painterResource(Res.drawable.filled_close), contentDescription = stringResource(Res.string.close))
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onEdit) { Text("Edit details") }
+                OutlinedButton(onClick = onEdit) { Text(stringResource(Res.string.edit_details)) }
                 if (paper.pdfPath != null) {
                     Button(onClick = onRead) {
                         Icon(painterResource(Res.drawable.filled_picture_as_pdf), contentDescription = null)
                         Spacer(Modifier.width(6.dp))
-                        Text("Open PDF")
+                        Text(stringResource(Res.string.open_pdf_action))
                     }
                 }
             }
@@ -3273,7 +3353,7 @@ private fun ZoteroPaperDetailsPane(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Zotero item details", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(Res.string.zotero_item_details), style = MaterialTheme.typography.titleMedium)
                     Text(
                         "Connected library",
                         style = MaterialTheme.typography.labelMedium,
@@ -3281,14 +3361,14 @@ private fun ZoteroPaperDetailsPane(
                     )
                 }
                 IconButton(onClick = onClose) {
-                    Icon(painterResource(Res.drawable.filled_close), contentDescription = "Close details")
+                    Icon(painterResource(Res.drawable.filled_close), contentDescription = stringResource(Res.string.close))
                 }
             }
             if (paper.attachment == null) {
                 OutlinedButton(onClick = onAttach) {
                     Icon(painterResource(Res.drawable.filled_attach_file), contentDescription = null)
                     Spacer(Modifier.width(6.dp))
-                    Text("Attach PDF to Zotero")
+                    Text(stringResource(Res.string.attach_pdf_to_zotero))
                 }
             }
             Box(
@@ -3343,7 +3423,7 @@ private fun FolderNameDialog(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Folder name") },
+                label = { Text(stringResource(Res.string.folder_name)) },
                 singleLine = true,
             )
         },
@@ -3353,7 +3433,7 @@ private fun FolderNameDialog(
                 onClick = { onConfirm(name.trim()) },
             ) { Text(confirmLabel) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } },
     )
 }
 
@@ -3372,22 +3452,22 @@ private fun PaperDetailsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Item details") },
+        title = { Text(stringResource(Res.string.item_details)) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                OutlinedTextField(title, { title = it }, label = { Text("Title") }, singleLine = true)
-                OutlinedTextField(authors, { authors = it }, label = { Text("Authors") }, singleLine = true)
+                OutlinedTextField(title, { title = it }, label = { Text(stringResource(Res.string.title)) }, singleLine = true)
+                OutlinedTextField(authors, { authors = it }, label = { Text(stringResource(Res.string.authors)) }, singleLine = true)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(year, { year = it }, label = { Text("Year") }, singleLine = true, modifier = Modifier.weight(0.35f))
-                    OutlinedTextField(doi, { doi = it }, label = { Text("DOI") }, singleLine = true, modifier = Modifier.weight(0.65f))
+                    OutlinedTextField(year, { year = it }, label = { Text(stringResource(Res.string.year)) }, singleLine = true, modifier = Modifier.weight(0.35f))
+                    OutlinedTextField(doi, { doi = it }, label = { Text(stringResource(Res.string.doi)) }, singleLine = true, modifier = Modifier.weight(0.65f))
                 }
                 OutlinedTextField(
                     value = abstractText,
                     onValueChange = { abstractText = it },
-                    label = { Text("Abstract / notes") },
+                    label = { Text(stringResource(Res.string.abstract_notes)) },
                     minLines = 3,
                     maxLines = 5,
                 )
@@ -3398,7 +3478,7 @@ private fun PaperDetailsDialog(
                     leadingIcon = { Icon(painterResource(Res.drawable.filled_check_circle), contentDescription = null) },
                 )
                 HorizontalDivider()
-                Text("Use Attach PDF in item details to browse or drop a PDF, then Open PDF to read it in Assistant.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(Res.string.attach_pdf_instruction), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
         confirmButton = {
@@ -3416,9 +3496,9 @@ private fun PaperDetailsDialog(
                         ),
                     )
                 },
-            ) { Text("Save changes") }
+            ) { Text(stringResource(Res.string.save_changes)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } },
     )
 }
 
@@ -3431,10 +3511,10 @@ private fun MovePaperDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Move ${entry.label}") },
+        title = { Text(stringResource(Res.string.move_item_to_folder, entry.label)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = { onMove(null) }) { Text("Unfiled") }
+                TextButton(onClick = { onMove(null) }) { Text(stringResource(Res.string.unfiled)) }
                 folders.forEach { folder ->
                     TextButton(onClick = { onMove(folder.id) }) {
                         Text(folder.label)
@@ -3442,6 +3522,6 @@ private fun MovePaperDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } },
     )
 }

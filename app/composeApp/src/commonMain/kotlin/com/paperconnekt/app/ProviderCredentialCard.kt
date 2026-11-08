@@ -44,8 +44,19 @@ import com.paperconnekt.app.resources.filled_check_circle
 import com.paperconnekt.app.resources.outlined_open_in_new
 import com.paperconnekt.app.resources.visibility
 import com.paperconnekt.app.resources.visibility_off
+import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import com.paperconnekt.app.resources.api_key
+import com.paperconnekt.app.resources.check_key
+import com.paperconnekt.app.resources.check_save
+import com.paperconnekt.app.resources.clear
+import com.paperconnekt.app.resources.get_key
+import com.paperconnekt.app.resources.key_saved
+import com.paperconnekt.app.resources.not_configured
+import com.paperconnekt.app.resources.paste_key
+import com.paperconnekt.app.resources.replace_api_key
+import com.paperconnekt.app.resources.secret_store_note
 
 @Composable
 internal fun ProviderCredentialCard(
@@ -65,6 +76,17 @@ internal fun ProviderCredentialCard(
     providerIconBackground: Color? = null,
 ) {
     var revealed by remember { mutableStateOf(false) }
+    val keySavedLabel = stringResource(Res.string.key_saved)
+    val notConfiguredLabel = stringResource(Res.string.not_configured)
+    val apiKeyLabel = stringResource(Res.string.api_key)
+    val replaceApiKeyLabel = stringResource(Res.string.replace_api_key)
+    val pasteKeyLabel = stringResource(Res.string.paste_key)
+    val checkSaveLabel = stringResource(Res.string.check_save)
+    val checkKeyLabel = stringResource(Res.string.check_key)
+    val getKeyLabel = stringResource(Res.string.get_key)
+    val secretStoreNote = stringResource(Res.string.secret_store_note)
+    val hideKeyDescription = "Hide $providerName API key"
+    val showKeyDescription = "Show $providerName API key"
 
     Card(
         modifier = Modifier
@@ -104,7 +126,7 @@ internal fun ProviderCredentialCard(
                     )
                 }
                 Text(
-                    text = if (configured) "Key saved" else "Not configured",
+                    text = if (configured) keySavedLabel else notConfiguredLabel,
                     color = if (configured) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -118,8 +140,8 @@ internal fun ProviderCredentialCard(
                 value = draft,
                 onValueChange = onDraftChange,
                 enabled = enabled,
-                label = { Text(if (configured) "Replace API key" else "API key") },
-                placeholder = { Text("Paste a key to store locally") },
+                label = { Text(if (configured) replaceApiKeyLabel else apiKeyLabel) },
+                placeholder = { Text(pasteKeyLabel) },
                 singleLine = true,
                 visualTransformation = if (revealed) {
                     VisualTransformation.None
@@ -132,9 +154,9 @@ internal fun ProviderCredentialCard(
                         enabled = enabled,
                         modifier = Modifier.semantics {
                             contentDescription = if (revealed) {
-                                "Hide $providerName API key"
+                                hideKeyDescription
                             } else {
-                                "Show $providerName API key"
+                                showKeyDescription
                             }
                         },
                     ) {
@@ -160,14 +182,14 @@ internal fun ProviderCredentialCard(
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(painterResource(Res.drawable.filled_check_circle), contentDescription = null)
-                        Text("Check & save")
+                        Text(checkSaveLabel)
                     }
                 }
                 TextButton(
                     enabled = enabled && configured,
                     onClick = onClear,
                 ) {
-                    Text("Clear")
+                    Text(stringResource(Res.string.clear))
                 }
                 TextButton(
                     enabled = enabled && configured,
@@ -175,7 +197,7 @@ internal fun ProviderCredentialCard(
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(painterResource(Res.drawable.filled_check_circle), contentDescription = null)
-                        Text("Check key")
+                        Text(checkKeyLabel)
                     }
                 }
                 onOpenKeyPage?.let { open ->
@@ -184,7 +206,7 @@ internal fun ProviderCredentialCard(
                     ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Icon(painterResource(Res.drawable.outlined_open_in_new), contentDescription = null)
-                            Text("Get a key")
+                            Text(getKeyLabel)
                         }
                     }
                 }
@@ -202,7 +224,7 @@ internal fun ProviderCredentialCard(
             }
 
             Text(
-                "The saved value is kept in this device's platform secret store and is never shown here.",
+                secretStoreNote,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall,
             )

@@ -1,6 +1,7 @@
 package com.paperconnekt.app.legacygraph.components
 
 import com.paperconnekt.app.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import com.paperconnekt.app.resources.filled_add
 import com.paperconnekt.app.resources.filled_arrow_drop_down
 import com.paperconnekt.app.resources.filled_auto_awesome
@@ -29,7 +30,30 @@ import com.paperconnekt.app.legacygraph.RelevanceCriterion
 import com.paperconnekt.app.legacygraph.RelevanceField
 import com.paperconnekt.app.legacygraph.RelevanceProfile
 import com.paperconnekt.app.legacygraph.RelevanceAiState
+import com.paperconnekt.app.resources.research_target
 import kotlin.random.Random
+import com.paperconnekt.app.resources.add_criterion
+import com.paperconnekt.app.resources.add_criterion_to_evaluate
+import com.paperconnekt.app.resources.ai_scoring_unavailable
+import com.paperconnekt.app.resources.all_connections_evaluated
+import com.paperconnekt.app.resources.all_graph_papers_evaluated
+import com.paperconnekt.app.resources.all_visible_papers_evaluated
+import com.paperconnekt.app.resources.already_scored
+import com.paperconnekt.app.resources.criteria
+import com.paperconnekt.app.resources.evaluate_new_papers
+import com.paperconnekt.app.resources.evaluating_papers
+import com.paperconnekt.app.resources.failed_count
+import com.paperconnekt.app.resources.goal_optional
+import com.paperconnekt.app.resources.gpt_model_name
+import com.paperconnekt.app.resources.logic
+import com.paperconnekt.app.resources.parallel_review_hint
+import com.paperconnekt.app.resources.parallel_scores_hint
+import com.paperconnekt.app.resources.rescore_all
+import com.paperconnekt.app.resources.research_target_description
+import com.paperconnekt.app.resources.research_target_hint
+import com.paperconnekt.app.resources.save
+import com.paperconnekt.app.resources.save_and_evaluate
+import com.paperconnekt.app.resources.stop
 
 internal fun newRelevanceCriterion(
     field: RelevanceField = RelevanceField.KEYWORDS,
@@ -73,14 +97,14 @@ internal fun RelevanceTargetPanel(
         Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(painterResource(Res.drawable.filled_auto_awesome), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                Text("Research target", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text(stringResource(Res.string.research_target), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primaryContainer) {
-                    Text("GPT-6 Luna", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    Text(stringResource(Res.string.gpt_model_name), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
                 }
             }
             Text(
-                "Describe what you are looking for. The AI rates every paper from 0 % (unrelated) to 100 % (fully compatible).",
+                stringResource(Res.string.research_target_description),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -88,15 +112,15 @@ internal fun RelevanceTargetPanel(
             OutlinedTextField(
                 value = draft.goal,
                 onValueChange = { onDraftChange(draft.copy(goal = it)) },
-                label = { Text("Goal (optional)") },
-                placeholder = { Text("e.g. Short-term load forecasting for smart grids") },
+                label = { Text(stringResource(Res.string.goal_optional)) },
+                placeholder = { Text(stringResource(Res.string.research_target_hint)) },
                 minLines = 2,
                 maxLines = 4,
                 textStyle = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Text("Criteria", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(Res.string.criteria), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             draft.criteria.forEachIndexed { index, criterion ->
                 CriterionCard(
                     criterion = criterion,
@@ -111,13 +135,13 @@ internal fun RelevanceTargetPanel(
             ) {
                 Icon(painterResource(Res.drawable.filled_add), null, Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Add criterion")
+                Text(stringResource(Res.string.add_criterion))
             }
 
             draft.expression().takeIf { it.isNotEmpty() }?.let { expression ->
                 Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
                     Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Logic", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(Res.string.logic), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(expression, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
                     }
                 }
@@ -126,28 +150,28 @@ internal fun RelevanceTargetPanel(
             HorizontalDivider()
 
             when {
-                !relevance.isAvailable -> Text("AI scoring is unavailable. Configure an OpenAI API key in settings.",
+                !relevance.isAvailable -> Text(stringResource(Res.string.ai_scoring_unavailable),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 relevance.isEvaluating -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "Evaluating ${relevance.evaluated}/${relevance.total}" +
-                                if (relevance.failed > 0) " · ${relevance.failed} failed" else "",
+                            stringResource(Res.string.evaluating_papers, relevance.evaluated, relevance.total) +
+                                if (relevance.failed > 0) stringResource(Res.string.failed_count, relevance.failed) else "",
                             style = MaterialTheme.typography.labelLarge,
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = onStop, modifier = Modifier.interactivePointer()) {
                             Icon(painterResource(Res.drawable.filled_stop), null, Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Stop")
+                            Text(stringResource(Res.string.stop))
                         }
                     }
                     LinearProgressIndicator(
                         progress = { if (relevance.total == 0) 0f else relevance.evaluated.toFloat() / relevance.total },
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(2.dp))
                     )
-                    Text(if (graphWide || connectionsOnly) "Up to 8 papers in parallel. Review AI suggestions when evaluation finishes."
-                        else "Up to 8 papers in parallel. Scores appear on the map as they arrive.",
+                    Text(if (graphWide || connectionsOnly) stringResource(Res.string.parallel_review_hint)
+                        else stringResource(Res.string.parallel_scores_hint),
                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 dirty -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -158,9 +182,9 @@ internal fun RelevanceTargetPanel(
                     ) {
                         Icon(painterResource(Res.drawable.filled_auto_awesome), null, Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Save & evaluate")
+                        Text(stringResource(Res.string.save_and_evaluate))
                     }
-                    OutlinedButton(onClick = { onSave(false) }, modifier = Modifier.interactivePointer()) { Text("Save") }
+                    OutlinedButton(onClick = { onSave(false) }, modifier = Modifier.interactivePointer()) { Text(stringResource(Res.string.save)) }
                 }
                 else -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Button(
@@ -171,19 +195,19 @@ internal fun RelevanceTargetPanel(
                         Icon(if (pending > 0) painterResource(Res.drawable.filled_auto_awesome) else painterResource(Res.drawable.filled_check), null, Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(when {
-                            relevance.profile.isEmpty -> "Add a criterion to evaluate"
-                            pending > 0 -> "Evaluate $pending new paper${if (pending == 1) "" else "s"}"
-                            connectionsOnly -> "All connections evaluated"
-                            graphWide -> "All graph papers evaluated"
-                            else -> "All papers in view evaluated"
+                            relevance.profile.isEmpty -> stringResource(Res.string.add_criterion_to_evaluate)
+                            pending > 0 -> stringResource(Res.string.evaluate_new_papers, pending)
+                            connectionsOnly -> stringResource(Res.string.all_connections_evaluated)
+                            graphWide -> stringResource(Res.string.all_graph_papers_evaluated)
+                            else -> stringResource(Res.string.all_visible_papers_evaluated)
                         })
                     }
                     if (scored > 0) Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("$scored of ${visibleIds.distinct().size} already scored for this target",
+                        Text(stringResource(Res.string.already_scored, scored, visibleIds.distinct().size),
                             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f))
                         TextButton(onClick = onReset, modifier = Modifier.interactivePointer()) {
-                            Text("Re-score all", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(Res.string.rescore_all), style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }

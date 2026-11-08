@@ -10,7 +10,16 @@ import com.paperconnekt.app.resources.filled_description
 import com.paperconnekt.app.resources.filled_info
 import com.paperconnekt.app.resources.filled_link
 import com.paperconnekt.app.resources.filled_title
+import com.paperconnekt.app.resources.abstract_label
+import com.paperconnekt.app.resources.copy_authors
+import com.paperconnekt.app.resources.copy_paper_title
+import com.paperconnekt.app.resources.no_abstract_available
+import com.paperconnekt.app.resources.pdf_not_attached
+import com.paperconnekt.app.resources.show_less
+import com.paperconnekt.app.resources.show_more
+import com.paperconnekt.app.resources.untitled_paper
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
@@ -49,6 +58,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.paperconnekt.app.resources.pdf_available
+import com.paperconnekt.app.resources.publication_details
+import com.paperconnekt.app.resources.publication_venue
+import com.paperconnekt.app.resources.identifiers_sources
+import com.paperconnekt.app.resources.keywords_tags
+import com.paperconnekt.app.resources.record
+import com.paperconnekt.app.resources.source
+import com.paperconnekt.app.resources.file
+import com.paperconnekt.app.resources.paper_id
+import com.paperconnekt.app.resources.local_library
+import com.paperconnekt.app.resources.copy_item
+import com.paperconnekt.app.resources.date
+import com.paperconnekt.app.resources.volume
+import com.paperconnekt.app.resources.issue
+import com.paperconnekt.app.resources.pages
+import com.paperconnekt.app.resources.doi
+import com.paperconnekt.app.resources.zotero
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -77,7 +103,7 @@ fun PaperDetailsPanel(
                     verticalAlignment = Alignment.Top,
                 ) {
                     Text(
-                        text = paper.title.ifBlank { "Untitled paper" },
+                        text = paper.title.ifBlank { stringResource(Res.string.untitled_paper) },
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -87,7 +113,7 @@ fun PaperDetailsPanel(
                     Spacer(Modifier.width(6.dp))
                     CopyIconButton(
                         textToCopy = paper.title,
-                        contentDescription = "Copy paper title",
+                        contentDescription = stringResource(Res.string.copy_paper_title),
                         size = 30.dp,
                         iconSize = 15.dp,
                     )
@@ -107,7 +133,7 @@ fun PaperDetailsPanel(
                         )
                         CopyIconButton(
                             textToCopy = authors,
-                            contentDescription = "Copy authors",
+                            contentDescription = stringResource(Res.string.copy_authors),
                             size = 30.dp,
                             iconSize = 15.dp,
                         )
@@ -137,7 +163,8 @@ fun PaperDetailsPanel(
                     color = MaterialTheme.colorScheme.primaryContainer,
                 ) {
                     Text(
-                        text = if (paper.filePath != null) "PDF available" else "PDF not attached",
+                        text = if (paper.filePath != null) stringResource(Res.string.pdf_available)
+                        else stringResource(Res.string.pdf_not_attached),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -147,12 +174,12 @@ fun PaperDetailsPanel(
             }
 
             DetailCard(
-                title = "Abstract",
+                title = stringResource(Res.string.abstract_label),
                 icon = Res.drawable.filled_description,
                 copyText = abstract,
             ) {
                 Text(
-                    text = abstract ?: "No abstract available for this publication.",
+                    text = abstract ?: stringResource(Res.string.no_abstract_available),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     lineHeight = 20.sp,
@@ -166,21 +193,21 @@ fun PaperDetailsPanel(
                         contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp),
                         modifier = Modifier.interactivePointer(),
                     ) {
-                        Text(if (abstractExpanded) "Show less" else "Show more")
+                        Text(stringResource(if (abstractExpanded) Res.string.show_less else Res.string.show_more))
                     }
                 }
             }
 
             val publicationFields = listOfNotNull(
-                paper.publicationName?.takeIf { it.isNotBlank() }?.let { "Publication" to it },
-                paper.publicationDate?.takeIf { it.isNotBlank() }?.let { "Date" to it },
-                paper.volume?.takeIf { it.isNotBlank() }?.let { "Volume" to it },
-                paper.issue?.takeIf { it.isNotBlank() }?.let { "Issue" to it },
-                paper.pages?.takeIf { it.isNotBlank() }?.let { "Pages" to it },
+                paper.publicationName?.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.publication_venue) to it },
+                paper.publicationDate?.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.date) to it },
+                paper.volume?.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.volume) to it },
+                paper.issue?.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.issue) to it },
+                paper.pages?.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.pages) to it },
             )
             if (publicationFields.isNotEmpty()) {
                 DetailCard(
-                    title = "Publication details",
+                    title = stringResource(Res.string.publication_details),
                     icon = Res.drawable.filled_article,
                 ) {
                     publicationFields.forEach { (label, value) ->
@@ -190,13 +217,13 @@ fun PaperDetailsPanel(
             }
 
             val identifiers = listOfNotNull(
-                paper.doi?.takeIf { it.isNotBlank() }?.let { "DOI" to it },
-                paper.url?.takeIf { it.isNotBlank() }?.let { "Source" to it },
-                paper.filePath?.takeIf { it.isNotBlank() }?.let { "File" to it },
+                paper.doi?.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.doi) to it },
+                paper.url?.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.source) to it },
+                paper.filePath?.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.file) to it },
             )
             if (identifiers.isNotEmpty()) {
                 DetailCard(
-                    title = "Identifiers & sources",
+                    title = stringResource(Res.string.identifiers_sources),
                     icon = Res.drawable.filled_link,
                 ) {
                     identifiers.forEach { (label, value) ->
@@ -207,7 +234,7 @@ fun PaperDetailsPanel(
 
             if (tags.isNotEmpty()) {
                 DetailCard(
-                    title = "Keywords & tags",
+                    title = stringResource(Res.string.keywords_tags),
                     icon = Res.drawable.filled_title,
                 ) {
                     FlowRow(
@@ -232,11 +259,11 @@ fun PaperDetailsPanel(
             }
 
             DetailCard(
-                title = "Record",
+                title = stringResource(Res.string.record),
                 icon = Res.drawable.filled_info,
             ) {
-                DetailLine("Source", if (paper.id.startsWith("zotero:")) "Zotero" else "Local library")
-                DetailLine("Paper ID", paper.id, copyable = true)
+                DetailLine(stringResource(Res.string.source), if (paper.id.startsWith("zotero:")) stringResource(Res.string.zotero) else stringResource(Res.string.local_library))
+                DetailLine(stringResource(Res.string.paper_id), paper.id, copyable = true)
             }
         }
     }
@@ -279,7 +306,7 @@ private fun DetailCard(
                 copyText?.let {
                     CopyIconButton(
                         textToCopy = it,
-                        contentDescription = "Copy $title",
+                        contentDescription = stringResource(Res.string.copy_item, title),
                         size = 28.dp,
                         iconSize = 14.dp,
                     )
@@ -317,7 +344,7 @@ private fun DetailLine(
         if (copyable) {
             CopyIconButton(
                 textToCopy = value,
-                contentDescription = "Copy $label",
+                contentDescription = stringResource(Res.string.copy_item, label),
                 size = 26.dp,
                 iconSize = 13.dp,
             )
