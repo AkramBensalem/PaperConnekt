@@ -68,28 +68,25 @@ For the feature roadmap, see [the branch plan](docs/branch-plan.md).
 
 ## Quick start
 
-### Prerequisites
+Choose the option that matches your goal:
 
-- JDK 17 or newer
-- Git
-- Android Studio or IntelliJ IDEA with Kotlin Multiplatform support
-- Docker, if you want to run the web app with the included container
+- **Just run the app:** install Docker Desktop (Windows) or Docker Engine
+  (Linux), then follow [Run the web app with Docker](docs/installation.md#option-a-run-the-web-app-with-docker).
+- **Run the native desktop app:** follow
+  [Build and run from source](docs/installation.md#option-b-build-and-run-from-source).
+- **Develop or package the project:** follow
+  [Developer setup and builds](docs/installation.md#developer-setup-and-builds).
 
-Clone the repository and open it in your IDE:
+The web option is currently the simplest way to run PaperConnekt on Windows or
+Linux. There is not yet a published native Windows or Linux installer.
+
+### Run the web app with Docker
+
+After installing Docker, the quickest start is:
 
 ```bash
 git clone https://github.com/AkramBensalem/PaperConnekt.git
 cd PaperConnekt
-```
-
-More detailed setup, platform commands, and troubleshooting are in
-[Installation](docs/installation.md).
-
-### Run the web app with Docker
-
-This is the easiest way to try the browser target:
-
-```bash
 docker compose up --build
 ```
 
