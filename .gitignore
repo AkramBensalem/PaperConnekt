@@ -1,5 +1,6 @@
 .gradle/
 .idea/
+.intellijPlatform/
 .kotlin
 build/
 **/build/
@@ -12,4 +13,3 @@ local.properties
 .paperconnekt/
 *.keystore
 *.jks
-
