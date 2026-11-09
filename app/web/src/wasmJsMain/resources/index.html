@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0d47a1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.webmanifest">
     <title>PaperConnekt</title>
     <style>
         html, body, #paperconnekt {
@@ -12,6 +15,37 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
+        }
+
+        body {
+            background: #0d47a1;
+        }
+
+        #paperconnekt-splash {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            display: grid;
+            place-items: center;
+            background: #0d47a1;
+            opacity: 1;
+            transition: opacity 180ms ease-out;
+        }
+
+        #paperconnekt-splash img {
+            width: min(36vw, 192px);
+            height: min(36vw, 192px);
+        }
+
+        #paperconnekt-splash.is-hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #paperconnekt-splash {
+                transition: none;
+            }
         }
     </style>
     <script>
@@ -35,6 +69,35 @@
     <script type="module" src="paperconnekt.js"></script>
 </head>
 <body>
+<div id="paperconnekt-splash" role="status" aria-label="Loading PaperConnekt">
+    <img src="paperconnekt-splash.svg" alt="">
+</div>
 <div id="paperconnekt"></div>
+<script>
+    const appContainer = document.getElementById("paperconnekt");
+    const splash = document.getElementById("paperconnekt-splash");
+    let splashHidden = false;
+
+    function hideSplashWhenReady() {
+        if (
+            splashHidden ||
+            !appContainer ||
+            !splash ||
+            appContainer.childElementCount === 0
+        ) {
+            return;
+        }
+        splashHidden = true;
+        splash.classList.add("is-hidden");
+        splash.addEventListener("transitionend", () => splash.remove(), {once: true});
+        setTimeout(() => splash.remove(), 220);
+    }
+
+    new MutationObserver(hideSplashWhenReady).observe(appContainer, {
+        childList: true,
+        subtree: true
+    });
+    requestAnimationFrame(hideSplashWhenReady);
+</script>
 </body>
 </html>

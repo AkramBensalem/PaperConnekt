@@ -104,11 +104,20 @@ fun paperAgentSystemPrompt(
                 pages.isEmpty() && state.markdown.missingApiKey -> appendLine("Not available: the Mistral API key is missing. Tell the user to add it in Settings so you can read the paper. You can still list and manage annotations.")
                 pages.isEmpty() -> appendLine("Not available yet${state.markdown.error?.let { " ($it)" } ?: ""}. Call read_pages to load it.")
                 else -> {
+                    val loadedPages = pages.indices.filter { it in state.markdown.loadedPageIndices }
+                    if (!state.markdown.hasPageBoundaries || loadedPages.size == state.pageCount) {
+                        appendLine("All OCR pages are available.")
+                    } else {
+                        appendLine("OCR is on demand. Only pages ${loadedPages.joinToString { (it + 1).toString() }} are available right now; call read_pages for the specific pages needed instead of reading the whole paper.")
+                    }
                     if (!state.markdown.hasPageBoundaries) appendLine("This Markdown has no page boundaries, so page numbers below are approximate.")
                     val cleaned = pages.map(::agentMarkdown)
                     val current = state.pageIndex.coerceIn(0, cleaned.lastIndex)
-                    if (cleaned.sumOf { it.length } <= maxMarkdownChars) {
-                        cleaned.forEachIndexed { index, page -> appendLine("<page number=\"${index + 1}\">").appendLine(page).appendLine("</page>") }
+                    val available = if (state.markdown.hasPageBoundaries) loadedPages else cleaned.indices.toList()
+                    if (available.sumOf { cleaned[it].length } <= maxMarkdownChars) {
+                        available.forEach { index ->
+                            appendLine("<page number=\"${index + 1}\">").appendLine(cleaned[index]).appendLine("</page>")
+                        }
                     } else if (knowledge != null) {
                         appendLine("The paper is long, so only its map and the reader's current page are included. Retrieve everything else with search_paper, then read_chunks for full passages.")
                         appendLine("### Paper map")
@@ -118,7 +127,8 @@ fun paperAgentSystemPrompt(
                     } else {
                         appendLine("The paper is long, so only an outline and the pages around the reader are included. Use read_pages or search_paper for anything else.")
                         appendLine("### Outline")
-                        cleaned.forEachIndexed { index, page ->
+                        available.forEach { index ->
+                            val page = cleaned[index]
                             markdownHeading.findAll(page).take(8).forEach { appendLine("- p${index + 1}: ${excerpt(it.groupValues[1], 100)}") }
                         }
                         (maxOf(0, current - 1)..minOf(cleaned.lastIndex, current + 1)).forEach { index ->
@@ -148,7 +158,7 @@ fun paperAgentSystemPrompt(
     appendLine(
         """
         ## How to work
-        - Ground every answer in the paper. When the needed passage is not already above, call search_paper (mode=relevant by default, mode=exact for literal terms, numbers or symbols), then read_chunks for any result you rely on that was truncated or needs surrounding context. Use get_outline to navigate sections. Prefer a few focused searches over reading whole pages.
+        - Ground every answer in the paper. For a focused question, call read_pages for the smallest relevant page range. Use search_paper (mode=relevant by default, mode=exact for literal terms, numbers or symbols) only when the answer requires finding material across the paper; it may OCR the remaining pages. Then use read_chunks for any result you rely on that was truncated or needs surrounding context. Use get_outline to navigate sections.
         - Cite evidence like "(p. 4, §3.2 Method) [c12]": the page and section shown in each result, then its chunk ID in square brackets (several as [c3, c4]). The reader does not see the IDs; the app checks them against the paper and lists the cited passages as Sources, so cite only IDs you actually read. Never invent content that is not in the paper; if retrieval finds nothing, say so instead of guessing.
         - When a question has several independent parts, request all the searches you need in one step; they run in parallel.
         - "This page", "here" or "the current page" refer to the reader's current page. "This", "the selection" or "the selected text" refer to the selected text or selected annotation.
@@ -208,11 +218,11 @@ class PaperAgentToolbox(
 
     val tools: List<AgentTool> get() = listOf(
         tool("get_reader_context", "Get the reader's current page, selected text, selected annotation and the annotation list. Call it again after the user may have moved.") { paperAgentLiveContext(state) },
-        tool("read_pages", "Read the Markdown content of one or more pages.", int("start_page", "First page (1-based)."), int("end_page", "Last page, inclusive. Defaults to start_page.", false)) { args ->
-            val pages = markdownPages() ?: return@tool missingMarkdown()
-            val start = args.requireInt("start_page").coerceIn(1, pages.size)
-            val end = (args.int("end_page") ?: start).coerceIn(start, minOf(pages.size, start + 5))
-            (start..end).joinToString("\n") { "<page number=\"$it\">\n${agentMarkdown(pages[it - 1])}\n</page>" }
+        tool("read_pages", "OCR and read only one to six requested pages. This is the preferred way to inspect a paper without processing the whole PDF.", int("start_page", "First page (1-based)."), int("end_page", "Last page, inclusive. Defaults to start_page.", false)) { args ->
+            val start = args.requireInt("start_page").coerceIn(1, state.pageCount.coerceAtLeast(1))
+            val end = (args.int("end_page") ?: start).coerceIn(start, minOf(state.pageCount.coerceAtLeast(start), start + 5))
+            val pages = markdownPages(start - 1..end - 1) ?: return@tool missingMarkdown()
+            (start..end).joinToString("\n") { "<page number=\"$it\">\n${agentMarkdown(pages[it - start])}\n</page>" }
         },
         knowledgeTool(
             "search_paper",
@@ -467,6 +477,7 @@ class PaperAgentToolbox(
 
     /** Index of the open paper, shared with the system prompt through the same cache. Call it on [ui]. */
     suspend fun currentIndex(): PaperIndex? {
+        if (!workspace.isMarkdownComplete()) return null
         val pages = markdownPages() ?: return null
         return knowledge.index(knowledgePaperId(), pages)
     }
@@ -489,10 +500,14 @@ class PaperAgentToolbox(
     private fun number(name: String, description: String) = AgentToolParameter(name, description, NUMBER, false)
     private fun color() = AgentToolParameter("color", "Color name (${agentColors.keys.joinToString()}) or #rrggbb. Defaults to the reader's current color.", STRING, false)
 
-    private suspend fun markdownPages(): List<String>? = workspace.awaitMarkdown().pages.takeIf { it.isNotEmpty() }
+    private suspend fun markdownPages(requestedPages: IntRange? = null): List<String>? =
+        withContext(ui) { workspace.awaitMarkdown(requestedPages) }.pages.takeIf { it.isNotEmpty() }
 
-    private fun missingMarkdown() = if (state.markdown.missingApiKey) "The Markdown version is unavailable: add a Mistral API key in Settings."
-    else "The Markdown version is unavailable${state.markdown.error?.let { ": $it" } ?: "."}"
+    private fun missingMarkdown() = if (state.markdown.missingApiKey) {
+        "The Markdown version is unavailable: add a Mistral API key in Settings."
+    } else {
+        "The requested pages could not be OCR'd${state.markdown.error?.let { ": $it" } ?: "."}"
+    }
 
     private fun page(args: AgentToolArguments): Int {
         val page = args.requireInt("page")

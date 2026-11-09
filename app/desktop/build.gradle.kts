@@ -1,3 +1,5 @@
+import org.gradle.jvm.tasks.Jar
+
 plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.compose.multiplatform)
@@ -31,7 +33,18 @@ configurations.configureEach {
 compose.desktop {
     application {
         mainClass = "com.paperconnekt.desktop.MainKt"
+        val splashImage = project.file("src/main/resources/icons/paperconnekt.png")
+        val isRunningLocally = gradle.startParameter.taskNames.any { taskName ->
+            taskName == "run" || taskName.endsWith(":run")
+        }
+        val splashArgument = if (isRunningLocally) {
+            "-splash:${splashImage.absolutePath}"
+        } else {
+            "-splash:\$APPDIR/icons/paperconnekt.png"
+        }
+        jvmArgs(splashArgument)
         nativeDistributions {
+            appResourcesRootDir.set(project.layout.projectDirectory.dir("src/main/resources"))
             linux {
                 iconFile.set(project.file("src/main/resources/icons/paperconnekt.png"))
             }
@@ -42,5 +55,11 @@ compose.desktop {
                 iconFile.set(project.file("src/main/resources/icons/paperconnekt.icns"))
             }
         }
+    }
+}
+
+tasks.withType<Jar>().configureEach {
+    manifest {
+        attributes["SplashScreen-Image"] = "icons/paperconnekt.png"
     }
 }

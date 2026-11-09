@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.PaperConnekt.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/paperconnekt_splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.PaperConnekt</item>
+    </style>
+
+    <style name="Theme.PaperConnekt" parent="android:style/Theme.Material.Light.NoActionBar" />
+</resources>

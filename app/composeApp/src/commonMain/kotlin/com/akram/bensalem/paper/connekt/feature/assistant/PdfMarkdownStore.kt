@@ -28,7 +28,7 @@ data class OcrPageLayout(
 @Serializable
 data class OcrLayout(val model: String = MISTRAL_OCR_MODEL, val pages: List<OcrPageLayout> = emptyList())
 
-/** Persists the hidden Markdown version of a PDF so it is converted only once. */
+/** Persists the hidden Markdown version of a PDF so each OCR'd page is converted only once. */
 interface PdfMarkdownStore {
     val syncError: String? get() = null
 

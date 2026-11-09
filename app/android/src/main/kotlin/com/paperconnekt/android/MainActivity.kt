@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.runtime.remember
 import com.paperconnekt.app.PaperConnektApp
 import com.paperconnekt.storage.AndroidWorkspaceStorage
@@ -15,6 +16,7 @@ class MainActivity : ComponentActivity() {
     private var pdfSelection: CompletableDeferred<String?>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         setAndroidApplicationContext(applicationContext)
         setContent {

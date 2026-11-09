@@ -24,6 +24,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
@@ -34,21 +36,42 @@ class PdfMarkdownException(message: String, cause: Throwable? = null) : Exceptio
 
 interface PdfMarkdownConverter {
     suspend fun convert(pdf: ByteArray, fileName: String, apiKey: String): OcrDocument
+
+    /** Converts only the zero-based PDF pages requested by the caller when the provider supports it. */
+    suspend fun convert(pdf: ByteArray, fileName: String, apiKey: String, pages: IntRange): OcrDocument =
+        convert(pdf, fileName, apiKey)
 }
 
 
-private val markdownPageMarker = Regex("(?m)^<!-- paperconnekt:ocr-page \\d+ -->\\r?$")
+private val markdownPageMarker = Regex("(?m)^<!-- paperconnekt:ocr-page (\\d+) -->\\r?$")
 
 internal fun hasMarkdownPages(markdown: String): Boolean = markdownPageMarker.containsMatchIn(markdown)
 
+internal fun markdownPageEntries(markdown: String): Map<Int, String> {
+    if (!hasMarkdownPages(markdown)) return emptyMap()
+    val matches = markdownPageMarker.findAll(markdown).toList()
+    return matches.mapIndexed { index, match ->
+        match.groupValues[1].toInt() to markdown.substring(
+            match.range.last + 1,
+            matches.getOrNull(index + 1)?.range?.first ?: markdown.length,
+        ).trim()
+    }.toMap()
+}
+
 internal fun markdownPages(markdown: String): List<String> {
     if (!hasMarkdownPages(markdown)) return listOf(markdown)
-    return markdownPageMarker.split(markdown).drop(1).map { it.trim() }
+    val entries = markdownPageEntries(markdown)
+    return List((entries.keys.maxOrNull() ?: -1) + 1) { entries[it].orEmpty() }
 }
 
 internal fun pagedMarkdown(pages: List<String>): String =
     pages.mapIndexed { index, text -> "<!-- paperconnekt:ocr-page $index -->\n\n${text.trim()}" }
         .joinToString("\n\n")
+
+internal fun pagedMarkdown(pages: Map<Int, String>): String =
+    pages.toSortedMap().entries.joinToString("\n\n") { (index, text) ->
+        "<!-- paperconnekt:ocr-page $index -->\n\n${text.trim()}"
+    }
 
 
 /** Rewrites Mistral image references `](img-0.jpeg)` to `](figures/<safe id>)`. */
@@ -145,7 +168,18 @@ class MistralOcrConverter(
 ) : PdfMarkdownConverter {
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun convert(pdf: ByteArray, fileName: String, apiKey: String): OcrDocument {
+    override suspend fun convert(pdf: ByteArray, fileName: String, apiKey: String): OcrDocument =
+        convertInternal(pdf, fileName, apiKey, null)
+
+    override suspend fun convert(pdf: ByteArray, fileName: String, apiKey: String, pages: IntRange): OcrDocument =
+        convertInternal(pdf, fileName, apiKey, pages)
+
+    private suspend fun convertInternal(
+        pdf: ByteArray,
+        fileName: String,
+        apiKey: String,
+        pageRange: IntRange?,
+    ): OcrDocument {
         val key = apiKey.trim()
         if (key.isEmpty()) throw PdfMarkdownException("Add your Mistral API key in Settings → API keys.")
         val upload = try {
@@ -171,6 +205,9 @@ class MistralOcrConverter(
                     put("type", "document_url")
                     put("document_url", signed.url)
                 }
+                pageRange?.takeIf { !it.isEmpty() }?.let { requested ->
+                    put("pages", buildJsonArray { requested.forEach { add(JsonPrimitive(it)) } })
+                }
                 put("include_image_base64", true)
                 put("include_blocks", true)
                 put("extract_header", true)
@@ -185,10 +222,10 @@ class MistralOcrConverter(
             if (pages.any { it.index < 0 } || pages.map { it.index }.distinct().size != pages.size) {
                 throw PdfMarkdownException("Mistral OCR returned invalid page numbers.")
             }
-            val byIndex = pages.associateBy { it.index }
-            val markdown = linkOcrFigures(pagedMarkdown(
-                List(pages.last().index + 1) { byIndex[it]?.markdown.orEmpty() }
-            ), images.keys)
+            val markdown = linkOcrFigures(
+                pagedMarkdown(pages.associate { it.index to it.markdown }),
+                images.keys,
+            )
             return OcrDocument(markdown, images.mapKeys { safePathSegment(it.key) }, ocrLayout(pages, model))
         } catch (exception: Exception) {
             throw wrap(exception)

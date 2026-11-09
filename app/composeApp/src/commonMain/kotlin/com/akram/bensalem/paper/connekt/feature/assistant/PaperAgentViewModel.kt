@@ -189,7 +189,12 @@ class PaperAgentViewModel(
         annotationAiRunning = true
         viewModelScope.launch {
             try {
-                if (includePageContext || includePaperContext) workspace.awaitMarkdown()
+                val contextPages = if (includePaperContext && !includePageContext) {
+                    null
+                } else {
+                    pageContextStart..pageContextEnd
+                }
+                if (includePageContext || includePaperContext) workspace.awaitMarkdown(contextPages)
                 val target = workspace.state.target
                 val context = buildString {
                     appendLine("Selected text (always relevant):")
@@ -290,7 +295,12 @@ class PaperAgentViewModel(
                 if (conversation.copy(messages = conversation.messages.take(pending)).needsCompaction()) {
                     compactNow(upTo = (pending - KEEP_AFTER_AUTO_COMPACT).coerceAtLeast(conversation.compactedCount))
                 }
-                workspace.awaitMarkdown()
+                val contextPages = if (includePaperContext && !includePageContext) {
+                    null
+                } else {
+                    pageContextStart..pageContextEnd
+                }
+                workspace.awaitMarkdown(contextPages)
                 prepareSemanticSearch()
                 var ideaBoardError: String? = null
                 val ideas = try {
@@ -307,7 +317,7 @@ class PaperAgentViewModel(
                     actions += action
                     liveActions += action
                 }
-                val paperIndex = if (includePaperContext) toolbox.currentIndex() else null
+                val paperIndex = if (includePaperContext && workspace.isMarkdownComplete()) toolbox.currentIndex() else null
                 val history = conversation.messages.subList(conversation.compactedCount.coerceAtMost(pending), pending)
                     .filterNot { it.isError }
                     .map { turn -> AgentTurn(turn.role, turn.quote?.let { "About: \"${it.take(600)}\"\n${turn.text}" } ?: turn.text) }
@@ -513,6 +523,7 @@ class PaperAgentViewModel(
      */
     private suspend fun prepareSemanticSearch() {
         val embedder = embedder() ?: return
+        if (!workspace.isMarkdownComplete()) return
         val pages = workspace.state.markdown.pages.takeIf { it.isNotEmpty() } ?: return
         try {
             knowledge.embed(knowledge.index(knowledgeKey(), pages), embedder, embeddingUsage(embedder))

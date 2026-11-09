@@ -69,6 +69,7 @@ fun Workplace(
 ) {
     var selectedPanel by remember(paper.id) { mutableStateOf(0) }
     var focusMode by remember(paper.id) { mutableStateOf(false) }
+    var chatBoxExpanded by remember(paper.id) { mutableStateOf(true) }
     var ideaToOpen by remember(paper.id) { mutableStateOf<String?>(null) }
     val attachmentKey = pdfWorkspace?.paperStorageKey()
     val hasPdfAnnotations = pdfWorkspace != null &&
@@ -227,6 +228,8 @@ fun Workplace(
                 }
                 2 -> if (paperAgent != null && pdfWorkspace != null) PaperAgentPanel(
                     paperAgent, pdfWorkspace, headerCollapsed = headerCollapsed,
+                    chatBoxExpanded = chatBoxExpanded,
+                    onChatBoxExpandedChange = { chatBoxExpanded = it },
                     onOpenIdea = { id -> ideaToOpen = id; selectedPanel = 3 }
                 )
                 else AiAgentsSection(
@@ -273,7 +276,7 @@ fun Workplace(
             BoxWithConstraints(Modifier.weight(1f)) {
                 if (maxWidth >= 900.dp) Row(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f)) { PdfViewer(paper) }
-                    Surface(Modifier.widthIn(min = 0.dp, max = 340.dp).fillMaxHeight()) { supportingContent(true) }
+                    Surface(Modifier.widthIn(min = PdfReaderMinSidebarWidth, max = 340.dp).fillMaxHeight()) { supportingContent(true) }
                 } else Column {
                     Box(Modifier.weight(1f)) { PdfViewer(paper) }
                     Box(Modifier.weight(1f)) { supportingContent(true) }

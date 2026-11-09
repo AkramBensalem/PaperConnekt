@@ -59,6 +59,7 @@ enum class ReaderViewMode { Pdf, Markdown }
 
 data class PdfMarkdownState(
     val content: String? = null,
+    val layout: OcrLayout? = null,
     val loading: Boolean = false,
     val converting: Boolean = false,
     val error: String? = null,
@@ -68,6 +69,12 @@ data class PdfMarkdownState(
     val busy: Boolean get() = loading || converting
     val pages: List<String> by lazy { content?.let(::markdownPages).orEmpty() }
     val hasPageBoundaries: Boolean get() = content?.let(::hasMarkdownPages) == true
+    val loadedPageIndices: Set<Int> get() = when {
+        content == null -> emptySet()
+        !hasPageBoundaries -> pages.indices.toSet()
+        layout != null -> layout.pages.map { it.index }.toSet()
+        else -> markdownPageEntries(content).keys
+    }
 }
 
 data class PdfWorkspaceState(
@@ -341,11 +348,11 @@ class PdfWorkspaceViewModel(
         state = PdfWorkspaceState()
     }
 
-    /** Shows the hidden Markdown version, converting with Mistral OCR only when none is saved yet. */
+    /** Shows the hidden Markdown version, converting the whole PDF because the user explicitly opened this view. */
     fun showMarkdown() {
         if (paperStorageKey() == null || state.draft != null) return
         state = state.copy(viewMode = ReaderViewMode.Markdown, selectedKey = null, textSelection = null)
-        if (state.markdown.content == null && markdownJob?.isActive != true) loadMarkdown(force = false)
+        if (!isMarkdownComplete() && markdownJob?.isActive != true) loadMarkdown(force = false)
     }
 
     fun showPdf() {
@@ -362,7 +369,7 @@ class PdfWorkspaceViewModel(
         if (markdownJob?.isActive != true) loadMarkdown(force = true)
     }
 
-    private fun loadMarkdown(force: Boolean) {
+    private fun loadMarkdown(force: Boolean, requestedPages: IntRange? = null) {
         val target = state.target
         val account = config
         val token = session
@@ -373,11 +380,22 @@ class PdfWorkspaceViewModel(
                 if (token == session) state = state.copy(markdown = state.markdown.block())
             }
             try {
-                val saved = if (force) null else markdownStore.load(key)
-                if (saved != null) {
-                    update { PdfMarkdownState(content = saved, syncError = markdownStore.syncError) }
-                    alignMarkdownPage()
-                    return@launch
+                val savedDocument = if (force) null else markdownStore.loadDocument(key)
+                if (savedDocument != null) {
+                    update {
+                        PdfMarkdownState(
+                            content = savedDocument.markdown,
+                            layout = savedDocument.layout,
+                            syncError = markdownStore.syncError,
+                        )
+                    }
+                    val complete = !hasMarkdownPages(savedDocument.markdown) ||
+                        state.markdown.loadedPageIndices.containsAll((0 until state.pageCount).toSet())
+                    val requested = requestedPages?.let { it.intersectPageRange(state.pageCount) }
+                    if (complete || requested != null && state.markdown.loadedPageIndices.containsAll(requested.toSet())) {
+                        alignMarkdownPage()
+                        return@launch
+                    }
                 }
                 val apiKey = try {
                     mistralApiKey().trim()
@@ -413,21 +431,34 @@ class PdfWorkspaceViewModel(
                         exception,
                     )
                 }
-                val converted = markdownConverter.convert(bytes, target?.attachment?.data?.filename ?: "paper.pdf", apiKey)
+                val requested = requestedPages?.let { it.intersectPageRange(state.pageCount) }
+                val converted = if (requested == null) {
+                    markdownConverter.convert(bytes, target?.attachment?.data?.filename ?: "paper.pdf", apiKey)
+                } else {
+                    markdownConverter.convert(bytes, target?.attachment?.data?.filename ?: "paper.pdf", apiKey, requested)
+                }
                 ensureActive()
                 if (token != session) return@launch
-                val markdown = markdownStore.save(key, converted)
+                val existing = if (force) null else markdownStore.loadDocument(key)
+                val merged = mergeOcrDocuments(existing, converted, state.pageCount)
+                val markdown = markdownStore.save(key, merged)
                 usageRecorder(
                     usagePaperId(target, state.localStorageKey),
                     AiUsageEvent(
                         service = AiUsageService.OCR,
                         timestamp = Clock.System.now().toEpochMilliseconds(),
                         inputUnits = converted.layout?.pages?.size?.toLong()
-                            ?: markdownPages(converted.markdown).size.toLong(),
+                            ?: markdownPageEntries(converted.markdown).size.toLong(),
                         model = converted.layout?.model ?: MISTRAL_OCR_MODEL,
                     )
                 )
-                update { PdfMarkdownState(content = markdown, syncError = markdownStore.syncError) }
+                update {
+                    PdfMarkdownState(
+                        content = markdown,
+                        layout = merged.layout,
+                        syncError = markdownStore.syncError,
+                    )
+                }
                 alignMarkdownPage()
                 if (force) state = state.copy(message = "Markdown version regenerated")
             } catch (exception: Exception) {
@@ -1009,13 +1040,25 @@ class PdfWorkspaceViewModel(
         }
     }
 
-    /** Loads or creates the hidden Markdown version without switching the reader; the agent only reads Markdown. */
-    suspend fun awaitMarkdown(): PdfMarkdownState {
+    /** Loads or creates OCR for [pages], or the whole PDF when no range is supplied. */
+    suspend fun awaitMarkdown(pages: IntRange? = null): PdfMarkdownState {
         if (paperStorageKey() == null) return state.markdown
-        if (state.markdown.content == null && markdownJob?.isActive != true) loadMarkdown(force = false)
+        val requested = pages?.intersectPageRange(state.pageCount)
+        val ready = if (requested == null) {
+            isMarkdownComplete()
+        } else {
+            state.markdown.loadedPageIndices.containsAll(requested.toSet())
+        }
+        if (!ready && markdownJob?.isActive != true) loadMarkdown(force = false, requestedPages = requested)
         markdownJob?.join()
         return state.markdown
     }
+
+    fun isMarkdownComplete(): Boolean =
+        state.markdown.content != null && (
+            !state.markdown.hasPageBoundaries ||
+                state.markdown.loadedPageIndices.containsAll((0 until state.pageCount).toSet())
+            )
 
     /** Text layer of any page, used to anchor agent annotations on pages that are not currently rendered. */
     suspend fun pageText(index: Int): PdfPageText? {
@@ -1187,4 +1230,28 @@ class PdfWorkspaceViewModel(
         close()
         super.onCleared()
     }
+}
+
+private fun IntRange.intersectPageRange(pageCount: Int): IntRange? {
+    if (pageCount <= 0) return null
+    val first = first.coerceIn(0, pageCount - 1)
+    val last = last.coerceIn(0, pageCount - 1)
+    return if (first <= last) first..last else last..first
+}
+
+private fun mergeOcrDocuments(existing: OcrDocument?, incoming: OcrDocument, pageCount: Int): OcrDocument {
+    val existingPages = existing?.markdown?.takeIf(::hasMarkdownPages)?.let(::markdownPageEntries).orEmpty()
+    val incomingPages = incoming.markdown.takeIf(::hasMarkdownPages)?.let(::markdownPageEntries).orEmpty()
+    val pages = existingPages + incomingPages
+    val count = maxOf(pageCount, pages.keys.maxOrNull()?.plus(1) ?: 0)
+    val markdown = if (count == 0) incoming.markdown
+    else pagedMarkdown((0 until count).associateWith { pages[it].orEmpty() })
+    val layouts = (existing?.layout?.pages.orEmpty() + incoming.layout?.pages.orEmpty())
+        .associateBy { it.index }.values.sortedBy { it.index }
+    val layout = (incoming.layout ?: existing?.layout)?.let { it.copy(pages = layouts) }
+    return OcrDocument(
+        markdown = markdown,
+        images = existing?.images.orEmpty() + incoming.images,
+        layout = layout,
+    )
 }

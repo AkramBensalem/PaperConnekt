@@ -9,6 +9,7 @@ import androidx.compose.ui.window.v2.WindowPositionProvider
 import androidx.compose.ui.window.v2.WindowSizeProvider
 import androidx.compose.ui.window.application
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
@@ -34,6 +35,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.awt.SplashScreen
 
 fun main(args: Array<String>) {
     if ("--mcp" in args) runStdioMcpServer()
@@ -64,6 +66,9 @@ private fun desktopApplication(mcpHost: DesktopMcpHost) = application {
         state = windowState,
         minSize = DpSize(640.dp, 480.dp),
     ) {
+        LaunchedEffect(Unit) {
+            SplashScreen.getSplashScreen()?.close()
+        }
         MenuBar {
             AppMenuGroup.entries.forEach { group ->
                 Menu(group.title, mnemonic = group.title.first()) {

@@ -74,6 +74,7 @@ import com.paperconnekt.app.resources.earlier_messages_summarized
 import com.paperconnekt.app.resources.earlier_steps_count
 import com.paperconnekt.app.resources.expand_message_composer
 import com.paperconnekt.app.resources.from_page
+import com.paperconnekt.app.resources.collapse_chat_box
 import com.paperconnekt.app.resources.loading_saved_chats
 import com.paperconnekt.app.resources.message
 import com.paperconnekt.app.resources.more_actions
@@ -87,6 +88,7 @@ import com.paperconnekt.app.resources.quick_range
 import com.paperconnekt.app.resources.recheck
 import com.paperconnekt.app.resources.retry_chat_storage
 import com.paperconnekt.app.resources.send
+import com.paperconnekt.app.resources.expand_chat_box
 import com.paperconnekt.app.resources.source_location
 import com.paperconnekt.app.resources.sources_summary
 import com.paperconnekt.app.resources.steps_summary
@@ -110,7 +112,8 @@ private val agentSuggestions = listOf(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel, modifier: Modifier = Modifier,
-    headerCollapsed: Boolean = false, onOpenIdea: (String) -> Unit = {}) {
+    headerCollapsed: Boolean = false, chatBoxExpanded: Boolean = true,
+    onChatBoxExpandedChange: (Boolean) -> Unit = {}, onOpenIdea: (String) -> Unit = {}) {
     val state = workspace.state
     val conversation = agent.conversation
     val openAction: (PaperAgentAction) -> Unit = { action ->
@@ -210,6 +213,18 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                         HeaderButton(painterResource(Res.drawable.filled_history), if (agent.showHistory) "Back to chat" else "Chat history",
                             enabled = !agent.running, selected = agent.showHistory,
                             onClick = { agent.run(PaperAgentCommand.History) })
+                        if (!agent.showHistory) {
+                            HeaderButton(
+                                icon = painterResource(
+                                    if (chatBoxExpanded) Res.drawable.filled_expand_less
+                                    else Res.drawable.filled_expand_more
+                                ),
+                                label = stringResource(if (chatBoxExpanded) Res.string.collapse_chat_box else Res.string.expand_chat_box),
+                                enabled = !agent.running,
+                                selected = !chatBoxExpanded,
+                                onClick = { onChatBoxExpandedChange(!chatBoxExpanded) },
+                            )
+                        }
                         HeaderButton(painterResource(Res.drawable.filled_more_vert), "More chat actions",
                             enabled = !agent.running && agent.messages.isNotEmpty()) { menu = true }
                     }
@@ -304,6 +319,8 @@ fun PaperAgentPanel(agent: PaperAgentViewModel, workspace: PdfWorkspaceViewModel
                 state = state,
                 preview = previewInput,
                 onPreviewChange = { previewInput = it },
+                expanded = chatBoxExpanded,
+                onExpandedChange = onChatBoxExpandedChange,
             )
         }
     }
@@ -315,6 +332,8 @@ private fun AgentComposer(
     state: PdfWorkspaceState,
     preview: Boolean,
     onPreviewChange: (Boolean) -> Unit,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
 ) {
     val pageCount = state.readerPageCount.coerceAtLeast(1)
     BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -325,13 +344,15 @@ private fun AgentComposer(
             agent.send()
             if (constrained) composerExpanded = false
         }
-        if (constrained && !composerExpanded && agent.input.isBlank() && !preview) {
+        if (!expanded || (constrained && !composerExpanded && agent.input.isBlank() && !preview)) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surface,
                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                onClick = { composerExpanded = true },
+                onClick = {
+                    if (expanded) composerExpanded = true else onExpandedChange(true)
+                },
             ) {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -388,6 +409,20 @@ private fun AgentComposer(
                 ContextChip(painterResource(Res.drawable.filled_description), "Page ${state.pageIndex + 1}/$pageCount")
                 Spacer(Modifier.weight(1f))
                 PageRangeSelector(agent, pageCount, state.pageIndex)
+            }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                FilledTonalButton(
+                    onClick = { onExpandedChange(false) },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp),
+                    modifier = Modifier.height(34.dp).testTag("paper-agent-collapse-chat").interactivePointer(),
+                ) {
+                    Icon(painterResource(Res.drawable.filled_expand_less), null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(Res.string.collapse_chat_box), maxLines = 1)
+                }
             }
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(5.dp),

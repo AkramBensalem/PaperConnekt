@@ -4,7 +4,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="PaperConnekt"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        android:theme="@style/Theme.PaperConnekt.Starting">
         <activity
             android:name=".MainActivity"
             android:exported="true">

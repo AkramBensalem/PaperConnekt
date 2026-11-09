@@ -12,6 +12,7 @@ import com.akram.bensalem.paper.connekt.feature.assistant.PaperKnowledgeCache
 import com.akram.bensalem.paper.connekt.feature.assistant.PdfMarkdownStore
 import com.akram.bensalem.paper.connekt.feature.assistant.agentMarkdown
 import com.akram.bensalem.paper.connekt.feature.assistant.defaultPdfMarkdownStore
+import com.akram.bensalem.paper.connekt.feature.assistant.hasMarkdownPages
 import com.akram.bensalem.paper.connekt.feature.assistant.markdownPages
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroItem
 import com.akram.bensalem.paper.connekt.shared.zotero.model.zotero.ZoteroCollection
@@ -130,7 +131,12 @@ class PaperLibrary(
     /** Markdown pages of [paper], or null when it has no PDF or the PDF was not converted yet. */
     suspend fun pages(paper: LibraryPaper): List<String>? {
         val key = paper.markdownKey ?: return null
-        val pages = markdown.load(key)?.let(::markdownPages) ?: return null
+        val raw = markdown.load(key) ?: return null
+        val pages = raw.let(::markdownPages)
+        val layout = markdown.loadLayout(key)
+        if (hasMarkdownPages(raw) && layout != null &&
+            !layout.pages.map { it.index }.toSet().containsAll(pages.indices.toSet())
+        ) return null
         return pages.takeIf { it.any(String::isNotBlank) }
     }
 

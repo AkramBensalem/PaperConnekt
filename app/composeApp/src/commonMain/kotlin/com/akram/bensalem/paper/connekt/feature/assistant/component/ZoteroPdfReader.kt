@@ -279,6 +279,7 @@ import com.paperconnekt.app.resources.generate_insert
 
 internal val annotationColors = listOf("#ffd400", "#ff6666", "#5fb236", "#2ea8e5", "#a28ae5")
 internal val annotationColorNames = listOf("Yellow", "Red", "Green", "Blue", "Purple")
+internal val PdfReaderMinSidebarWidth = 320.dp
 
 private val LocalNucleusPdfReaderState = compositionLocalOf<PdfReaderState?> { null }
 internal fun annotationColor(hex: String): Color = Color(0xff000000L or hex.removePrefix("#").toLong(16))
@@ -999,11 +1000,11 @@ fun ZoteroPdfReader(
         }
         if (wide && sidebarVisible && !focusMode) {
             VerticalDivider()
-            val minSidebarWidth = 280.dp
+            val minSidebarWidth = PdfReaderMinSidebarWidth
             val maxSidebarWidth = (readerWidth / 2f).coerceAtLeast(minSidebarWidth)
             val resolvedSidebarWidth = sidebarWidth.coerceIn(minSidebarWidth, maxSidebarWidth)
             val resizeSidebarDescription = stringResource(Res.string.resize_sidebar)
-            Box(Modifier.width(resolvedSidebarWidth).fillMaxHeight()) {
+            Box(Modifier.widthIn(min = minSidebarWidth).width(resolvedSidebarWidth).fillMaxHeight()) {
                 Surface(
                     Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.surfaceContainerLow

@@ -32,4 +32,6 @@ private class BrowserMarkdownStore : PdfMarkdownStore {
     }
 
     override suspend fun loadDocument(key: String): OcrDocument? = documents[key]
+
+    override suspend fun loadLayout(key: String): OcrLayout? = documents[key]?.layout
 }

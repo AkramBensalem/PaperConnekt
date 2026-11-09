@@ -56,7 +56,7 @@ flowchart TB
 
 ### 2.1 Knowledge layer (new `shared/knowledge` KMP module, no UI)
 
-- **Canonical source:** paged OCR Markdown (`<!-- paperconnekt:ocr-page N -->`) plus `OcrLayout` boxes. Nothing replaces it.
+- **Canonical source:** paged OCR Markdown (`<!-- paperconnekt:ocr-page N -->`) plus `OcrLayout` boxes. Pages are OCR'd and persisted on demand: opening chat starts with the selected reader pages, `read_pages` adds only its requested range, and whole-paper indexing is reserved for an explicit broad search or full-paper request.
 - **Chunker:** splits by heading, then paragraph, with a target of about 350–600 tokens and a 1-paragraph overlap. It never crosses a page boundary without recording both pages. Tables, equations, and figure captions are atomic chunks.
 - **`PaperChunk`:** `id = paperId:ocrVersion:ordinal`, `paperId`, `pages`, `sectionPath` (for example `3 Method > 3.2 Loss`), `kind` (text, table, equation, caption, references, abstract), `text`, `charRange`, `bbox?` (from `OcrLayout` → enables "jump and flash on the PDF").
 - **Lexical index:** BM25 in pure Kotlin. It is fast, free, and deterministic. Section-title and abstract boosts. It handles exact terms (model names, numbers, symbols) better than vectors.
@@ -72,7 +72,7 @@ Tools keep the app's own `AgentTool` contract (name, description, typed `AgentTo
 
 | Group | Tools | Thread | Exposed via MCP |
 | --- | --- | --- | --- |
-| Knowledge | `search_paper` (hybrid, returns cited chunks), `read_chunks`, `read_pages` (kept as fallback), `get_outline`, `get_figure`, `find_references`, `search_library`, `get_paper_metadata` | `Dispatchers.Default`, safe to parallelise | yes |
+| Knowledge | `search_paper` (hybrid, returns cited chunks), `read_chunks`, `read_pages` (on-demand OCR), `get_outline`, `get_figure`, `find_references`, `search_library`, `get_paper_metadata` | `Dispatchers.Default`, safe to parallelise | yes |
 | Library and discovery | `search_openalex`, `list_annotations`, `list_ideas`, `read_idea` | IO | yes |
 | Reader actions | `go_to_page`, `highlight_text`, `add_note`, `draw_*`, `update/delete_annotation`, `select_annotation` | Main | no (in-app only) |
 | Idea board writes | `create_idea`, `update_idea` | Main | opt-in "write" scope |
